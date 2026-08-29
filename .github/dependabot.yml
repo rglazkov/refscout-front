@@ -1,0 +1,34 @@
+# Nothing here is ever silenced. There are no `ignore` entries and no filtering
+# of major releases: an update the team is not ready for is still an update the
+# team has to know about, because an update nobody sees is an update nobody
+# schedules. Noise is handled by grouping the dull updates together so the
+# interesting ones stand out - never by hiding them.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    groups:
+      # One pull request a week for everything routine. Majors are deliberately
+      # left out of every group, so each arrives on its own and is impossible to
+      # mistake for background noise.
+      routine:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies

@@ -1,0 +1,434 @@
+{
+  "meta": {
+    "imageAlt": "The {brandName} logo",
+    "home": {
+      "title": "{brandName} — check your manuscript before you submit",
+      "description": "Bring a PDF, .docx, .tex or .bib. Every reference is checked against live scholarly databases and you get back the points a reviewer notices first."
+    },
+    "features": {
+      "title": "Features — {brandName}",
+      "description": "What {brandName} checks: reference accuracy, source discovery, abbreviation consistency and venue compliance, in one pass over your manuscript."
+    },
+    "pricing": {
+      "title": "Pricing — {brandName}",
+      "description": "What {brandName} costs and what a free run includes."
+    },
+    "account": {
+      "title": "Account — {brandName}",
+      "description": "Sign in to {brandName}."
+    },
+    "privacy": {
+      "title": "Privacy — {brandName}",
+      "description": "What {brandName} receives, what stays in your browser and what is stored."
+    }
+  },
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "signIn": "Sign in",
+    "menu": "Menu",
+    "home": "{brandName} home",
+    "privacy": "Privacy"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "label": "Language",
+    "more": "More languages are on the way. Switching changes the whole interface and keeps you on this page."
+  },
+  "workspace": {
+    "title": "Check your manuscript before you submit",
+    "lead": "Drop a PDF, .docx, .tex, .bib or .md. {brandName} reads the text, checks every reference against live scholarly databases and shows you what a reviewer will notice first.",
+    "reloadLoses": "Reloading this page loses the buffer: the extracted text lives in this tab only. Download anything you want to keep before you leave.",
+    "starting": "Starting the check…",
+    "failedTitle": "The check did not run",
+    "failedBody": "Job {jobId} failed. Your documents are untouched — go back and try again.",
+    "backToBuffer": "Back to the buffer",
+    "dropzone": {
+      "title": "Drop your documents here",
+      "titleMore": "Drop more documents here",
+      "choose": "Choose files",
+      "reading": "Reading…",
+      "paste": "Paste text",
+      "orPaste": "or press",
+      "pasteShortcut": "Ctrl+V",
+      "limits": "TXT · MD · BIB · TEX · GLS — up to {maxSizeMb} MB per file, {maxDocuments} documents"
+    },
+    "about": {
+      "title": "What {brandName} checks",
+      "footnote": "Full Check runs every applicable check in one pass.",
+      "seeAll": "See all features"
+    }
+  },
+  "intake": {
+    "refusal": {
+      "fileTooLarge": "{name} is {sizeMb} MB, and the limit is {limitMb} MB per file.",
+      "tooMany": "That would make {count} documents, and the buffer holds {limit}.",
+      "docTooLarge": "{name} has {chars} characters, and one document may have {limit}.",
+      "jobTooLarge": "That would make {chars} characters in the buffer, and the limit is {limit}.",
+      "unsupported": "{name} is a .{extension} file, which is not read yet. Save it as .txt, .md, .bib, .tex or .gls, or paste the text."
+    },
+    "paste": {
+      "title": "Paste or type text",
+      "lead": "It becomes an element of the buffer like any file: a name, a volume, checks, a way to remove it.",
+      "fieldLabel": "Text to add to the buffer",
+      "defaultName": "Pasted text",
+      "close": "Close",
+      "add": "Add to buffer",
+      "nothingTyped": "There is nothing to add yet — type or paste some text first.",
+      "syntax": {
+        "auto": "Auto",
+        "latex": "LaTeX",
+        "bibtex": "BibTeX",
+        "markdown": "Markdown",
+        "text": "Plain text"
+      }
+    }
+  },
+  "buffer": {
+    "heading": "Buffer",
+    "clearAll": "Clear all",
+    "inBuffer": "In the buffer: {documents} documents · {chars} characters",
+    "willSend": "Will be sent: {documents} documents · {chars} characters",
+    "spineCount": "{documents} documents",
+    "show": "Show",
+    "nameOpensText": "The name opens the text — read it and correct it before it is sent.",
+    "volume": "{words} words · {chars} characters",
+    "edited": "edited",
+    "checkFor": "Check for",
+    "venueLabel": "Venue",
+    "noChecks": "no checks ticked",
+    "remove": "Remove {name}",
+    "removeConfirmTitle": "Remove this document",
+    "removeConfirm": "{name} and its text will be gone, and there is nowhere to get them back from.",
+    "removeConfirmYes": "Remove",
+    "cancel": "Keep it",
+    "clearConfirmTitle": "Clear the buffer",
+    "clearConfirm": "All {documents} documents and every edit you made will be gone. Download anything you want first.",
+    "clearConfirmYes": "Clear everything",
+    "venueLine": "Venue: {source}",
+    "extract": {
+      "reading": "reading…",
+      "extracting": "extracting…",
+      "needs-password": "needs a password",
+      "empty": "no text found",
+      "suspicious": "the text looks wrong",
+      "failed": "could not be read"
+    },
+    "venue": {
+      "open": "Venue requirements for {name}",
+      "notSet": "Not set",
+      "title": "Venue requirements",
+      "lead": "They belong to {name}. Two manuscripts in the buffer mean two venues.",
+      "ways": "Where the requirements come from",
+      "way": {
+        "preset": "From the list",
+        "url": "By address",
+        "text": "Pasted text",
+        "file": "From a file"
+      },
+      "presetLabel": "Venue",
+      "presetEmpty": "Choose a venue",
+      "pickFirst": "Choose a venue from the list first.",
+      "urlLabel": "Address of the page for authors",
+      "addressFirst": "Type the address of the page first.",
+      "load": "Load requirements",
+      "loading": "Loading…",
+      "textLabel": "Requirements",
+      "textFirst": "Paste the requirements first.",
+      "fileLabel": "Requirements file",
+      "use": "Use these",
+      "clear": "Remove the venue",
+      "wayOut": "You can paste the requirements in by hand instead.",
+      "notRequirements": "no requirements on that page",
+      "failed": "could not be read",
+      "timeout": "the site did not answer",
+      "state": {
+        "failed": "That address could not be read.",
+        "timeout": "That address did not answer in time.",
+        "not-requirements": "That page opened, but there are no requirements on it — it may be the journal's front page rather than its page for authors."
+      }
+    }
+  },
+  "editor": {
+    "done": "Done",
+    "volume": "{chars} characters · {words} words",
+    "readOnlyReason": "Read-only here: an edit would move the findings, and recomputing where they point comes later. Edit before a run, or download the text.",
+    "fieldLabel": "The text of {name}"
+  },
+  "plan": {
+    "heading": "Check plan",
+    "willRunLabel": "Will run",
+    "nothingToRun": "Nothing ticked yet — tick a check on a document above.",
+    "venuesLabel": "Venue requirements",
+    "venuesNone": "— PreSubmit is not ticked on any document",
+    "venueNotSet": "not set",
+    "accessChecking": "Checking access for the paid checks…",
+    "accessOpen": "PreSubmit and Cite are paid checks. Your access is open, so both can run.",
+    "accessOpenUntil": "PreSubmit and Cite are paid checks. Your access is open until {date}.",
+    "accessLocked": "PreSubmit and Cite are paid checks. Access is currently closed; free checks can still run.",
+    "learnPaid": "See what they do",
+    "excluded": "is not included — {reason}.",
+    "configure": "Configure",
+    "reason": {
+      "no-text": "no text",
+      "no-checks": "no checks ticked"
+    },
+    "settings": {
+      "bibcheck": "BibCheck",
+      "verifyLive": "Verify against live databases",
+      "showOrphans": "Report entries nothing cites",
+      "countCommented": "Count commented-out entries",
+      "unifyKeys": "Rewrite citation keys to one format",
+      "keyFormat": "Key format",
+      "keyFormats": {
+        "author-year": "Author and year",
+        "author-year-title": "Author, year, title",
+        "author-title-year": "Author, title, year",
+        "numeric": "Numeric"
+      },
+      "sortBy": "Order of entries",
+      "sortOrders": {
+        "author": "By author",
+        "year": "By year",
+        "title": "By title",
+        "key": "By key",
+        "cited-order": "In the order they are cited",
+        "original": "As they arrived"
+      },
+      "glossary": "Glossary",
+      "domain": "Subject area",
+      "presubmit": "PreSubmit",
+      "anonymity": "Check for anonymity before blind review",
+      "checklist": "Reproducibility checklist",
+      "cite": "Cite",
+      "field": "Field",
+      "maxPerClaim": "Sources per claim",
+      "instructions": "Instructions for Cite"
+    }
+  },
+  "job": {
+    "run": "Run the check",
+    "running": "Sending…",
+    "checkingTitle": "Checking your documents",
+    "elapsed": "elapsed",
+    "resultsAppear": "results appear as each check finishes",
+    "cancel": "Cancel",
+    "cancelling": "Cancelling…",
+    "nothingToSend": "Nothing to send yet: add a document and tick at least one check on it.",
+    "textToSend": "Text to be sent: {documents, plural, one {# document} other {# documents}}",
+    "characters": "{chars} characters",
+    "accessChecking": "Paid checks: checking access…",
+    "accessOpen": "Paid checks: access open",
+    "accessOpenUntil": "Paid checks: access open until {date}",
+    "accessLocked": "Paid checks: access closed — free checks will still run",
+    "progressOf": "{done} of {total}"
+  },
+  "results": {
+    "heading": "Check results",
+    "documentsChecked": "{documents, plural, one {# document} other {# documents}} · checked {when}",
+    "readyNow": "Ready now",
+    "acrossDocuments": "Across all documents",
+    "scoresNotAveraged": "Scores are never averaged — only these counters are added up.",
+    "finishedNote": "This check is finished. You can still edit and download the text. To check again, start a new check from the drop zone; the new check starts with an empty buffer.",
+    "characters": "{chars} characters",
+    "openInEditor": "Open in the editor",
+    "download": "Download",
+    "downloadReport": "Findings report (.md)",
+    "downloadText": "Text of {name}",
+    "downloadArtifact": "Generated file from {module}",
+    "newCheck": "New check",
+    "newCheckTitle": "Start a new check",
+    "newCheckConfirm": "This destroys the documents, your edits and these results, and there is nowhere to get them back from. Download what you need first.",
+    "newCheckYes": "Clear and start over",
+    "cancel": "Keep everything",
+    "open": "Open ({count})",
+    "close": "Close",
+    "skipped": "Not checked — there was nothing for this check to look at.",
+    "claimsLabel": "{count, plural, one {claim} other {claims}}",
+    "findingsLabel": "{count, plural, one {finding} other {findings}}",
+    "citeNoScore": "Cite does not score a document — it either found candidates or it did not.",
+    "checkNoScore": "This check reports findings without assigning a score.",
+    "moduleFailed": "This check failed: {code}",
+    "fixed": "Fixed",
+    "copy": "Copy",
+    "openSource": "Open the source",
+    "severityName": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Note"
+    },
+    "severity": {
+      "critical": "{count} critical",
+      "warning": "{count} warnings",
+      "info": "{count} notes",
+      "criticalLabel": "critical",
+      "warningLabel": "{count, plural, one {warning} other {warnings}}",
+      "notRunLabel": "{count, plural, one {check not run} other {checks not run}}"
+    },
+    "status": {
+      "critical": "Critical",
+      "warning": "Needs work",
+      "clear": "Clear",
+      "noScore": "No score",
+      "notChecked": "Not checked",
+      "failed": "Failed"
+    },
+    "retryModule": "Re-run only this check",
+    "scoreOutOf": "Score: {score} out of 100"
+  },
+  "access": {
+    "pro": "Pro",
+    "title": "{module} is a paid check",
+    "description": {
+      "bibcheck": "BibCheck verifies bibliography records and citations against live scholarly databases.",
+      "glossary": "Glossary finds abbreviation inconsistencies and prepares reusable LaTeX definitions.",
+      "presubmit": "PreSubmit checks venue requirements, anonymity and submission readiness before you submit.",
+      "cite": "Cite finds claims that need a source and proposes real candidates you can inspect before accepting."
+    },
+    "benefit": {
+      "before": "The lock is shown before a check starts, never after you have filled in settings.",
+      "visible": "Every candidate and result remains visible for you to inspect.",
+      "export": "Generated citations and corrected files can be downloaded from the results."
+    },
+    "notNow": "Not now",
+    "upgrade": "See Pro options"
+  },
+  "report": {
+    "title": "Findings",
+    "fileName": "refscout-findings",
+    "generatedAt": "Produced {date}",
+    "counts": "{critical} critical · {warning} warnings",
+    "nothing": "Nothing was found in this document.",
+    "line": "line",
+    "page": "page",
+    "quote": "quote",
+    "fixed": "marked fixed",
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Note"
+    }
+  },
+  "errors": {
+    "unknown": "Something on the server refused this request.",
+    "codes": {
+      "SCHEMA_INVALID": "The server did not understand the request.",
+      "AUTH_REQUIRED": "That check needs you to be signed in.",
+      "ACCESS_CLOSED": "That check needs paid access, and access is not open right now.",
+      "CSRF_INVALID": "This session has expired. Reload the page and try again.",
+      "JOB_NOT_FOUND": "That check no longer exists.",
+      "MODULE_NOT_RETRYABLE": "This check cannot be re-run: it did not fail.",
+      "RETRY_LIMIT_REACHED": "This check has been re-run as often as it can be.",
+      "RESULT_NOT_READY": "This check has not finished yet.",
+      "RESULT_SUPERSEDED": "A newer attempt has replaced this result.",
+      "DOC_TOO_LARGE": "One document is longer than a single check allows.",
+      "JOB_TOO_LARGE": "The buffer is longer than one check allows.",
+      "TOO_MANY_DOCUMENTS": "There are more documents than one check allows.",
+      "UNSUPPORTED_ENCODING": "The server refused the encoding of this request.",
+      "IDEMPOTENCY_KEY_REUSE": "This is our defect, not yours: the request was refused rather than run against the wrong version of your text. Nothing was checked. Press the button again.",
+      "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+      "SERVICE_UNAVAILABLE": "The service is briefly unavailable. Try again shortly.",
+      "INTERNAL_ERROR": "Something on the server went wrong.",
+      "NETWORK_FAILED": "The request did not reach the server. Check your connection and try again.",
+      "VENUE_FETCH_FAILED": "That address could not be read.",
+      "VENUE_FETCH_TIMEOUT": "That address did not answer in time.",
+      "VENUE_URL_INVALID": "That is not an address we can open."
+    }
+  },
+  "stage": {
+    "accepted": "Text accepted",
+    "bibcheck": "BibCheck",
+    "glossary": "Glossary",
+    "presubmit": "PreSubmit",
+    "cite": "Cite"
+  },
+  "bibcheck": {
+    "retracted_entry": "A retracted article is cited",
+    "uncited_source": "A source nothing in the text cites",
+    "duplicate_key": "Two entries share a citation key"
+  },
+  "glossary": {
+    "undefined_acronym": "An acronym is used without being defined",
+    "skipped": {
+      "no_acronyms": "Not checked — there are no acronyms in this document."
+    }
+  },
+  "presubmit": {
+    "author_repo_link": "A repository link identifies the author",
+    "author_in_metadata": "Author names are left in the document properties"
+  },
+  "cite": {
+    "claim_needs_source": "A claim that has no source"
+  },
+  "evidence": {
+    "matched_name": "Matched title",
+    "retracted_on": "Retracted on",
+    "retraction_watch": "Retraction Watch",
+    "confidence": "Confidence"
+  },
+  "action": {
+    "copy_url": "Copy the address",
+    "download_bibliography": "Download the corrected bibliography"
+  },
+  "artifact": {
+    "corrected_bibliography": "Corrected bibliography"
+  },
+  "footer": {
+    "rights": "© {brandName}",
+    "privacy": "Privacy",
+    "support": "Support"
+  },
+  "stub": {
+    "body": "This page is not written yet."
+  },
+  "error": {
+    "zoneTitle": "This part of the page stopped working",
+    "zoneBody": "The rest of the page is unaffected. Reloading usually clears it.",
+    "retry": "Try again",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The address does not exist. Everything else is where it was.",
+    "backHome": "Go to the start"
+  },
+  "capabilities": {
+    "scout": "Scout",
+    "cite": "Cite",
+    "bibcheck": "BibCheck",
+    "presubmit": "PreSubmit",
+    "glossary": "Glossary",
+    "diffchecker": "DiffChecker"
+  },
+  "page": {
+    "pending": "The text of this page is being written."
+  },
+  "features": {
+    "title": "Everything {brandName} checks before you submit",
+    "lead": "Bring your manuscript and its bibliography. {brandName} finds the references that do not exist, the keys that do not resolve, and the venue rules you are about to break — before a reviewer does.",
+    "intro": "You do not pick a tool. You drop in what you have — a PDF, a .tex, a .bib — and {brandName} proposes the checks that fit those documents. Below is what those checks are, in case you want to read about one on its own.",
+    "readMore": "Read more →",
+    "openWorkspace": "Open the workspace",
+    "back": "All checks"
+  },
+  "pricing": {
+    "title": "Free during the pilot",
+    "lead": "Pricing is being finalised. Full access is free while {brandName} is in its pilot phase.",
+    "badge": "Pilot",
+    "planName": "Everything, free",
+    "price": "$0",
+    "planNote": "Every check is available at no cost while the pilot runs. BibCheck, Glossary, Scout and DiffChecker have no usage limits at all.",
+    "cta": "Start using {brandName}",
+    "footnote": "Pricing will be announced here before any charges begin. No payment method is required during the pilot."
+  },
+  "pricingPlan": {
+    "scout": "Scout — find real academic sources",
+    "cite": "Cite — sources for the claims in your text",
+    "bibcheck": "BibCheck — duplicates, orphans, retractions",
+    "presubmit": "PreSubmit — venue-readiness checks",
+    "glossary": "Glossary — LaTeX acronym handling",
+    "diffchecker": "DiffChecker — compare two LaTeX versions",
+    "download": "Download in the format you brought: Word, BibTeX, LaTeX, Markdown, plain text"
+  }
+}

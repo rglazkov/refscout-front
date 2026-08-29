@@ -1,0 +1,41 @@
+# A separate trigger: updating the parsers or the editor forces the expensive
+# tests to run, even for a patch version (M0.5).
+name: parsers
+
+on:
+  pull_request:
+    paths:
+      - package-lock.json
+      - package.json
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Are the parsers affected
+        id: touched
+        run: |
+          if git diff HEAD^ HEAD -- package.json package-lock.json |
+             grep -qE '"(pdfjs-dist|codemirror|@codemirror/[a-z-]+|citation-js|@unified-latex/[a-z-]+|mammoth|turndown|markdown-it|html-to-docx)"'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.touched.outputs.run == 'true'
+        run: npm ci
+      - if: steps.touched.outputs.run == 'true'
+        run: npm run build
+      - if: steps.touched.outputs.run == 'true'
+        name: Browsers
+        run: npx playwright install --with-deps chromium
+      - if: steps.touched.outputs.run == 'true'
+        # The document corpus is added here in M2, and the editor tests in M9.
+        run: npx playwright test

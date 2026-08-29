@@ -1,0 +1,64 @@
+---
+order: 4
+icon: shield
+name: PreSubmit
+summary: "Venue compliance and submission readiness: anonymity, page limits, leftover template text, broken labels."
+title: PreSubmit — venue compliance and submission readiness
+description: The final readiness pass before you submit to a venue or a funding platform, returned as a prioritized issue list.
+---
+
+<Card title="What PreSubmit does">
+
+- Venue compliance: checks the manuscript against a venue profile, a
+  requirements URL, or requirements you paste as text.
+- Double-blind heuristics — anonymity checks that are an aid, not a compliance
+  guarantee.
+- Document structure and bibliography checks, plus ORCID and DOI sanity checks.
+- Page and abstract limits, driven by the selected venue profile.
+- Leftover template text: lorem ipsum, placeholder author and title, stray
+  `\todo` notes.
+- `\ref` and `\label` integrity — orphan references and duplicate labels.
+- Venue profiles for IEEE, ACM, NeurIPS, ICML and ACL, or your own pasted
+  requirements.
+
+</Card>
+
+## Why this matters
+
+Most desk rejections are avoidable formatting and completeness problems, not the
+science. PreSubmit is a final readiness pass: it returns a prioritized issue
+list — missing required sections, missing title or abstract, duplicated
+sentences, overlong sentences, bibliography problems — so you fix the mechanical
+issues before a reviewer ever sees them.
+
+Issues are sorted by severity, errors first, then warnings, then information,
+and each one can be marked fixed or ignored as you work through them.
+
+## Examples
+
+**Prioritized issue list.** On a draft missing its front matter, PreSubmit
+returns findings such as "missing required section", "no title detected" and "no
+authors detected", grouped by area so you work top-down.
+
+## Questions people ask
+
+**What can I bring?** LaTeX source and the common manuscript formats. A scanned
+or image-only PDF with no extractable text is detected and reported rather than
+silently passed.
+
+**Is my manuscript stored?** No manuscript text is kept after the check
+completes.
+
+**Does it guarantee acceptance?** No. It catches mechanical and completeness
+issues, not the quality or novelty of your research.
+
+**Can it check venue-specific rules?** Supply a venue's requirements and
+PreSubmit checks against them; without one it applies general
+submission-readiness checks.
+
+## Related
+
+Fix the bibliography issues it surfaces with [BibCheck](/features/bibcheck/),
+and compare your revised draft against the previous version with
+[DiffChecker](/features/diffchecker/) to confirm you changed only what you meant
+to.

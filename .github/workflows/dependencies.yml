@@ -1,0 +1,42 @@
+# The weekly digest. Dependabot opens the pull requests; this reports what is
+# available in one place, majors included, so a version that needs real
+# migration work is visible even while nobody is ready to take it.
+#
+# It never fails the build - it is a report, not a gate. The gate is the
+# `npm audit` step in the fast lane.
+name: dependencies
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: What is available
+        run: |
+          {
+            echo "## Updates available"
+            echo
+            echo '```'
+            npm outdated || true
+            echo '```'
+            echo
+            echo "## Advisories"
+            echo
+            echo '```'
+            npm audit || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

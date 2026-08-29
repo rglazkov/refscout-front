@@ -1,0 +1,223 @@
+---
+title: Privacy Policy
+description: How RefScout collects, uses, shares and retains personal data — GDPR legal bases, third-party processors, international transfers, retention, and your data-subject rights.
+---
+
+Last updated: 2026-07-05. This document describes RefScout as it currently
+operates during its friendly pilot phase and will be updated as features change.
+
+<Callout>
+
+**Short version:** we collect only what is needed to run the service. We do not
+sell your data and we do not use your content to train AI models. Manuscript
+text you submit for analysis is sent to Anthropic (Claude) to process your
+request and is not stored by us afterwards.[^storage]
+
+</Callout>
+
+**Data controller:** Insectivora Oy, the operator of RefScout. Business ID
+(Y-tunnus): 3482079-5. Registered in Tampere, Finland. Privacy contact:
+[support@refscout.app](mailto:support@refscout.app).
+
+## 1. Who we are
+
+RefScout is an academic source-discovery tool that helps researchers find and
+cite real papers. The data controller responsible for your personal data is
+Insectivora Oy. "We", "us" and "our" refer to Insectivora Oy operating RefScout.
+For any privacy question or request, contact
+[support@refscout.app](mailto:support@refscout.app).
+
+## 2. What data we collect
+
+- **Account and sign-in.** You sign in with Google, GitHub or ORCID, and we
+  receive your verified email address and a provider identifier from that
+  service. We also store a display name. Email and password registration is
+  currently disabled; if you hold a legacy password account, the password is
+  stored only as a bcrypt hash, never in plain text.
+- **Optional profile.** If you choose to provide them: discipline, institution
+  or institution type, research stage, role, and field of study. These are
+  optional and used to tailor results.
+- **Consent flags.** Whether you have opted in to analytics and to
+  product-improvement processing.
+- **Search history.** The search queries you run and which check you used, with
+  a timestamp, so you can revisit past searches.
+- **Usage counts.** Which endpoint you called and when — not the content of your
+  queries — to keep the service available and to tell which days your paid
+  access covers. The free checks have no usage limits. For signed-out users we
+  log the IP address and endpoint to keep the service available and protect it
+  from abuse.
+- **Referrals.** RefScout gives you a personal share link. If someone signs up
+  after following your link, we record only that a new account used your
+  referral code, with a timestamp. We do **not** collect or store anything about
+  the people you share your link with unless and until they choose to sign up
+  themselves — RefScout never sends an email on your behalf.
+- **Saved sources.** Paper metadata — title, authors, DOI, venue, year, and your
+  own tags, notes and rating — for the sources you choose to keep.
+- **Analytics events.** If you opt in, product-usage events (an event type and a
+  small payload) to understand how features are used.
+- **Support and feedback.** If you send a bug report, error report, feedback, or
+  an alpha-access request: the name, email and message you provide.
+- **Billing identifiers.** Only if a paid plan is ever active and you subscribe:
+  a Stripe customer ID and subscription ID. _Payments are disabled during the
+  pilot, so no billing data is collected today._ We never see or store card
+  details.
+- **Server logs.** Standard web-server logs — IP address, timestamp, HTTP
+  method, path, response code — for security and debugging.
+
+## 3. Cookies and local storage
+
+RefScout uses only a small number of cookies and browser-storage items. We do
+not use advertising or cross-site tracking cookies, and no analytics or
+third-party cookie is set when you simply visit the site.
+
+- **Session cookie (`refscout_session`).** A secure, HttpOnly cookie set only
+  after you successfully sign in, to keep you logged in. Strictly necessary;
+  cleared when you sign out.
+- **Cloudflare security cookies (`__cf_bm`, `cf_clearance`).** Set by our CDN
+  and security provider, Cloudflare, to tell humans from bots and protect the
+  service. Strictly necessary for security.
+- **Local storage on your device.** A few items are stored in your browser and
+  not sent to us as cookies: `theme` (your light or dark preference, saved only
+  when you use the theme switch); `refscout_ref` (a referral code, saved only if
+  you follow a `?ref=` share link); and, once you are signed in, `auth_token`
+  plus the working data needed to run the checks. These are functional, stay on
+  your device, and are not used for tracking.
+- **Google Sign-In.** If — and only if — you open the sign-in dialog and use
+  "Sign in with Google", we load Google's Sign-In script, which may set
+  `accounts.google.com` cookies as part of Google's authentication. This happens
+  only as a direct result of that action; the script is **not** loaded, and no
+  Google cookie is set, on a passive page visit. Signing in with GitHub or ORCID
+  uses a redirect flow that sets no such third-party cookie.
+
+Because the only non-essential third-party technology (Google Sign-In) loads
+solely on your explicit action, and nothing analytics-related runs before you
+opt in, RefScout does not use a cookie-consent banner. You can still block or
+delete cookies in your browser; the session cookie is required to stay signed
+in.
+
+## 4. What we do not store
+
+- The manuscript text you submit for analysis is sent to the Anthropic API to
+  process your request and is **not stored on our servers** after the request
+  completes.[^storage]
+- We do not use your content to train AI models, and Anthropic does not train
+  its models on API inputs under its API terms.
+- We do not sell your personal data to anyone.
+- When you share your referral link, we store **nothing** about the recipient —
+  no email address, no name, no message. RefScout does not send the message; you
+  share the link yourself.
+
+## 5. Why we process your data, and the legal basis
+
+| Purpose                                                                                                                                 | Legal basis (GDPR Art. 6)                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Create your account and authenticate you                                                                                                | Performance of a contract — Art. 6(1)(b)                      |
+| Run the checks, including sending the manuscript text you submit to Anthropic and your search terms or references to academic databases | Performance of a contract — Art. 6(1)(b)                      |
+| Save your sources, tags and notes                                                                                                       | Performance of a contract — Art. 6(1)(b)                      |
+| Keep the service available, prevent abuse of the service and third-party APIs, keep security logs                                       | Legitimate interests — Art. 6(1)(f)                           |
+| Product analytics and product-improvement processing                                                                                    | Consent — Art. 6(1)(a), only if you opt in; withdraw any time |
+| Optional profile fields                                                                                                                 | Consent — Art. 6(1)(a)                                        |
+| Process payments, when a paid plan is active — currently disabled                                                                       | Performance of a contract — Art. 6(1)(b)                      |
+
+## 6. Who we share data with
+
+We do not sell your data. We share it only with the providers needed to run
+RefScout:
+
+- **Anthropic (Claude API)** — the manuscript text and detected claims you
+  submit are sent to Anthropic to generate results. Not used to train their
+  models under the API terms.
+- **Google, GitHub, ORCID** — only if you choose that sign-in method; we receive
+  your verified email and a provider identifier.
+- **Academic search providers** — Semantic Scholar, OpenAlex, Crossref, DBLP,
+  Europe PMC, arXiv, DOAJ, HAL, IETF, CORE, bioRxiv/medRxiv and Unpaywall
+  receive your search terms or DOIs to return results. We do not send them your
+  account identity.
+- **Stripe** — payment processing. _Disabled during the pilot; no payment data
+  is shared today._
+
+## 7. International transfers
+
+Some providers process data in the United States. Where we transfer personal
+data outside the EU and EEA, we rely on an appropriate safeguard:
+
+- **Stripe, Google and GitHub** — certified under the **EU-US Data Privacy
+  Framework**.
+- **Anthropic** — not certified under that framework; transfers are covered by
+  the European Commission's **Standard Contractual Clauses** in Anthropic's
+  data-processing terms.
+
+These transfer mechanisms are re-verified periodically, as certifications can
+change.
+
+## 8. How long we keep data
+
+- **Account and profile data** — kept while your account is active; deleted
+  within 30 days of a deletion request.
+- **Search history** — kept while your account is active, or 12 months,
+  whichever is shorter; deleted with your account.
+- **Manuscript text sent for analysis** — not retained after the request
+  completes.[^storage]
+- **Usage counts and analytics events** — up to 90 days.
+- **Server logs** — up to 30 days.
+- **Backups** — purged on a rolling cycle of no more than six months.
+
+These periods are our current defaults for the pilot and may be adjusted as the
+service matures.
+
+## 9. Your rights
+
+If you are in the EU or EEA you have the right to:
+
+- **Access** a copy of the personal data we hold about you;
+- **Rectify** inaccurate data;
+- **Erase** your account and associated data;
+- **Restrict** or **object to** certain processing;
+- **Data portability** — receive your data in a portable format;
+- **Withdraw consent** at any time for anything based on consent, such as
+  analytics. This does not affect processing done before withdrawal.
+
+**How to exercise these rights.** Email
+[support@refscout.app](mailto:support@refscout.app), preferably from the email
+address on your account. Requests are handled **manually** — we do not yet offer
+an automated self-service tool — and completed within 30 days. Account and data
+deletion works the same way.
+
+## 10. Right to complain
+
+If you believe we have handled your data unlawfully, please contact us first so
+we can try to resolve it. You also have the right to lodge a complaint with the
+Finnish supervisory authority, the **Office of the Data Protection Ombudsman**
+(Tietosuojavaltuutetun toimisto):
+[tietosuoja.fi](https://tietosuoja.fi/en/notification-to-the-data-protection-ombudsman).
+
+## 11. Is providing data required?
+
+An email address and a sign-in identity are required to create an account and
+use the parts of RefScout that need one — without them we cannot provide those
+features. Optional profile fields and analytics consent are entirely voluntary
+and not required to use the service.
+
+## 12. Automated decision-making
+
+RefScout's results are **academic writing aids**. They are suggestions and
+checks to help you, not automated decisions that produce legal or similarly
+significant effects about you. GDPR Article 22 does not apply. You remain
+responsible for verifying results before relying on them.
+
+## 13. Security
+
+Passwords are hashed with bcrypt. Sessions and tokens are signed with a
+server-side secret. All traffic uses HTTPS. Payments, when active, are handled
+entirely by Stripe's PCI-compliant infrastructure.
+
+## 14. Changes to this policy
+
+We may update this policy as the service changes. Significant changes will be
+communicated to registered users. The "last updated" date at the top reflects
+the most recent revision.
+
+[^storage]:
+    Text you paste is also kept in your own browser's storage, on your device
+    and not on our servers, so that you do not lose it when you reload the page.
+    You can clear it at any time.

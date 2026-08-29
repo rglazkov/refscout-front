@@ -1,0 +1,56 @@
+---
+order: 5
+icon: type
+name: Glossary
+summary: Detect LaTeX abbreviations; generate \newacronym + \gls{} output with sourced expansions.
+title: Glossary — LaTeX abbreviations and acronyms
+description: Detect the abbreviations in your LaTeX text and get \newacronym definitions with \gls{} wrapping, ready to paste back.
+---
+
+<Card title="What Glossary does">
+
+- Detects abbreviations in your `.tex` text and generates `\newacronym`
+  definitions with `\gls{}` wrapping.
+- Takes an optional domain hint — "wireless communications", say — to
+  disambiguate expansions.
+- Reads an existing glossary file: abbreviations you already defined are
+  skipped.
+- Draws candidate expansions from academic papers and Wikipedia with source
+  evidence, never fabricated.
+
+</Card>
+
+## Why this matters
+
+Journals increasingly expect every acronym defined once, on first use, and used
+consistently after that. Doing it by hand across a long LaTeX document is
+tedious and easy to get wrong. Glossary detects the abbreviations in your text,
+generates the `\newacronym` definitions, and rewrites first and later uses with
+`\gls{}` so the glossaries package handles expansion for you.
+
+## Examples
+
+**Detect and wrap.** Input: `Convolutional Neural Network (CNN) models dominate
+vision tasks. A CNN is fine-tuned on our data.` Glossary emits
+`\newacronym{cnn}{CNN}{convolutional neural network}` and rewrites later
+mentions as `\gls{cnn}`.
+
+## Questions people ask
+
+**Which packages does it support?** It detects the acronym or glossary package
+already in your document and matches its command style; it does not force a
+package on you.
+
+**Does it edit my document automatically?** No. It returns the definitions and a
+rewritten copy for you to paste back; nothing is changed in place.
+
+**Will it catch acronyms I already defined?** Yes. Existing definitions are
+parsed and left alone, so it only adds what is genuinely missing.
+
+**Is my text stored?** No text is kept after the check completes.
+
+## Related
+
+Once acronyms are consistent, [PreSubmit](/features/presubmit/) covers the full
+readiness check, and [DiffChecker](/features/diffchecker/) confirms the acronym
+rewrite changed only what you intended.

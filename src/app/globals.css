@@ -1,0 +1,293 @@
+@import "tailwindcss";
+/* The keyframes behind the `animate-in` / `fade-in-0` / `zoom-in-95` classes the
+   shadcn/ui primitives are written with. Without it those class names resolve to
+   nothing and the dialogs, popovers, tooltips and selects appear with a jump (§2). */
+@import "tw-animate-css";
+@import "./fonts.css";
+@import "./tokens.css";
+
+/* The hero and the static feature index belong to the empty workspace. They
+   stay in the generated HTML for search engines, then fold away with the same
+   state change that compacts the drop zone after the first document (§4). */
+.workspace-empty-only {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  overflow: hidden;
+  transition:
+    grid-template-rows var(--motion-slow) var(--ease-out),
+    opacity var(--motion-exit) var(--ease-out);
+}
+
+.workspace-empty-only > * {
+  min-height: 0;
+}
+
+.home-workspace:has([data-workspace-state]:not([data-workspace-state="empty"]))
+  .workspace-empty-only {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+@keyframes dialog-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@keyframes dialog-panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+}
+
+/*
+ * The `dark:` variant matches both the system preference and an explicit
+ * choice. It is rarely needed - a colour almost always comes from a token that
+ * already knows about the theme - but where it is needed it has to behave
+ * exactly as the tokens do.
+ */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where(:root[data-theme="dark"], :root[data-theme="dark"] *) {
+    @slot;
+  }
+}
+
+/* The tokens are handed to the Tailwind utilities. `inline` means a utility
+   substitutes the variable itself rather than its value at build time -
+   otherwise switching the theme in the browser would change nothing. */
+@theme inline {
+  /* The type ladder - eight steps, and the utilities offer no others. 12-13
+     carry the labels, 14-16 the interface and the manuscript, 18-44 the
+     reading prose and the headings. Steps between these are invisible to the
+     eye but make the vertical rhythm unreadable, because no two blocks end up
+     on a shared step. */
+  --text-2xs: 0.75rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.75rem;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-nav-foreground: var(--nav-foreground);
+  --color-accent-bg: var(--accent-bg);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-critical-border: var(--critical-border);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-border: var(--ok-border);
+  --color-add-soft: var(--add-soft);
+  --color-del-soft: var(--del-soft);
+
+  /* The names the shadcn/ui components expect. These are aliases: the source
+     stays the tokens on the left, not this table (M0.2.5). */
+  --color-card-foreground: var(--foreground);
+  --color-popover-foreground: var(--foreground);
+  --color-accent: var(--accent-bg);
+  --color-accent-foreground: var(--foreground);
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--foreground);
+  --color-destructive: var(--critical);
+  --color-destructive-foreground: var(--primary-foreground);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-xs: var(--elevation-xs);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+
+  /* The threshold at which the header items move behind the menu button. Its
+     own breakpoint rather than sm/md: it belongs to the header and changes
+     together with it. */
+  --breakpoint-nav: 45rem;
+
+  /* Hover, press and colour changes are written as bare `transition-*`
+     utilities all over the components. These two make such a utility land
+     on the tokens instead of Tailwind's 150ms `ease` (§14). */
+  --default-transition-duration: var(--motion-fast);
+  --default-transition-timing-function: var(--ease-out);
+
+  --font-sans: var(--stack-sans);
+  --font-serif: var(--stack-serif);
+  --font-mono: var(--stack-mono);
+
+  /* Display tracking for the serif headings. Tailwind's `tracking-tight` is
+     -0.025em, a grotesque's habit: on a serif at display size it closes the
+     gaps the serifs need and the word turns muddy. */
+  --tracking-display: -0.01em;
+}
+
+@layer base {
+  .dialog-overlay {
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .dialog-overlay[data-state="open"] {
+    animation: dialog-scrim-in var(--motion) var(--ease-out) both;
+  }
+
+  .dialog-overlay[data-state="closed"] {
+    animation: dialog-scrim-out var(--motion-exit) var(--ease-in) both;
+  }
+
+  .dialog-panel[data-state="open"] {
+    animation: dialog-panel-in var(--motion-slow) var(--ease-out) both;
+  }
+
+  .dialog-panel[data-state="closed"] {
+    animation: dialog-panel-out var(--motion-exit) var(--ease-in) both;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--stack-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /*
+   * A reading region: a page a person came to read. The serif is the default
+   * of the whole region rather than a class repeated on every heading and
+   * paragraph, because the opposite arrangement puts the wrong font on every
+   * element nobody remembered - and that is what makes a page look patchy
+   * (§15).
+   *
+   * The exceptions are boxes, never elements: a box holding controls or data
+   * is set in the interface face as a whole, and it says so itself by pinning
+   * its own family. No box ever carries two faces, so the reader sees the
+   * change of face where the surface changes and reads it as a different kind
+   * of thing rather than as decoration.
+   */
+  [data-region="reading"] {
+    font-family: var(--stack-serif);
+  }
+
+  /* An author display rule on a component overrides the browser's
+     `[hidden] { display: none }`, and the hidden attribute silently stops
+     working. The current site already has this bug (§16, M0.2.5). */
+  [hidden] {
+    display: none !important;
+  }
+
+  /*
+   * Changing the theme is not animated at all (§14). Every surface, border and
+   * label changes colour at once, and the components that carry a bare
+   * `transition-*` utility would each interpolate on their own - hundreds of
+   * colours crossing over out of step, which reads as a rendering fault rather
+   * than as a transition.
+   *
+   * So the attribute goes on for the one frame in which the theme is swapped
+   * and the transitions are muted underneath it. Only transitions: an
+   * animation that is running says work is going on (`data-motion="busy"`),
+   * and restarting it here would be a second, unrelated glitch.
+   */
+  :root[data-theme-switching],
+  :root[data-theme-switching] *,
+  :root[data-theme-switching] *::before,
+  :root[data-theme-switching] *::after {
+    transition: none !important;
+  }
+
+  /* In Tailwind 4 the default border colour is currentColor rather than grey.
+     Any component with a `border` class and no colour draws its border in the
+     text colour: a near-black line around popovers, buttons and dialogs that
+     makes the interface look crude. The token is assigned once, here. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
+
+  /* Tailwind 4 no longer gives buttons cursor: pointer, so every new button
+     silently arrives with an arrow. One rule here is cheaper than a class
+     somebody forgets to add in the next component. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  svg {
+    display: block;
+    flex: none;
+  }
+
+  /*
+   * The single switch for motion in the whole product, and it is not ours: it
+   * is the "reduce motion" setting of the viewer's operating system. People
+   * turn it on because sliding and zooming surfaces make them dizzy or sick,
+   * so what it asks for is a requirement and not a taste (WCAG 2.3.3, §14).
+   * One rule here, rather than a check inside each component - a component
+   * that forgets the check is exactly the one that will move.
+   *
+   * Durations are cut to almost nothing rather than removed, so anything that
+   * waits for `animationend` or `transitionend` still gets its event and does
+   * not hang half-open.
+   *
+   * The exception is motion that reports that work is going on: an indicator
+   * that froze would be saying the opposite. Such an element carries
+   * data-motion="busy" and keeps running.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *:not([data-motion="busy"]),
+    *:not([data-motion="busy"])::before,
+    *:not([data-motion="busy"])::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -1,0 +1,60 @@
+---
+order: 2
+icon: code
+name: BibCheck
+summary: Duplicate keys, broken cite keys, orphan entries and retracted work in your .bib.
+title: BibCheck — bibliography and citation checking
+description: Check your .bib and your citations against your manuscript and against live scholarly databases.
+---
+
+<Card title="What BibCheck does">
+
+- Flags duplicate keys and matching titles, broken cite keys, and missing
+  references.
+- Missing and orphan citation checks against your manuscript text: entries you
+  never cite, and citations with no `.bib` entry.
+- Optional verification against live scholarly databases — roughly a second per
+  reference, about a minute for a large bibliography.
+- Retraction detection: flags a cited work that Crossref reports as retracted.
+
+</Card>
+
+## Why this matters
+
+A single duplicate key, or an entry you cite but forgot to define, can bounce a
+submission or silently drop a reference. BibCheck reads your `.bib` and your
+manuscript and returns a line-by-line problem report: duplicate keys and
+matching titles, broken cite keys, entries you never cite, and citations with no
+matching entry. Verification against live databases catches the references that
+do not resolve at all.
+
+## Examples
+
+**Duplicate detection.** Two entries, `smith2020` and `smith20`, share the DOI
+`10.1/x` — BibCheck flags `smith20` as a duplicate of `smith2020`, with the
+match type and score.
+
+**Orphan check.** Your `.bib` defines `jones2019` but the manuscript never cites
+it — reported as an uncited entry, so you can drop it before submission.
+
+## Questions people ask
+
+**Do I need the manuscript, or just the .bib?** The `.bib` alone covers
+duplicates, broken keys and malformed entries. Add the manuscript to also get
+missing-citation and orphan checks.
+
+**What does verification against databases do?** It checks your entries against
+live scholarly databases and adds up to about a minute for a large
+bibliography. It flags entries that do not resolve; it does not rewrite them.
+
+**Is my bibliography stored?** No manuscript or bibliography text is kept after
+the check completes.
+
+**Does it fix problems automatically?** No. BibCheck reports issues so you stay
+in control of the edits; it does not silently change your file.
+
+## Related
+
+Once the bibliography is clean, [PreSubmit](/features/presubmit/) covers the
+rest of the venue-readiness pass. Building a bibliography from scratch instead?
+[Cite](/features/cite/) produces a `.bib` you can bring straight back here.

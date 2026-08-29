@@ -1,0 +1,42 @@
+# The fast lane: runs on every pull request. It has to finish in minutes, or
+# people will start routing around it (M0.5).
+name: fast
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: fast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # A known vulnerability with no upstream fix is pinned down with an
+      # `overrides` entry in package.json rather than by lowering this bar. If
+      # neither is possible, the escape hatch is `--audit-level=critical` plus a
+      # comment naming the advisory - never a silent removal of this step. It
+      # stays its own step because it is the one check here that needs the
+      # network, so a registry outage reads as a registry outage.
+      - name: Known vulnerabilities
+        run: npm audit --audit-level=high
+      # One command, and deliberately so: `npm run build` runs `check` first -
+      # formatting, lint, types, the unit, architecture and localisation tests,
+      # and the contract against its generated output - then builds, copies the
+      # default language to the root, writes the headers and checks the bundle
+      # budgets. Splitting it back into named steps would look tidier in this
+      # view and would immediately start drifting from what a person runs
+      # locally, which is the one thing this lane exists to prevent. What fails
+      # is named in the log by the step that failed.
+      - name: Checks, build, headers and bundle budgets
+        run: npm run build

@@ -1,0 +1,57 @@
+---
+order: 6
+icon: columns
+name: DiffChecker
+summary: Compare two LaTeX versions side by side and see exactly which words changed.
+title: DiffChecker — compare two versions of a document
+description: Put two versions side by side and see exactly which words changed, without reflow drowning out the real edits.
+---
+
+<Card title="What DiffChecker does">
+
+- Side-by-side, line-by-line summary: removed, modified and added lines.
+- Word-level highlighting — only the spans that actually changed are marked in a
+  modified line, not the whole line.
+- Pure paragraph reflow is detected and reported separately, so it does not
+  masquerade as a real edit.
+- Export the modified version as `.txt` or copy it.
+
+</Card>
+
+## Why this matters
+
+"What actually changed between v3 and v4?" is hard to answer when a reformat
+reflows every line. DiffChecker compares the two versions, highlights the exact
+changed words, and separates content edits from pure whitespace reflow — so a
+paragraph that only rewrapped does not drown out the one sentence you actually
+rewrote.
+
+It runs entirely in your browser: nothing is sent anywhere, and it costs no
+quota.
+
+## Examples
+
+**Word-level change.** Old: `The model achieves 91% accuracy on the test set.`
+New: `The model achieves 93.5% accuracy on the held-out test set.` DiffChecker
+reports one modified line and highlights exactly `91 → 93.5` and the added
+`held-out`.
+
+## Questions people ask
+
+**Does reflowed text show up as changes?** No. Pure paragraph reflow is detected
+and reported separately.
+
+**Is my document stored?** Nothing leaves your browser at all — there is nothing
+to store.
+
+**Does it need a Git history or a special format?** No. Bring the two versions
+directly; no version control setup needed.
+
+**Can it merge the two versions?** No. DiffChecker shows what changed; it does
+not produce a merged file.
+
+## Related
+
+Use it after [PreSubmit](/features/presubmit/) to confirm a revision addressed
+the flagged issues without introducing new ones, or after
+[Glossary](/features/glossary/) to review the acronym rewrite.

@@ -1,0 +1,80 @@
+# The expensive lane: on the release branch and overnight (M0.5). The document
+# corpus lands here in M2, and the editor tests in M9.
+name: nightly
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Browsers
+        run: npx playwright install --with-deps chromium
+      # `verify` is the build - which runs the checks first - followed by the
+      # browser lane, and it is the same one command a person runs locally
+      # before opening a pull request.
+      - name: Everything, plus e2e in both themes, desktop and mobile
+        run: npm run verify
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  headers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The smoke test runs against a deployed environment: a policy applied only
+    # in the repository protects nobody.
+    if: ${{ vars.STAND_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/check-headers.mjs "${{ vars.STAND_URL }}"
+
+  # The contract test against the stand (M1.11.2). It runs from the day a stand
+  # exists, and not a week later: a mock that has drifted away from the server
+  # is a way to have green tests and a broken product, and the drift is cheapest
+  # to find on the night it appears.
+  #
+  # Gated on the variable rather than deleted while there is no stand, so that
+  # standing one up is a repository setting and not a pull request.
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ vars.API_STAND_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Browsers
+        run: npx playwright install --with-deps chromium
+      # The same path the fast lane runs against the mock, pointed at the stand:
+      # switching the source is a variable, and the application contains no
+      # branch about which of the two answered (M1.7.6).
+      - name: The whole path, against the stand
+        run: npm run verify
+        env:
+          NEXT_PUBLIC_API_SOURCE: stand
+          NEXT_PUBLIC_API_ORIGIN: ${{ vars.API_STAND_URL }}
