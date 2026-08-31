@@ -27,7 +27,7 @@ jobs:
       # before opening a pull request.
       - name: Everything, plus e2e in both themes, desktop and mobile
         run: npm run verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
