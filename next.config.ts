@@ -2,14 +2,25 @@ import createMDXPlugin from "@next/mdx";
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 
+const pagesBasePath = (process.env.PAGES_BASE_PATH ?? "").replace(/\/$/, "");
+
+if (pagesBasePath !== "" && !pagesBasePath.startsWith("/")) {
+  throw new Error("PAGES_BASE_PATH must be empty or start with a slash.");
+}
+
 /**
  * Static export: `next build` emits an `out/` folder, and there is no Node in
- * production. The consequences are accepted up front and not revisited (§2):
- * no middleware, no route handlers, no ISR, no server actions. Redirects and
+ * production. The consequences are accepted up front and not revisited: no
+ * middleware, no route handlers, no ISR, no server actions. Redirects and
  * headers are configured on the static host, not here.
  */
 const nextConfig: NextConfig = {
   output: "export",
+  // GitHub project pages live under /<repository>. Locally this stays empty.
+  basePath: pagesBasePath,
+  env: {
+    NEXT_PUBLIC_BASE_PATH: pagesBasePath,
+  },
   pageExtensions: ["ts", "tsx", "mdx"],
   // Every route is a folder with an index.html: that is what any static host serves.
   trailingSlash: true,
@@ -18,8 +29,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
-    // radix-ui is a barrel of every primitive: without this the bundle pulls
-    // in all of them instead of the six we generated (M0.9.3).
+    // radix-ui is a barrel of every primitive: without this the bundle pulls in
+    // all of them instead of the six we generated.
     optimizePackageImports: ["radix-ui", "lucide-react"],
     // `app/global-not-found.tsx` renders the whole 404 document itself. The
     // page sits outside every root layout, so without this Next wraps it in
@@ -40,7 +51,7 @@ const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
  * parsing it by hand.
  *
  * MDX compiles to components at build time, so no HTML strings appear here and
- * dangerouslySetInnerHTML is not needed (§16).
+ * dangerouslySetInnerHTML is not needed.
  */
 const withMDX = createMDXPlugin({
   extension: /\.mdx?$/,
