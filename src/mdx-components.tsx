@@ -10,12 +10,12 @@ import { cn } from "@/lib/cn";
  * MDX files themselves know nothing about classes or tokens - they hold text
  * only, and the author edits text rather than layout.
  *
- * No element here names the serif. A long text always renders inside a
- * reading region, and the region carries the family (§15); an element that
- * named it too would put the burden of remembering on whoever adds the next
- * one, and the one they forget is the one that comes out in the wrong face.
- * What is named here is the opposite - the two boxes that are not prose: a
- * data table and a block of markup pin the family they need.
+ * No element here names the serif. A long text always renders inside a reading
+ * region, and the region carries the family; an element that named it too would
+ * put the burden of remembering on whoever adds the next one, and the one they
+ * forget is the one that comes out in the wrong face. What is named here is the
+ * opposite - the two boxes that are not prose: a data table and a block of
+ * markup pin the family they need.
  *
  * That includes the measure and the leading, which is why they sit on the
  * elements rather than on the container that renders <Body />. A `[&>p]` rule
@@ -24,8 +24,8 @@ import { cn } from "@/lib/cn";
  * leaving a paragraph inside a Card with a different measure from the one
  * above it.
  *
- * MDX compiles to components at build time, so no HTML strings appear here,
- * and internal links go through next/link (§16).
+ * MDX compiles to components at build time, so no HTML strings appear here, and
+ * internal links go through next/link.
  */
 type Props<T extends keyof JSX.IntrinsicElements> = ComponentPropsWithoutRef<T>;
 

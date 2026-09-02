@@ -6,8 +6,8 @@ import { locales } from "../lib/i18n/routing";
 import { readSources } from "./utils/source-graph";
 
 /**
- * The localisation lint (M0.5): a key that is missing from the dictionary must
- * not survive as far as the screen, and a language that has fallen a few keys
+ * The localisation lint: a key that is missing from the dictionary must not
+ * survive as far as the screen, and a language that has fallen a few keys
  * behind must not be published half-translated in silence.
  */
 type Dictionary = { readonly [key: string]: string | Dictionary };
@@ -72,23 +72,27 @@ const dynamicKeys: readonly RegExp[] = [
   // A page whose title is a navigation item: nav(titleKey).
   /^nav\./,
   // The names of the checks: t(module) over the list of module identifiers,
-  // which stay in the code while their names come from here (M0.3.4).
+  // which stay in the code while their names come from here.
   /^capabilities\./,
   // States read from a value rather than written out: the extraction state of a
   // document, the state of a venue fetch, the state of a job, a severity, a
   // reason a document is not taking part, a settings choice, a syntax.
-  /^buffer\.(extract|venue\.(way|state))\./,
-  /^plan\.(reason|settings\.(keyFormats|sortOrders))\./,
+  /^buffer\.(extract|settings\.(citeSource|keyFormats|sortOrders))\./,
+  // The three slots on a document's card are drawn by one control, which reads
+  // its words by the name of the slot it was given.
+  /^buffer\.attach\.(bibcheck|glossary|venue|bibcheckCites|glossaryUsedBy)\.(label|what|pastedName|pasteTitle)$/,
+  /^buffer\.attach\.venue\.state\./,
+  /^plan\.(reason|missing)\./,
   /^intake\.paste\.syntax\./,
   /^job\.state\./,
   /^results\.severity\./,
   // A refusal from the server, looked up by its code, and the general refusal
-  // an unfamiliar code falls back to (M1.7.7).
+  // an unfamiliar code falls back to.
   /^errors\.(codes\.|unknown$)/,
   /**
    * The phrases the modules ask for by key. The server sends a key and its
    * substitutions rather than a ready-made sentence, so these are reached
-   * through `phrase(issue.titleKey)` and never as a literal (§15).
+   * through `phrase(issue.titleKey)` and never as a literal.
    */
   /^(stage|bibcheck|glossary|presubmit|cite|evidence|action|artifact)\./,
 ];
@@ -100,9 +104,9 @@ const dynamicKeys: readonly RegExp[] = [
  * that was removed and left its words behind - stops being invisible.
  */
 const plannedKeys: readonly string[] = [
-  // The language switcher in the header (§15). It is not built while there is
-  // one language, because a menu with a single row answers nothing; its words
-  // wait here, and `unlocalizedPath` waits in lib/seo.
+  // The language switcher in the header. It is not built while there is one
+  // language, because a menu with a single row answers nothing; its words wait
+  // here, and `unlocalizedPath` waits in lib/seo.
   "language.label",
   "language.more",
 ];

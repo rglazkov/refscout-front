@@ -4,18 +4,18 @@ import * as React from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { ApiError, NetworkError, submitJob } from "@/lib/api";
-import { buildSubmission } from "@/lib/docs";
-import { type BufferItem, type CheckOptions } from "@/lib/domain";
+import { buildSubmission, withCompanions } from "@/lib/docs";
+import { type BufferItem } from "@/lib/domain";
 import { track } from "@/lib/telemetry";
 import { useEntitlementsStore, useJobStore } from "@/stores";
 
 /**
- * Pressing "Run the check" (M1.8.1). The idempotency key is minted here, in the
- * store, and handed to the request - never created inside it. A key born inside
- * the request function is a new key on every retry, so the protection would
+ * Pressing "Run the check". The idempotency key is minted here, in the store,
+ * and handed to the request - never created inside it. A key born inside the
+ * request function is a new key on every retry, so the protection would
  * disappear precisely in the case it exists for; a key in a `useRef` is
- * unmounted along with the component the moment the screen turns to progress
- * (§17).
+ * unmounted along with the component the moment the screen turns to
+ * progress.
  */
 export type RunFailure = {
   readonly code: string;
@@ -23,19 +23,33 @@ export type RunFailure = {
 };
 
 export function useRun(locale: string): {
-  readonly run: (items: readonly BufferItem[], options: CheckOptions) => void;
+  readonly run: (items: readonly BufferItem[], buffer: readonly BufferItem[]) => void;
   readonly pending: boolean;
   readonly failure: RunFailure | null;
   readonly dismiss: () => void;
 } {
   const [failure, setFailure] = React.useState<RunFailure | null>(null);
 
+  /*
+   * The press is latched here and not by the store's flag alone. The flag is
+   * raised inside the mutation, after the submission has been assembled - and
+   * assembling it reads every text and hashes it, which is asynchronous. Two
+   * presses inside that window both got past the flag, and the manuscript went
+   * over the connection twice: the server absorbed the second by its key, so
+   * nothing looked wrong, and the person had paid for the upload anyway.
+   */
+  const pressed = React.useRef(false);
+
   const mutation = useMutation({
     mutationFn: async (input: {
       readonly items: readonly BufferItem[];
-      readonly options: CheckOptions;
+      /** The whole buffer, so a companion can be found and sent with them. */
+      readonly buffer: readonly BufferItem[];
     }) => {
-      const submission = await buildSubmission(input.items, input.options, locale);
+      const submission = await buildSubmission(
+        withCompanions(input.items, input.buffer),
+        locale,
+      );
       if (submission === null) return null;
 
       const store = useJobStore.getState();
@@ -48,7 +62,7 @@ export function useRun(locale: string): {
     },
     // Nothing is retried here. The client retries only the case where there was
     // no answer at all, and that lives inside the API client, one layer down,
-    // so a retry reuses the same key rather than minting another (M1.8.3).
+    // so a retry reuses the same key rather than minting another.
     retry: false,
     onSuccess: (result) => {
       if (result === null) {
@@ -85,14 +99,21 @@ export function useRun(locale: string): {
       track("job_failed", { code: "TIMEOUT" });
       setFailure({ code: "INTERNAL_ERROR", requestId: "" });
     },
+    // Whatever happened, the button is a button again.
+    onSettled: () => {
+      pressed.current = false;
+    },
   });
 
   const run = React.useCallback(
-    (items: readonly BufferItem[], options: CheckOptions) => {
-      // The double click is stopped by the store's own flag rather than by the
-      // mutation's `isPending`: the second press gets in before that updates.
+    (items: readonly BufferItem[], buffer: readonly BufferItem[]) => {
+      // Neither guard is the mutation's `isPending`: the second press gets in
+      // before that updates. The latch answers within the same tick, and the
+      // store's flag is what a run already under way is known by.
+      if (pressed.current) return;
       if (useJobStore.getState().intent?.inflight === true) return;
-      mutation.mutate({ items, options });
+      pressed.current = true;
+      mutation.mutate({ items, buffer });
     },
     [mutation],
   );

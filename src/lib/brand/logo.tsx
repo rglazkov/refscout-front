@@ -6,10 +6,10 @@ type LogoProps = {
 };
 
 /**
- * The logo is drawn with currentColor and knows nothing about the theme: in
- * the dark theme it takes its colour from the parent, like any icon. There is
- * no raster version of it in the repository - the tab icon and the social
- * image are rasterised from the same geometry at build time (§15).
+ * The logo is drawn with currentColor and knows nothing about the theme: in the
+ * dark theme it takes its colour from the parent, like any icon. There is no
+ * raster version of it in the repository - the tab icon and the social image
+ * are rasterised from the same geometry at build time.
  */
 export function Logo({ className, title }: LogoProps) {
   return (

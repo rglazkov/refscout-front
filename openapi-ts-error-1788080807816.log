@@ -1,0 +1,29 @@
+[2026-08-30T09:06:47.816Z] Error: Error parsing c:/Users/janik/Desktop/projects/refscout-project/web/contract/refscout-api.yaml: bad indentation of a mapping entry (1072:9)
+
+ 1069 |           format: uuid
+ 1070 |           description: |
+ 1071 |             The document in this job c ...
+ 1072 |         - if:
+----------------^
+ 1073 |             properties: { kind: { cons ...
+ 1074 |             required: [kind]
+Stack:
+ParserError: Error parsing c:/Users/janik/Desktop/projects/refscout-project/web/contract/refscout-api.yaml: bad indentation of a mapping entry (1072:9)
+
+ 1069 |           format: uuid
+ 1070 |           description: |
+ 1071 |             The document in this job c ...
+ 1072 |         - if:
+----------------^
+ 1073 |             properties: { kind: { cons ...
+ 1074 |             required: [kind]
+    at Object.handler (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1145:10)
+    at runNextPlugin (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1209:33)
+    at file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1223:3
+    at new Promise (<anonymous>)
+    at run (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1204:9)
+    at parseFile (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1259:16)
+    at $RefParser.parse (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1733:31)
+    at async $RefParser.bundle (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/json-schema-ref-parser/dist/index.mjs:1675:3)
+    at async createClient$1 (file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/openapi-ts/dist/src-CI9riJdm.mjs:99:9)
+    at async file:///C:/Users/janik/Desktop/projects/refscout-project/web/node_modules/@hey-api/openapi-ts/dist/src-CI9riJdm.mjs:213:12

@@ -8,7 +8,7 @@ import { type Locale } from "@/lib/i18n";
 
 /**
  * The workspace screen, and the landing page with it: the buffer on top and a
- * short text about the product below (§3).
+ * short text about the product below.
  *
  * The body of every page lives here rather than in `app/`, because each page
  * exists at two addresses - `/` for the default language and `/{locale}/` for
@@ -28,7 +28,7 @@ export function HomePage({ locale }: { readonly locale: Locale }) {
           {/* The lead is the one paragraph that has to be read, so it keeps a
               measure of its own rather than running the width of the workspace
               column: past roughly sixty characters the eye loses the line it
-              came from on the way back (§15). */}
+              came from on the way back. */}
           <p className="mt-3 max-w-[58ch] text-pretty text-muted-foreground">
             {t("lead", { brandName: site.name })}
           </p>

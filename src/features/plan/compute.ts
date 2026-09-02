@@ -1,46 +1,16 @@
-import {
-  type BufferItem,
-  type CheckOptions,
-  type CheckPlan,
-  type Entitlements,
-  type ModuleId,
-  moduleIds,
-} from "@/lib/domain";
+import { withCompanions } from "@/lib/docs";
+import { type BufferItem, type Entitlements } from "@/lib/domain";
 
 /**
- * The plan is a summary, not a second set of switches (M1.6.1). It is assembled
- * from the ticks on the cards: what is ticked on at least one document is what
- * runs. A separate set of switches here would be a second place where the same
- * thing is turned on differently, and a standing question about which of them
- * wins (§7).
+ * What a document's card says about the run it is about to take part in. Every
+ * answer here is per document, because that is the question a person asks -
+ * what will happen to this file - and because a buffer holding three
+ * manuscripts is an ordinary buffer.
+ *
+ * None of it is a second set of switches: everything reported is turned on
+ * somewhere on the same card, and one thing turned on in two places is a
+ * standing question about which of the two wins.
  */
-export function buildPlan(
-  items: readonly BufferItem[],
-  options: CheckOptions,
-  entitlements: Entitlements | null = null,
-): CheckPlan {
-  const modules = {} as Record<ModuleId, CheckPlan["modules"][ModuleId]>;
-
-  for (const moduleId of moduleIds) {
-    const ticked = items.filter(
-      (item) =>
-        item.checks.includes(moduleId) &&
-        entitlements?.modules[moduleId].allowed !== false,
-    );
-    const runnable = ticked.filter((item) => hasText(item));
-    modules[moduleId] = {
-      enabled: runnable.length > 0,
-      docIds: runnable.map((item) => item.id),
-      // The absence of text is the only reason a check switches off. Every
-      // check is available on every document, so there is no other (§4).
-      ...(ticked.length > 0 && runnable.length === 0
-        ? { blocked: "extract-failed" as const }
-        : {}),
-    };
-  }
-
-  return { modules, options };
-}
 
 /**
  * The exact documents handed to submission. A stale lock in the interface is
@@ -52,7 +22,7 @@ export function runnableItems(
   entitlements: Entitlements | null,
 ): readonly BufferItem[] {
   return items.flatMap((item) => {
-    if (!hasText(item)) return [];
+    if (item.attachedTo !== undefined || !hasText(item)) return [];
     const checks = item.checks.filter(
       (module) => entitlements?.modules[module].allowed !== false,
     );
@@ -60,32 +30,70 @@ export function runnableItems(
   });
 }
 
-export function hasText(item: BufferItem): boolean {
-  return item.extract.state === "ready" || item.extract.state === "partial";
+/**
+ * Exactly what leaves, companions included. Both places that print a number -
+ * the buffer's heading and the line under the button - read it from here, so
+ * "will be sent: 3 documents" and "text will be sent: 2 documents" cannot say
+ * different things on the same screen.
+ */
+export function sendingItems(
+  items: readonly BufferItem[],
+  entitlements: Entitlements | null,
+): readonly BufferItem[] {
+  return withCompanions(runnableItems(items, entitlements), items);
 }
 
-export type Exclusion = {
-  readonly docId: string;
-  readonly name: string;
-  readonly reason: "no-text" | "no-checks";
-};
+/**
+ * Whether there is anything here to check. Three states qualify, and the third
+ * is deliberate: a document whose text came out badly still has text, the
+ * person has been told to look at it, and refusing to run it would take the
+ * decision away from them.
+ */
+export function hasText(item: BufferItem): boolean {
+  const { state } = item.extract;
+  return state === "ready" || state === "partial" || state === "suspicious";
+}
 
 /**
- * The documents that will not take part, each with its reason, right in the
- * summary rather than in a separate list of warnings. One broken document does
- * not block the other four (M1.6.2).
+ * The two checks that read a second text. BibCheck reads the bibliography the
+ * manuscript cites; Glossary reads a glossary file that already exists. Both
+ * are brought in on the card, and both are optional: without them the check
+ * still runs and does less.
  */
-export function exclusionsOf(items: readonly BufferItem[]): readonly Exclusion[] {
-  return items.flatMap<Exclusion>((item) => {
-    if (!hasText(item)) return [{ docId: item.id, name: item.name, reason: "no-text" }];
-    if (item.checks.length === 0) {
-      return [{ docId: item.id, name: item.name, reason: "no-checks" }];
-    }
-    return [];
+export type CompanionModule = "bibcheck" | "glossary";
+
+export function wantsCompanion(module: string): module is CompanionModule {
+  return module === "bibcheck" || module === "glossary";
+}
+
+/**
+ * The checks ticked on this document that have no text to read alongside it,
+ * and which are therefore about to do less than they can. Named on the card
+ * before the run for the same reason a missing venue is: the answer arrives
+ * without the missing half, and finding that out from the results is finding it
+ * out too late.
+ */
+export function incompleteOf(
+  item: BufferItem,
+  all: readonly BufferItem[],
+): readonly CompanionModule[] {
+  if (!hasText(item)) return [];
+  return item.checks.filter(wantsCompanion).filter((module) => {
+    const companionId = item.companions[module];
+    if (companionId === undefined) return true;
+    const companion = all.find((candidate) => candidate.id === companionId);
+    return companion === undefined || !hasText(companion);
   });
 }
 
-/** Which module runs at all, in the product's own order. */
-export function enabledModules(plan: CheckPlan): readonly ModuleId[] {
-  return moduleIds.filter((module) => plan.modules[module].enabled);
+/**
+ * Why this document will take no part in the run, or `null` when it will. It is
+ * answered per document and shown on that document's own card: one broken file
+ * does not block the other four, and the person is told which one it was
+ * without having to match a name against a list at the bottom of the page.
+ */
+export function reasonNotRunning(item: BufferItem): "no-text" | "no-checks" | null {
+  if (!hasText(item)) return "no-text";
+  if (item.checks.length === 0) return "no-checks";
+  return null;
 }

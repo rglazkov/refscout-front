@@ -1,10 +1,10 @@
 import { type Transition } from "motion/react";
 
 /**
- * JavaScript mirrors of the CSS motion tokens in `tokens.css` (spec §14).
- * Motion expects seconds and numeric bezier tuples, so it cannot consume the
- * CSS custom properties directly. Keeping every JS transition here prevents
- * components from inventing almost-the-same timings of their own.
+ * JavaScript mirrors of the CSS motion tokens in `tokens.css`. Motion expects
+ * seconds and numeric bezier tuples, so it cannot consume the CSS custom
+ * properties directly. Keeping every JS transition here prevents components
+ * from inventing almost-the-same timings of their own.
  */
 const easeOut = [0.2, 0.8, 0.25, 1] as const;
 const easeIn = [0.4, 0, 1, 1] as const;

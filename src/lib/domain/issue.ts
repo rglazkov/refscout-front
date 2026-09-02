@@ -1,27 +1,27 @@
 import { type ModuleId, type Severity } from "./ids";
 
 /**
- * One finding, in the shape the card that draws it needs (M1.1.2). The domain
- * is designed from the screens, so what is here is what §10 puts on a finding:
- * a severity, a phrase key with its substitutions, the places it points at,
- * typed facts, offered actions, and whether an edit has left it behind.
+ * One finding, in the shape the card that draws it needs. The domain is
+ * designed from the screens, so what is here is what a card draws: a severity,
+ * a phrase key with its substitutions, the places it points at, typed facts,
+ * offered actions, and whether an edit has left it behind.
  */
 export type Issue = {
   readonly issueId: string;
   readonly code: string;
   readonly severity: Severity;
-  /** A key into the dictionary, never a ready-made phrase (§15). */
+  /** A key into the dictionary, never a ready-made phrase. */
   readonly titleKey: string;
   readonly params?: Params;
-  /** Plain text from the module; it reaches the DOM as a text node (§19). */
+  /** Plain text from the module; it reaches the DOM as a text node. */
   readonly detail?: string;
   readonly anchors: readonly Anchor[];
   readonly evidence: readonly Evidence[];
   readonly actions: readonly IssueAction[];
   /**
    * The text moved under this finding and the place is no longer trustworthy.
-   * Nothing sets it before M9, and it is in the type from the start because a
-   * field added later drags the mapper, the schema and the contract with it.
+   * Nothing sets it yet, and it is in the type from the start because a field
+   * added later drags the mapper, the schema and the wire types with it.
    */
   readonly stale: boolean;
   readonly cite?: CiteBlock;
@@ -30,9 +30,9 @@ export type Issue = {
 export type Params = Readonly<Record<string, string | number>>;
 
 /**
- * A place in a document. The unfamiliar branch is not a defect of the mapper:
- * a `kind` this version does not define arrives, parses, and costs the finding
- * its jump target rather than costing the response (§5.9 of the contract).
+ * A place in a document. The unfamiliar branch is not a defect of the mapper: a
+ * `kind` this version does not define arrives, parses, and costs the finding
+ * its jump target rather than costing the response.
  */
 export type Anchor =
   | {
@@ -89,7 +89,7 @@ export type IssueAction =
   | { readonly kind: "download"; readonly labelKey?: string; readonly artifact: number }
   | { readonly kind: "unknown"; readonly rawKind: string };
 
-/** A work as the databases returned it. Every field is third-party text (§19). */
+/** A work as the databases returned it. Every field is third-party text. */
 export type BiblioRecord = {
   readonly title: string;
   readonly authors: readonly string[];
@@ -115,7 +115,10 @@ export type CiteBlock = {
   readonly candidates: readonly CiteCandidate[];
 };
 
-/** Generated text the client turns into a file; the server hands out no files (§9). */
+/**
+ * Generated text the client turns into a file; the server hands out no
+ * files.
+ */
 export type Artifact = {
   readonly kind: "bib" | "tex" | "md" | "txt";
   readonly labelKey: string;
@@ -126,7 +129,7 @@ export type Artifact = {
  * The body of one module's work on one document, fetched once when the module
  * reaches a terminal state. There is no score and no counters here on purpose:
  * two sources of the same numbers drift apart, and these numbers are required
- * to add up (§9, §18).
+ * to add up.
  */
 export type ModuleResult = {
   readonly module: ModuleId;
@@ -134,7 +137,7 @@ export type ModuleResult = {
   readonly attempt: number;
   readonly issues: readonly Issue[];
   readonly artifacts: readonly Artifact[];
-  /** Every document whose coordinates appear in this body (§5.2 of the contract). */
+  /** Every document whose coordinates appear in this body. */
   readonly texts: readonly {
     readonly docId: string;
     readonly textSha256: string;

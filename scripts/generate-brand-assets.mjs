@@ -9,11 +9,11 @@ import { brand } from "../brand.config.ts";
 import { logoMarkup, logoShapes } from "../src/lib/brand/logo-shapes.ts";
 
 /**
- * The tab icon and the social image, drawn from the brand config at build time
- * (§15). They are not files somebody exported once and nobody can regenerate:
- * change the mark, its colour or the name, and the next build redraws them.
- * That is also why `public/` does not carry them in the repository - they are
- * output, and .gitignore says so.
+ * The tab icon and the social image, drawn from the brand config at build time.
+ * They are not files somebody exported once and nobody can regenerate: change
+ * the mark, its colour or the name, and the next build redraws them. That is
+ * also why `public/` does not carry them in the repository - they are output,
+ * and.gitignore says so.
  *
  * Rasterising happens here rather than through a Next metadata route because a
  * static export names such a route without a file extension, and a host serving

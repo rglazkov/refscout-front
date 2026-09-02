@@ -10,7 +10,7 @@ import { buildIssueReport, type ReportInput, type ReportLabels } from "./report"
  * assembling a file is the one other place besides intake, the editor and the
  * API that is allowed to see the text of a document: the line numbers and the
  * quotes in the report are computed from the text the browser holds, and no
- * screen needs to hold it to ask for that (§17).
+ * screen needs to hold it to ask for that.
  */
 export function buildJobReport(input: {
   readonly job: Job;

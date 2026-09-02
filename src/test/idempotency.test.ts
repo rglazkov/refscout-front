@@ -2,15 +2,21 @@ import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { ApiError, NetworkError, submitJob } from "@/lib/api";
+import {
+  ApiError,
+  NetworkError,
+  fetchVenueRequirements,
+  getEntitlements,
+  getModuleResult,
+  submitJob,
+} from "@/lib/api";
 import { buildSubmission, docRegistry } from "@/lib/docs";
-import { type BufferItem } from "@/lib/domain";
-import { defaultOptions } from "@/stores/plan";
+import { type BufferItem, defaultOptions } from "@/lib/domain";
 
 import { scenarios } from "./msw/handlers.gen";
 
 /**
- * The test of the idempotency key has to break the network (M1.8).
+ * The test of the idempotency key has to break the network.
  *
  * On the happy path the defect is invisible - two clicks make two requests, the
  * person sees one progress screen, and nothing looks wrong. It shows up only
@@ -66,7 +72,15 @@ function item(id: string, checks: BufferItem["checks"]): BufferItem {
     checks,
     checksTouched: false,
     role: "manuscript",
-    extract: { state: "ready", chars: 23, words: 2, edited: false },
+    companions: {},
+    options: defaultOptions,
+    extract: {
+      state: "ready",
+      chars: 23,
+      words: 2,
+      edited: false,
+      sha256: "0".repeat(64),
+    },
     localFindings: [],
   };
 }
@@ -77,14 +91,13 @@ async function submissionFor(text: string, checks: BufferItem["checks"]) {
     originalSha256: "0".repeat(64),
     hadBom: false,
     eol: "\n",
-    encoding: "utf-8",
   });
-  const built = await buildSubmission([item("doc-1", checks)], defaultOptions, "en");
+  const built = await buildSubmission([item("doc-1", checks)], "en");
   if (built === null) throw new Error("nothing to submit");
   return built;
 }
 
-describe("one key per intention, not per attempt (§17)", () => {
+describe("one key per intention, not per attempt", () => {
   it("two retries after a broken connection give one key and one job", async () => {
     const submission = await submissionFor("\\documentclass{article}", ["presubmit"]);
     // The key is minted once, by the caller, and handed to every attempt.
@@ -135,7 +148,43 @@ describe("one key per intention, not per attempt (§17)", () => {
   });
 });
 
-describe("what is never retried (M1.8.3)", () => {
+describe("what is never retried", () => {
+  it("a request the server cannot absorb twice is not repeated at all", async () => {
+    /*
+     * "No answer" does not mean "not received": the request may have arrived and
+     * the reply been lost. So a repeat is only made where the server can absorb
+     * one - a read, a cancellation, or a creation carrying the key that says so.
+     * Fetching a venue is none of those: repeating it sends the server after
+     * somebody else's page again, on nobody's instruction.
+     */
+    let attempts = 0;
+    server.use(
+      http.post("*/venues/fetch", () => {
+        attempts += 1;
+        return HttpResponse.error();
+      }),
+    );
+
+    await expect(fetchVenueRequirements("https://example.invalid/cfp")).rejects.toThrow(
+      NetworkError,
+    );
+    expect(attempts).toBe(1);
+  });
+
+  it("a read is repeated, because reading twice reads the same thing", async () => {
+    let attempts = 0;
+    server.use(
+      http.get("*/entitlements", () => {
+        attempts += 1;
+        if (attempts < 3) return HttpResponse.error();
+        return HttpResponse.json(scenarios.getEntitlements.paid.body);
+      }),
+    );
+
+    await expect(getEntitlements()).resolves.toMatchObject({ access: true });
+    expect(attempts).toBe(3);
+  });
+
   it("a refusal with a status is not repeated: the server has decided", async () => {
     server.use(
       http.post("*/jobs", () => {
@@ -172,6 +221,52 @@ describe("what is never retried (M1.8.3)", () => {
 
     await expect(inflight).rejects.toThrow();
     expect(posts).toBe(1);
+  });
+});
+
+describe("an address the server hands back is not followed anywhere", () => {
+  /*
+   * The body of a module is fetched from the address the poll gave us, and the
+   * job's token travels with that request. So the address is checked before it
+   * is used: a protocol-relative one would be somebody else's host on a
+   * deployment whose API is its own origin, and the token would go with it.
+   */
+  const refused = [
+    "//elsewhere.invalid/jobs/1/result",
+    "https://elsewhere.invalid/jobs/1/result",
+    "/elsewhere/1/result",
+    "\\\\elsewhere.invalid\\result",
+  ];
+
+  for (const ref of refused) {
+    it(`refuses ${ref} without making a request`, async () => {
+      let reads = 0;
+      server.use(
+        http.get("*", () => {
+          reads += 1;
+          return HttpResponse.json({});
+        }),
+      );
+
+      await expect(getModuleResult(ref, "token")).rejects.toMatchObject({
+        failure: { code: "SCHEMA_INVALID", field: "resultRef" },
+      });
+      expect(reads).toBe(0);
+    });
+  }
+
+  it("follows the path the contract describes", async () => {
+    const ref = "/jobs/1/documents/2/modules/bibcheck/result";
+    let asked = "";
+    server.use(
+      http.get("*/jobs/:jobId/documents/:docId/modules/:module/result", ({ request }) => {
+        asked = new URL(request.url).pathname;
+        return HttpResponse.json(scenarios.getModuleResult.bibcheck.body);
+      }),
+    );
+
+    await getModuleResult(ref, "token");
+    expect(asked).toBe(ref);
   });
 });
 

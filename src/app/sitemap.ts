@@ -9,8 +9,8 @@ export const dynamic = "force-static";
 
 /**
  * The sitemap is generated from the list of routes and the translations that
- * actually exist, rather than written by hand (M0.9.2). An untranslated page
- * does not make it in: half-translated pages must not appear in search results.
+ * actually exist, rather than written by hand. An untranslated page does not
+ * make it in: half-translated pages must not appear in search results.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   // The check pages are not listed by hand: the sitemap is built from the same

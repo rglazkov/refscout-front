@@ -1,14 +1,15 @@
 @import "tailwindcss";
-/* The keyframes behind the `animate-in` / `fade-in-0` / `zoom-in-95` classes the
-   shadcn/ui primitives are written with. Without it those class names resolve to
-   nothing and the dialogs, popovers, tooltips and selects appear with a jump (§2). */
+/* The keyframes behind the `animate-in` / `fade-in-0` / `zoom-in-95` classes
+   the shadcn/ui primitives are written with. Without it those class names
+   resolve to nothing and the dialogs, popovers, tooltips and selects appear
+   with a jump. */
 @import "tw-animate-css";
 @import "./fonts.css";
 @import "./tokens.css";
 
 /* The hero and the static feature index belong to the empty workspace. They
    stay in the generated HTML for search engines, then fold away with the same
-   state change that compacts the drop zone after the first document (§4). */
+   state change that compacts the drop zone after the first document. */
 .workspace-empty-only {
   display: grid;
   grid-template-rows: 1fr;
@@ -27,6 +28,19 @@
   .workspace-empty-only {
   grid-template-rows: 0fr;
   opacity: 0;
+}
+
+/* Once the run has started, the heading of the screen is the first thing on the
+   page, and the padding that gave the hero room to breathe is left standing
+   above nothing: three quarters of it is white space between the header and a
+   word. It travels on the same curve as the fold above, so the page settles in
+   one movement rather than in two. */
+.home-workspace {
+  transition: padding-top var(--motion-slow) var(--ease-out);
+}
+
+.home-workspace:has([data-workspace-state="running"], [data-workspace-state="results"]) {
+  padding-top: calc(var(--spacing) * 5);
 }
 
 @keyframes dialog-scrim-in {
@@ -106,6 +120,10 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
 
+  --color-control-ground: var(--control-ground);
+  --color-control-ground-hover: var(--control-ground-hover);
+  --color-control-card: var(--control-card);
+  --color-control-card-hover: var(--control-card-hover);
   --color-critical: var(--critical);
   --color-critical-soft: var(--critical-soft);
   --color-critical-border: var(--critical-border);
@@ -119,7 +137,7 @@
   --color-del-soft: var(--del-soft);
 
   /* The names the shadcn/ui components expect. These are aliases: the source
-     stays the tokens on the left, not this table (M0.2.5). */
+     stays the tokens on the left, not this table. */
   --color-card-foreground: var(--foreground);
   --color-popover-foreground: var(--foreground);
   --color-accent: var(--accent-bg);
@@ -145,8 +163,8 @@
   --breakpoint-nav: 45rem;
 
   /* Hover, press and colour changes are written as bare `transition-*`
-     utilities all over the components. These two make such a utility land
-     on the tokens instead of Tailwind's 150ms `ease` (§14). */
+     utilities all over the components. These two make such a utility land on
+     the tokens instead of Tailwind's 150ms `ease`. */
   --default-transition-duration: var(--motion-fast);
   --default-transition-timing-function: var(--ease-out);
 
@@ -190,11 +208,10 @@
   }
 
   /*
-   * A reading region: a page a person came to read. The serif is the default
-   * of the whole region rather than a class repeated on every heading and
+   * A reading region: a page a person came to read. The serif is the default of
+   * the whole region rather than a class repeated on every heading and
    * paragraph, because the opposite arrangement puts the wrong font on every
-   * element nobody remembered - and that is what makes a page look patchy
-   * (§15).
+   * element nobody remembered - and that is what makes a page look patchy.
    *
    * The exceptions are boxes, never elements: a box holding controls or data
    * is set in the interface face as a whole, and it says so itself by pinning
@@ -208,17 +225,17 @@
 
   /* An author display rule on a component overrides the browser's
      `[hidden] { display: none }`, and the hidden attribute silently stops
-     working. The current site already has this bug (§16, M0.2.5). */
+     working. The current site already has this bug. */
   [hidden] {
     display: none !important;
   }
 
   /*
-   * Changing the theme is not animated at all (§14). Every surface, border and
-   * label changes colour at once, and the components that carry a bare
-   * `transition-*` utility would each interpolate on their own - hundreds of
-   * colours crossing over out of step, which reads as a rendering fault rather
-   * than as a transition.
+   * Changing the theme is not animated at all. Every surface, border and label
+   * changes colour at once, and the components that carry a bare `transition-*`
+   * utility would each interpolate on their own - hundreds of colours crossing
+   * over out of step, which reads as a rendering fault rather than as a
+   * transition.
    *
    * So the attribute goes on for the one frame in which the theme is swapped
    * and the transitions are muted underneath it. Only transitions: an
@@ -266,7 +283,7 @@
    * The single switch for motion in the whole product, and it is not ours: it
    * is the "reduce motion" setting of the viewer's operating system. People
    * turn it on because sliding and zooming surfaces make them dizzy or sick,
-   * so what it asks for is a requirement and not a taste (WCAG 2.3.3, §14).
+   * so what it asks for is a requirement and not a taste (WCAG 2.3.3).
    * One rule here, rather than a check inside each component - a component
    * that forgets the check is exactly the one that will move.
    *

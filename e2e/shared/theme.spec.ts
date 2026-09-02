@@ -1,10 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * In the dark theme there is no flash of light on load (M0.2, a readiness
- * criterion). This is checked not by eye but by the attribute already being in
- * place by the time the document is first parsed, with the page background
- * already equal to the dark theme's ground.
+ * In the dark theme there is no flash of light on load. This is checked not by
+ * eye but by the attribute already being in place by the time the document is
+ * first parsed, with the page background already equal to the dark theme's
+ * ground.
  *
  * The test knows no colour values: it asks the page what the --background token
  * resolved to. Otherwise editing the palette would break the tests, and the

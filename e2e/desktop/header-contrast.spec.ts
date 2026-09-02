@@ -3,9 +3,9 @@ import sharp from "sharp";
 
 /**
  * The header lets the page through, so its links sit on whatever is scrolling
- * past rather than on a ground we know (§15, M0.6.1). Contrast is therefore not
- * a pair of tokens that the unit test can compare - it has to be measured
- * against the pixels actually behind the letters.
+ * past rather than on a ground we know. Contrast is therefore not a pair of
+ * tokens that the unit test can compare - it has to be measured against the
+ * pixels actually behind the letters.
  *
  * The measurement: the header's own content is hidden so that only its fill and
  * blur remain, the strip is captured, and the worst window the size of one
@@ -17,7 +17,7 @@ import sharp from "sharp";
  * file lives in `e2e/desktop` rather than in `e2e/shared`.
  *
  * The test knows no colour values - it asks the page what --nav-foreground
- * resolved to. Colour lives in the token file and nowhere else (M0.4.4).
+ * resolved to. Colour lives in the token file and nowhere else.
  */
 
 /** Contrast has to clear the AA threshold for normal text. */
@@ -59,9 +59,9 @@ async function linkLuminance(page: Page): Promise<number> {
 }
 
 /**
- * The worst mean luminance over any window of `size` px in the strip. A summed
- * -area table makes every window cost the same four lookups, so the whole sweep
- * stays well inside a test's patience.
+ * The worst mean luminance over any window of `size` px in the strip. A
+ * summed-area table makes every window cost the same four lookups, so the whole
+ * sweep stays well inside a test's patience.
  */
 function worstWindow(
   data: Buffer,

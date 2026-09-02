@@ -4,17 +4,31 @@ A statically built front end: `next build` produces an `out/` folder, and there
 is no Node in production. The product name, the domain and the palette live in
 `brand.config.ts` and in `src/messages/` - they do not appear in the code.
 
-Milestone M1 of the build plan: the whole path, on the formats that are already
-text. A person drops a `.txt`, `.md`, `.bib`, `.tex` or `.gls`, sees a card with
-the checks it proposes, opens the text and corrects it, reads the plan, runs the
-check, watches it stage by stage, gets the findings grouped by document, marks
-one as dealt with and downloads the report and the text.
+Milestone M2 of the build plan: manuscripts in the formats they really exist
+in. A person drops a PDF, a `.docx`, a `.txt`, `.md`, `.bib`, `.tex` or `.gls`,
+sees a card with the checks it proposes, opens the text and corrects it, reads
+the plan, runs the check, watches it stage by stage, gets the findings grouped
+by document, marks one as dealt with and downloads the report and the text.
 
-Two things it does not do yet, and both are the next milestones rather than
-gaps. PDF and Word arrive in M2 with their parsers - until then such a file is
-refused with a way out. And the buffer lives as long as the tab does: the
-extracted text is held in memory, storage that survives a reload is M4, and
-until it exists the screen says so in as many words.
+**The file never leaves the browser.** Every format is read in a worker - pdf.js
+for PDF, mammoth and turndown for Word, our own code for the rest - and only the
+extracted text is ever sent. That makes the quality of the reading ours and
+visible: a document that would not read keeps its card, says why in numbers and
+offers a way out that can be taken there - a password, another attempt, another
+file, or the text typed in by hand.
+
+Two things it does not do yet, and both are later milestones rather than gaps.
+A Word file is downloaded as `.md` until the `.docx` builder arrives in M9, and
+the button says so. And the buffer lives as long as the tab does: the extracted
+text is held in memory, storage that survives a reload is M4, and until it
+exists the screen says so in as many words.
+
+**One part of M2 is closed on mocks and has to be returned to.** M2.8 asks for a
+body of real size to be put through a stand in the same week the parsing works -
+the compression, the timeouts and the refusals of a fifty-document submission
+are answered by a real proxy and a real server or by nobody. The backend is not
+built yet, so the client half is here and tested against the mock, and the
+measurement is owed the moment a stand exists.
 
 ## Commands
 
@@ -22,32 +36,55 @@ until it exists the screen says so in as many words.
 neither a browser nor the network, and `npm run verify` is that plus the build
 and the browser lane - what to run before opening a pull request.
 
-| Command                | What it does                                                                              |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| `npm run check`        | Formatting, lint, types, the tests, and the contract against its generated output         |
-| `npm run verify`       | `build` plus e2e: everything there is                                                     |
-| `npm run dev`          | Development                                                                               |
-| `npm run build`        | Runs `check` first, then the static build into `out/`, the headers and the bundle budgets |
-| `npm start`            | Serves the built static output (without headers - for a quick look)                       |
-| `npm run typecheck`    | `tsc --noEmit`                                                                            |
-| `npm run lint`         | ESLint directly, not through `next lint`                                                  |
-| `npm test`             | Vitest: architecture tests, contrast, dictionaries, contract                              |
-| `npx playwright test`  | e2e: theme without a flash, CSP violations, headers - desktop and mobile                  |
-| `npm run size`         | The bundle budgets on their own; `npm run build` already runs this                        |
-| `npm run size:update`  | Re-records those sizes after a change that legitimately grew a page                       |
-| `npm run contract`     | Regenerates the wire types, zod schemas and mocks from the contract                       |
-| `npm run fonts`        | Re-vendors the fonts from upstream; never runs during a build                             |
-| `npm run brand:assets` | Redraws the tab icon and the social image from `brand.config.ts`                          |
+| Command                 | What it does                                                                              |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `npm run check`         | Formatting, lint, types, the tests, and the contract against its generated output         |
+| `npm run verify`        | `build` plus e2e: everything there is                                                     |
+| `npm run dev`           | Development                                                                               |
+| `npm run build`         | Runs `check` first, then the static build into `out/`, the headers and the bundle budgets |
+| `npm start`             | Serves the built static output (without headers - for a quick look)                       |
+| `npm run typecheck`     | `tsc --noEmit`                                                                            |
+| `npm run lint`          | ESLint directly, not through `next lint`                                                  |
+| `npm test`              | Vitest: architecture tests, contrast, dictionaries, contract                              |
+| `npx playwright test`   | e2e: theme without a flash, CSP violations, headers - desktop and mobile                  |
+| `npm run size`          | The bundle budgets on their own; `npm run build` already runs this                        |
+| `npm run size:update`   | Re-records those sizes after a change that legitimately grew a page                       |
+| `npm run contract`      | Regenerates the wire types, zod schemas and mocks from the contract                       |
+| `npm run fonts`         | Re-vendors the fonts from upstream; never runs during a build                             |
+| `npm run brand:assets`  | Redraws the tab icon and the social image from `brand.config.ts`                          |
+| `npm run pdfjs:assets`  | Copies pdf.js character maps, standard fonts and wasm into `public/pdfjs`                 |
+| `npm run workers:build` | Builds the two workers from `src/workers` into `public/workers`                           |
+| `npm run probe:workers` | Serves a page that starts a worker, to check a browser the lane cannot                    |
 
 `typecheck`, `lint`, `test`, `playwright test`, `size` and `contract` are the
 parts the two commands above are made of. They stay because a failing step is
 quicker to iterate on its own - not because there is an order to remember.
+
+**The workers are built before the build and before `dev`**, by `prebuild` and
+`predev`. There is no watch on them: after changing anything under
+`src/workers` or `src/lib/parse`, run `npm run workers:build` again, or restart
+`npm run dev`. The page is served from `public/workers`, so a stale build is a
+stale worker rather than a compile error, and that is worth knowing before
+spending an afternoon on it.
 
 **A build cannot skip the checks**: `prebuild` runs `check`, so `npm run build`
 is formatting, lint, types, tests and contract drift, then the build, the
 default language copied to the root, the headers and the budgets. The fast CI
 lane is that one command and nothing else, which is what keeps CI and a
 developer's machine from slowly disagreeing about what "green" means.
+
+**Three browser projects, and the third runs one test.** `desktop` and `mobile`
+are Chromium and run the suite; `firefox` runs `e2e/shared/worker-start.spec.ts`
+and nothing else. What a second engine answers is whether a worker starts and
+reads a document here - the rest of the suite is layout, contrast and wording,
+which do not turn on the engine. Playwright's Firefox is a patched build that
+quietly ignores `type: "module"`, so what that project exercises is the classic
+fallback, which is exactly the path a browser like that takes in the product.
+
+**`npm run probe:workers` is the other half**, and it is the one that speaks for
+a real browser: it serves a page that starts a worker and reads a document
+through it, and prints what the browser reports. Open it in whatever you want to
+check - the browser on your desk, an old Safari, a phone on the same network.
 
 `verify` needs a build for e2e and makes one, so run it directly - the
 `scripts/serve-out.mjs` server starts on its own and serves the files with the
@@ -89,6 +126,21 @@ re-export; both are needed.
 - The contents of `features/` are mounted only through `next/dynamic` with
   `ssr: false`. The static text of a page lives in `components/marketing/`,
   otherwise it never reaches the HTML.
+- The workers are built by us, into `public/workers`, and loaded from a fixed
+  address. The application bundler ships `new Worker(new URL(…))` as a bootstrap
+  that reads its chunk list out of its own address, and that bootstrap does not
+  start in Firefox - silently, which is the one way a worker must never fail.
+  Each is built twice, as a module worker and as a classic script that needs no
+  module support, and a worker that has not said `ready` in three seconds is
+  replaced by the second rather than waited on.
+- Nothing is parsed outside a worker. `src/lib/parse` is reachable from
+  `src/workers` and from the tests alone, the parsing libraries are named in
+  that one folder, and no code a worker runs touches the DOM or the network -
+  the class of risk that comes with reading strangers' binary formats has moved
+  from the server into the tab, and the worker is the box it is kept in.
+- There is one markdown parser in the project, and it is markdown-it. It arrives
+  with the `.docx` export path in M9; until then the rule is enforced against
+  every other one.
 - No text lives in component code - only dictionary keys; no colours live in the
   code - only `src/app/tokens.css`; the product name does not appear in `src/`.
 - One module writes to `localStorage`: `src/lib/theme`.
@@ -263,11 +315,43 @@ ordinary static page. **The difference between the two is what the working
 screen adds on top of the shell**, and when that difference starts growing,
 something that should arrive on demand is arriving up front.
 
-Chunks that load later - pdf.js, CodeMirror, the `.docx` builder - are not in
-these numbers and are not meant to be: they do not compete with the first
-paint. They get their own entries in M2, measured as the weight of the action
-that pulls them rather than as a cap on any single chunk. What keeps them out
-of the first screen is the architecture test, not a budget.
+**The third entry counts both builds of the workers, so it is larger than what
+any one person downloads: a browser takes the module build or the classic one,
+never both. The third entry is everything that arrives later**: every chunk the build
+produced that no page asks for up front - pdf.js, mammoth, turndown, CodeMirror.
+It is one number rather than a cap per chunk, because the question worth asking
+is how much the on-demand half has grown, and a per-chunk cap answers that only
+for the chunk somebody thought to name. What keeps any of it out of the first
+screen is the architecture test, not a budget.
+
+## The corpus of documents
+
+The parsers are run against a corpus, and every document in it is built from
+bytes in `src/test/corpus/` - a PDF with a broken cross-reference table, one
+protected with a password, one whose pages are pictures, three hundred pages of
+prose, a Word file with a table and a footnote, an archive that unpacks to
+hundreds of megabytes. **No manuscript of anybody's is in this repository**, and
+the way that stays true by accident as well as on purpose is that there is
+nowhere to put one: a file somebody sends us is an unpublished work, and its
+place is not in a git history. That is also why a bad parse reports numbers to
+telemetry and never the text that produced it.
+
+**What is checked are invariants, never a reference text.** A test comparing
+extraction against a stored string turns red on every pdf.js release over one
+space that moved; people stop fixing it, and then they turn it off. So the
+questions are the ones that stay true across versions: how many pages, roughly
+how much text, are the phrases still there, what share of it is printable, are
+there replacement characters, did the metadata come out. For the formats that
+are already text the invariant is exact instead: what was read is the file, byte
+for byte, once the line endings are normalised. There is one encoding in the
+product and it is UTF-8: a `.txt` is decoded like any other file, nothing
+records what its bytes were written in, and nothing offers to change it.
+
+Two things need a browser and live in the browser lane
+(`e2e/shared/manuscripts.spec.ts`): that a worker starts at all, and that a
+document written in Chinese is readable - which it is only if `public/pdfjs`
+was copied, because without the character maps it extracts as an empty string
+and is reported as a scan.
 
 ## Fonts
 

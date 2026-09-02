@@ -1,10 +1,40 @@
 "use client";
 
 import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
+
+/**
+ * The drop-down, with its list drawn by us rather than by the platform.
+ *
+ * A native `<select>` hands the list to the operating system, and the list is
+ * then beyond reach: `cursor` and `:hover` on an `<option>` are ignored by every
+ * engine, so the rows of the open list answer the pointer in the platform's way
+ * and not in the product's. Since the choice of a companion, of a key format and
+ * of an order of entries are all made from such a list, the list is ours.
+ *
+ * The closed control stands a full step off whatever it is on, like every other
+ * field, and it says which of three things is happening to it by colour alone,
+ * never by geometry: the pointer is over it, it is being pressed, or its list is
+ * open. Pressed and open share the deeper fill, because they are the same moment
+ * seen twice - the press is what opened it - and that fill is the one the header
+ * menu already uses for exactly this.
+ */
+const triggerVariants = cva(
+  "flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border font-sans text-sm whitespace-nowrap text-foreground transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 data-[state=open]:border-ring data-[state=open]:bg-accent-bg *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+  {
+    variants: {
+      surface: {
+        ground: "bg-control-ground hover:bg-control-ground-hover active:bg-accent-bg",
+        card: "bg-control-card hover:bg-control-card-hover active:bg-accent-bg",
+      },
+    },
+    defaultVariants: { surface: "ground" },
+  },
+);
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />;
@@ -21,24 +51,26 @@ function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.V
 function SelectTrigger({
   className,
   size = "default",
+  surface = "ground",
   children,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
-  size?: "sm" | "default";
-}) {
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> &
+  VariantProps<typeof triggerVariants> & {
+    size?: "sm" | "default";
+  }) {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
-      className={cn(
-        "flex w-fit items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 font-sans text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
-        className,
-      )}
+      className={cn(triggerVariants({ surface }), "px-3 py-2", className)}
       {...props}
     >
       {children}
+      {/* The caret turns over while the list is open, and the fill behind it
+          has already said as much: the turn is the second reading of the same
+          state, for the eye that is on the control rather than on its colour. */}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
+        <ChevronDownIcon className="size-4 opacity-60 transition-transform duration-[var(--motion-fast)] ease-[var(--ease-out)] in-data-[state=open]:rotate-180" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -103,7 +135,10 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 ps-2 pe-8 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        // A row of the list is a control, so it carries the pointer and answers
+        // it. Radix marks the row under the cursor - and the row the keyboard is
+        // on - as `data-highlighted`, which makes one rule cover both.
+        "relative flex w-full cursor-pointer items-center gap-2 rounded-sm py-1.5 ps-2 pe-8 text-sm outline-hidden transition-colors select-none focus:bg-accent-bg data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[highlighted]:bg-accent-bg [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className,
       )}
       {...props}
@@ -141,7 +176,10 @@ function SelectScrollUpButton({
   return (
     <SelectPrimitive.ScrollUpButton
       data-slot="select-scroll-up-button"
-      className={cn("flex cursor-default items-center justify-center py-1", className)}
+      className={cn(
+        "flex cursor-pointer items-center justify-center py-1 transition-colors hover:bg-accent-bg",
+        className,
+      )}
       {...props}
     >
       <ChevronUpIcon className="size-4" />
@@ -156,7 +194,10 @@ function SelectScrollDownButton({
   return (
     <SelectPrimitive.ScrollDownButton
       data-slot="select-scroll-down-button"
-      className={cn("flex cursor-default items-center justify-center py-1", className)}
+      className={cn(
+        "flex cursor-pointer items-center justify-center py-1 transition-colors hover:bg-accent-bg",
+        className,
+      )}
       {...props}
     >
       <ChevronDownIcon className="size-4" />

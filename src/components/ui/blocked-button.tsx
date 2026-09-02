@@ -24,12 +24,12 @@ type BlockedButtonProps = Omit<
 /**
  * A button for an action that cannot run yet.
  *
- * There are no disabled buttons in this product (§14). A `disabled` one is
- * removed from the tab order, gives no answer when it is pressed, and reports
- * nothing to us - so a person who cannot tell why nothing happens is left
- * guessing, and we never learn that they tried. This one stays focusable,
- * announces itself as unavailable through `aria-disabled`, says why when it is
- * pressed, and records the attempt.
+ * There are no disabled buttons in this product. A `disabled` one is removed
+ * from the tab order, gives no answer when it is pressed, and reports nothing
+ * to us - so a person who cannot tell why nothing happens is left guessing, and
+ * we never learn that they tried. This one stays focusable, announces itself as
+ * unavailable through `aria-disabled`, says why when it is pressed, and records
+ * the attempt.
  *
  * The reason appears in a live region, so it reaches a screen reader as well as
  * the screen: pressing a button and having text appear silently somewhere below
@@ -45,7 +45,7 @@ export function BlockedButton({
   const [explained, setExplained] = React.useState(false);
 
   return (
-    <span className={cn("inline-flex flex-col gap-2", className)}>
+    <span className={cn("inline-flex flex-col", className)}>
       <Button
         {...props}
         aria-disabled="true"
@@ -60,7 +60,15 @@ export function BlockedButton({
       >
         {children}
       </Button>
-      <span role="status" className="text-xs text-muted-foreground">
+      {/* Always in the tree, so that the reason lands in a live region that was
+          already there rather than in one that appears with it - and taking no
+          room until there is a reason to take it. A gap held open for a
+          sentence nobody has asked for yet pushes the button off the centre of
+          its row, which is visible on every screen and explained by nothing. */}
+      <span
+        role="status"
+        className={cn("text-xs text-muted-foreground", explained && "mt-2")}
+      >
         {explained ? reason : null}
       </span>
     </span>

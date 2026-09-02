@@ -40,15 +40,14 @@ import {
 } from "@/lib/api/wire/zod.gen";
 
 /**
- * The seam (M1.7.2). The signature is the whole point: the day the server's
- * shape moves, it stops compiling here, in one directory, rather than showing
- * up as `undefined` inside JSX.
+ * The seam. The signature is the whole point: the day the server's shape moves,
+ * it stops compiling here, in one directory, rather than showing up as
+ * `undefined` inside JSX.
  *
  * The branches are parsed rather than narrowed by their tag. The open branch of
  * each union accepts any `kind` at all, so a check on the tag alone tells
  * TypeScript nothing - and an unfamiliar kind has to survive, costing the
- * finding its jump target rather than costing the whole response (§5.9 of the
- * contract).
+ * finding its jump target rather than costing the whole response.
  */
 export function toIssue(w: WireIssue): Issue {
   return {
@@ -61,9 +60,9 @@ export function toIssue(w: WireIssue): Issue {
     anchors: w.anchors.map(toAnchor),
     evidence: (w.evidence ?? []).map(toEvidence),
     actions: (w.actions ?? []).map(toAction),
-    // Nothing sets it before M9. The field is here from the start because a
-    // field added to the domain later drags the mapper, the schema and the
-    // contract along with it (M1.1.3).
+    // Nothing sets it yet. The field is here from the start because a field
+    // added to the domain later drags the mapper, the schema and the wire
+    // types along with it.
     stale: false,
     ...(w.cite === undefined ? {} : { cite: toCiteBlock(w.cite) }),
   };

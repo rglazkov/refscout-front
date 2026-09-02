@@ -18,7 +18,7 @@ import { localizedPath, routes, type RouteId } from "@/lib/seo";
  * The items do not disappear on a narrow screen, they move: a section that
  * cannot be reached from a phone simply does not exist for half of the
  * visitors. The disclosure is handled by the popover primitive, which keeps
- * aria-expanded, focus, Escape and outside-click dismissal on its own (§16).
+ * aria-expanded, focus, Escape and outside-click dismissal on its own.
  */
 const items: ReadonlyArray<{ readonly id: RouteId; readonly Icon: LucideIcon }> = [
   { id: "features", Icon: ShieldIcon },
@@ -78,7 +78,7 @@ export function SiteNavMenu() {
           variant="outline"
           size="icon"
           // The trigger takes its hover state and keeps it while the panel is
-          // open, so the button and what came out of it read as one thing (§14).
+          // open, so the button and what came out of it read as one thing.
           className="size-8 data-[state=open]:bg-accent-bg nav:hidden"
           aria-label={t("menu")}
         >

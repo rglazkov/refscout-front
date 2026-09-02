@@ -30,5 +30,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // The static export. The build copies the worker entry points in beside the
+    // bundle, and type-checking a copy of a file against a folder that has none
+    // of its neighbours fails for reasons that are not about the source.
+    "out"
+  ]
 }

@@ -35,9 +35,8 @@ export function contentFilePath(name: string, locale: Locale = defaultLocale): s
 }
 
 /**
- * The text of the page has not been written yet - a normal state, not an
- * error: the page says that it is being prepared instead of pretending to be
- * empty (§13).
+ * The text of the page has not been written yet - a normal state, not an error:
+ * the page says that it is being prepared instead of pretending to be empty.
  */
 export function hasPageContent(name: string, locale: Locale = defaultLocale): boolean {
   return existsSync(contentFilePath(name, locale));

@@ -6,9 +6,9 @@ import { immer } from "zustand/middleware/immer";
 import { type IntakeDraft } from "@/lib/domain";
 
 /**
- * The paste overlay's draft (§5, §18). Closing the overlay does not lose it:
- * "Done" closes the overlay, it does not confirm anything, and a draft that
- * disappears because a file was dropped is text the person cannot get back.
+ * The paste overlay's draft. Closing the overlay does not lose it: "Done"
+ * closes the overlay, it does not confirm anything, and a draft that disappears
+ * because a file was dropped is text the person cannot get back.
  */
 export type IntakeDraftState = {
   readonly draft: IntakeDraft;

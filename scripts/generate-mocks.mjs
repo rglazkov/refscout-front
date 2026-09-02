@@ -3,16 +3,16 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { parse, parseDocument } from "yaml";
 
 /**
- * Mocks are generated from the contract rather than written from memory
- * (M0.8.3). Every response is an example that lives in the OpenAPI document,
- * which makes a mock drifting away from the contract structurally impossible:
- * the mock is the contract.
+ * Mocks are generated from the contract rather than written from memory. Every
+ * response is an example that lives in the OpenAPI document, which makes a mock
+ * drifting away from the contract structurally impossible: the mock is the
+ * contract.
  *
- * Which cases have to exist is section 15 of the API specification, and they
- * exist as `examples` on the responses there - a clean finish, a partial
- * failure, a whole job failed, a skipped module, a finding pointing across
- * documents, a Cite result with both groups, and anchors of a kind this schema
- * version does not define. Adding a case is adding an example to the contract.
+ * The cases that have to exist live as `examples` on the responses in the
+ * contract - a clean finish, a partial failure, a whole job failed, a skipped
+ * module, a finding pointing across documents, a Cite result with both groups,
+ * and anchors of a kind this schema version does not define. Adding a case is
+ * adding an example to the contract.
  *
  * The file is regenerated together with the types and schemas: `npm run contract`.
  */
@@ -60,8 +60,8 @@ function deref(node) {
 
 /**
  * A `default` response has no status of its own - it stands for every status
- * the client was not built to expect (section 2.8). The mock has to answer
- * with something, and 500 is the case that branch exists for.
+ * the client was not built to expect. The mock has to answer with something,
+ * and 500 is the case that branch exists for.
  */
 const DEFAULT_STATUS = 500;
 

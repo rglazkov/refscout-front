@@ -7,25 +7,37 @@ import { m } from "motion/react";
 
 import { motionTransition } from "@/components/motion/transitions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/cn";
-import { clearAllDocuments } from "@/lib/docs";
-import { submittableItems, totalChars, useBufferStore, useUiStore } from "@/stores";
+import {
+  mainItems,
+  totalChars,
+  useBufferStore,
+  useEntitlementsStore,
+  useUiStore,
+} from "@/stores";
+import { sendingItems } from "@/features/plan/compute";
 
 import { DocumentCard } from "./document-card";
 
 /**
- * The buffer: its heading, its two counters, and the list (§4).
+ * The buffer: its heading, its two counters, and the list.
  *
  * The heading counts two things in two sentences. "In the buffer" and "Will be
  * sent" diverge the moment a document fails to parse or has its last tick
- * removed, and one number here would mean different things on adjacent lines
- * (M1.4.9).
+ * removed, and one number here would mean different things on adjacent
+ * lines.
  */
 export function BufferList() {
   const t = useTranslations("buffer");
   const format = useFormatter();
-  const items = useBufferStore((state) => state.items);
+  const all = useBufferStore((state) => state.items);
   const clear = useBufferStore((state) => state.clear);
+  // The list is a list of documents. What hangs off one - the bibliography, the
+  // glossary file, the venue's requirements - is shown and removed on that
+  // document's own card, and is not a row here.
+  const items = mainItems(all);
+  const entitlements = useEntitlementsStore((state) => state.entitlements);
   const collapsed = useUiStore((state) => state.docListCollapsed);
   const setCollapsed = useUiStore((state) => state.setDocListCollapsed);
   const heading = React.useRef<HTMLButtonElement | null>(null);
@@ -35,11 +47,13 @@ export function BufferList() {
   );
   const [confirmingClear, setConfirmingClear] = React.useState(false);
 
-  const sending = submittableItems(items);
+  // The same computation the line under the button uses: a check that access
+  // is closed for drops out of both numbers or out of neither.
+  const sending = sendingItems(all, entitlements);
 
   // A folded buffer opens itself when a document is added: otherwise dragging a
   // file in looks like nothing happened, and the next thing the person does is
-  // drop it a second time (§4).
+  // drop it a second time.
   const count = items.length;
   const previous = React.useRef(count);
   React.useEffect(() => {
@@ -69,7 +83,7 @@ export function BufferList() {
     <section className="mt-6" aria-labelledby="buffer-heading">
       <div className="flex items-center justify-between gap-3">
         {/* The caret and the word are one button, so the target is the size of
-            the word rather than the size of the icon (§4). */}
+            the word rather than the size of the icon. */}
         <Button
           ref={heading}
           id="buffer-heading"
@@ -104,56 +118,44 @@ export function BufferList() {
       {/* The counters stay outside the button. They are the last numbers read
           before sending, they get selected and copied, and inside the button
           they would become part of its name - which would then change with
-          every tick (§4). */}
-      <p className="mt-1 ps-5 text-sm text-muted-foreground" data-testid="buffer-counts">
+          every tick. */}
+      <p
+        className="mt-1 ps-5 font-mono text-sm text-muted-foreground"
+        data-testid="buffer-counts"
+      >
         {t("inBuffer", {
           documents: items.length,
           chars: format.number(totalChars(items)),
         })}
       </p>
-      <p className="ps-5 text-sm text-muted-foreground" data-testid="sending-counts">
+      <p
+        className="ps-5 font-mono text-sm text-muted-foreground"
+        data-testid="sending-counts"
+      >
         {t("willSend", {
           documents: sending.length,
           chars: format.number(totalChars(sending)),
         })}
       </p>
 
-      {confirmingClear ? (
-        <div
-          role="alertdialog"
-          aria-label={t("clearConfirmTitle")}
-          className="mt-3 rounded-lg border border-critical-border bg-critical-soft p-3 text-sm"
-        >
-          <p>{t("clearConfirm", { documents: items.length })}</p>
-          <div className="mt-2 flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={() => {
-                clearAllDocuments();
-                clear();
-                setConfirmingClear(false);
-              }}
-            >
-              {t("clearConfirmYes")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setConfirmingClear(false)}
-            >
-              {t("cancel")}
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {/* Clearing destroys every text in this browser, and there is nowhere to
+          get any of it back from. The question is a dialogue: it takes the
+          focus, puts the two answers side by side and gives the focus back. */}
+      <ConfirmDialog
+        open={confirmingClear}
+        onOpenChange={setConfirmingClear}
+        title={t("clearConfirmTitle")}
+        body={t("clearConfirm", { documents: items.length })}
+        confirmLabel={t("clearConfirmYes")}
+        cancelLabel={t("cancel")}
+        testId="clear-confirm"
+        onConfirm={clear}
+      />
 
       {collapsed ? (
         /* A folded list leaves a spine. Without it the screen says "5 documents
            in the buffer" and shows none, which reads as documents having gone
-           missing rather than as a list being folded (§4). */
+           missing rather than as a list being folded. */
         <div className="relative mt-3">
           <button
             type="button"
@@ -169,10 +171,10 @@ export function BufferList() {
             }}
           >
             <ChevronRightIcon className="size-4 shrink-0" aria-hidden="true" />
-            <span className="shrink-0 font-medium">
+            <span className="shrink-0 font-mono font-medium">
               {t("spineCount", { documents: items.length })}
             </span>
-            <span className="hidden min-w-0 flex-1 truncate text-muted-foreground nav:inline">
+            <span className="hidden min-w-0 flex-1 truncate font-mono text-muted-foreground nav:inline">
               {items
                 .slice(0, 3)
                 .map((item) => item.name)

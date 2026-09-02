@@ -107,7 +107,7 @@ export type SourceId = typeof SourceId[keyof typeof SourceId];
 
 /**
  * Offsets are Unicode code points, which is the unit Python counts in natively and the
- * unit every measurement of text in this contract uses (section 5.3).
+ * unit every measurement of text in this contract uses.
  *
  */
 export type OffsetUnit = 'codepoints';
@@ -140,7 +140,7 @@ export type Counts = {
 export type ApiError = {
     error: {
         /**
-         * An enumerated code from section 11.
+         * An enumerated code from the error dictionary.
          */
         code: string;
         requestId: string;
@@ -160,7 +160,7 @@ export type ApiError = {
 /**
  * The document information the parser read out of the file, which PreSubmit reads for
  * anonymity. The six standard keys are named; XMP entries and custom document properties
- * travel alongside them and are where a name most often survives (section 4.1.3).
+ * travel alongside them and are where a name most often survives.
  *
  */
 export type DocMeta = {
@@ -174,26 +174,26 @@ export type DocMeta = {
 };
 
 /**
- * The venue this document targets. `preset` carries the preset id in `source`; `url` and
- * `text` carry the requirements in `text`; `file` names the requirements document in this
- * same job through `docId` (section 4.1.2).
+ * The venue this document targets. There are three ways to bring the requirements in - a
+ * file, pasted text, or an address the server fetches for the client - and all three end
+ * in the same place: the requirements are a document of this job, named here through
+ * `docId`. `kind` records which way was used and `source` what the person
+ * entered, both for the report rather than for the checking.
  *
  */
-export type VenueRef = unknown & {
-    kind: 'preset' | 'url' | 'text' | 'file';
+export type VenueRef = {
+    kind: 'url' | 'text' | 'file';
     /**
-     * What the user entered - a preset id, an address, or a file name.
+     * What the user entered - an address, a file name, or "pasted".
      */
     source: string;
     /**
-     * The requirements as text.
-     */
-    text?: string;
-    /**
      * The document in this job carrying `role: venue-requirements` and `checks: []`.
+     * A venue whose requirements never arrived is not sent at all, so this is always
+     * present.
      *
      */
-    docId?: string;
+    docId: string;
 };
 
 export type SubmitDocument = {
@@ -216,11 +216,25 @@ export type SubmitDocument = {
      */
     checks: Array<ModuleId>;
     /**
-     * docIds of other documents in this job that the checks on this document read - a
-     * manuscript names its bibliography here (section 4.1.1).
+     * docIds of other documents in this job that the checks on this document read.
+     * The link is written from whichever document carries the tick,
+     * and both directions occur: a manuscript with BibCheck ticked names the
+     * bibliography it cites, and a bibliography with BibCheck ticked names the
+     * manuscript that cites it - either way BibCheck can report missing citations and
+     * uncited entries. A manuscript with Glossary ticked names a glossary file that
+     * already exists, so that those acronyms are left alone. A document named here
+     * that carries no ticks of its own is sent with an empty `checks`; one that does
+     * carry ticks is an ordinary document of the job and keeps them.
      *
      */
     uses?: Array<string>;
+    /**
+     * The settings for this document's checks. They belong to the document rather than to
+     * the job: two manuscripts in one job are two manuscripts with two subject areas and
+     * two key formats.
+     *
+     */
+    options: CheckOptions;
     /**
      * The content, verbatim.
      */
@@ -238,8 +252,8 @@ export type SubmitDocument = {
 };
 
 /**
- * A settings snapshot for all four modules, sent in full so that a re-run inside the same
- * job is unambiguous.
+ * A settings snapshot for all four modules, sent in full with every document so that a
+ * re-run inside the same job is unambiguous.
  *
  */
 export type CheckOptions = {
@@ -265,11 +279,26 @@ export type CheckOptions = {
         domain?: string;
     };
     presubmit: {
-        checklist?: string;
+        /**
+         * The double-blind check: names, affiliations, acknowledgements and
+         * self-identifying references that a blind review must not see.
+         *
+         */
         anonymity: boolean;
     };
     cite: {
-        field?: string;
+        /**
+         * Which piece of writing Cite reads - the whole document, or the paragraph or
+         * draft section in `excerpt`.
+         *
+         */
+        source: 'document' | 'excerpt';
+        /**
+         * The passage to propose sources for, when `source` is `excerpt`. A paragraph or
+         * a draft section rather than a phrase; up to 50 000 code points.
+         *
+         */
+        excerpt?: string;
         maxPerClaim: number;
         instructions?: string;
     };
@@ -277,12 +306,10 @@ export type CheckOptions = {
 
 export type SubmitJobRequest = {
     documents: Array<SubmitDocument>;
-    options: CheckOptions;
     /**
      * BCP-47. Sets the language of every word a module writes for a person to read:
      * `detail`, the content of an artifact, and any free text inside evidence. Codes and
-     * dictionary keys are unaffected - the client composes those phrases itself
-     * (section 4.1).
+     * dictionary keys are unaffected - the client composes those phrases itself.
      *
      */
     locale: string;
@@ -291,7 +318,7 @@ export type SubmitJobRequest = {
 export type SubmitJobResponse = {
     jobId: string;
     /**
-     * Required for every read of this job (section 4.3).
+     * Required for every read of this job.
      */
     jobToken: string;
     createdAt: string;
@@ -332,7 +359,7 @@ export type Stage = {
 export type ModuleStatus = {
     state: ModuleState;
     /**
-     * 1 on the first run, raised by a retry (section 4.6).
+     * 1 on the first run, raised by a retry.
      */
     attempt: number;
     /**
@@ -346,7 +373,7 @@ export type ModuleStatus = {
     headlineKey?: DictionaryKey;
     headlineParams?: Params;
     /**
-     * Present exactly when state is `error` (section 11.4).
+     * Present exactly when state is `error`.
      */
     errorCode?: string;
     /**
@@ -356,7 +383,7 @@ export type ModuleStatus = {
     skippedReasonParams?: Params;
     /**
      * The address of the result body, appearing together with a terminal state. A path on
-     * the API origin beginning with `/jobs/{jobId}/` (section 4.4).
+     * the API origin beginning with `/jobs/{jobId}/`.
      *
      */
     resultRef?: string;
@@ -423,7 +450,7 @@ export type ModuleResult = {
     /**
      * Every document whose coordinates appear in this body: this result's own document
      * first, then each document named by an anchor's `docId`. Both values in each entry
-     * are recomputed by the server from the text it received (section 4.4).
+     * are recomputed by the server from the text it received.
      *
      */
     texts: Array<TextRef>;
@@ -450,7 +477,7 @@ export type Issue = {
     evidence?: Array<Evidence>;
     actions?: Array<IssueAction>;
     /**
-     * The claims-and-candidates block Cite's card is built from (section 5.6).
+     * The claims-and-candidates block Cite's card is built from.
      */
     cite?: CiteBlock;
 };
@@ -458,7 +485,7 @@ export type Issue = {
 /**
  * Tagged by `kind`. The last branch matches a kind this version of the schema does not
  * define, so an anchor of a new kind parses and the client shows the finding without a
- * jump target instead of losing the response (section 5.9).
+ * jump target instead of losing the response.
  *
  */
 export type Anchor = AnchorRange | AnchorQuote | AnchorPoint | AnchorBibkey | AnchorDocument | AnchorUnknown;
@@ -473,7 +500,7 @@ export type AnchorUnknown = {
 
 /**
  * The document the place is in, when it is a different document from the one this result
- * is about. Every id used this way appears in `texts[]` (section 5.2).
+ * is about. Every id used this way appears in `texts[]`.
  *
  */
 export type AnchorDocId = string;
@@ -482,8 +509,7 @@ export type AnchorDocId = string;
  * Verbatim neighbouring text, present on every anchor of kind range, quote or point - 64
  * code points a side is ample. `prefix` ends exactly at the left boundary of the place and
  * `suffix` begins exactly at its right boundary. Optional here so that a missing context
- * costs its own anchor rather than the whole result; the rule that it is always sent is in
- * section 5.2.
+ * costs its own anchor rather than the whole result, though the server always sends it.
  *
  */
 export type AnchorContext = string;
@@ -491,7 +517,7 @@ export type AnchorContext = string;
 /**
  * The module knows the exact coordinates. `quote` is verbatim equal to the submitted text
  * between the offsets, and its length in code points equals `to - from`. Context is
- * present, as on every anchor that has one (section 5.2).
+ * present, as on every anchor that has one.
  *
  */
 export type AnchorRange = {
@@ -556,7 +582,7 @@ export type AnchorDocument = {
 
 /**
  * Tagged by `kind`. A fact of a kind this schema version does not define parses and the
- * card passes over it, showing the rest (section 5.9).
+ * card passes over it, showing the rest.
  *
  */
 export type Evidence = EvidenceDoi | EvidenceUrl | EvidenceDate | EvidenceNumber | EvidenceText | EvidenceSource | EvidenceUnknown;
@@ -610,7 +636,7 @@ export type EvidenceSource = {
 
 /**
  * Tagged by `kind`. An action of a kind this schema version does not define parses and the
- * card does not offer that button, offering the rest (section 5.9).
+ * card does not offer that button, offering the rest.
  *
  */
 export type IssueAction = ActionCopy | ActionReplace | ActionOpenSource | ActionDownload | ActionUnknown;
@@ -705,8 +731,7 @@ export type ModuleEntitlement = {
 /**
  * Two independent answers. `modules[m].allowed` is the only source for the lock on module
  * m; `access` is the only source for what the launch row says about the period. Neither is
- * derived from the other: a trial run carries `allowed: true` with `access: false`
- * (section 6.1).
+ * derived from the other: a trial run carries `allowed: true` with `access: false`.
  *
  */
 export type Entitlements = {
@@ -760,16 +785,6 @@ export type ScoutFeedbackRequest = {
     vote: 'up' | 'down';
 };
 
-export type Venue = {
-    id: string;
-    name: string;
-    publisher?: string;
-};
-
-export type VenuesResponse = {
-    venues: Array<Venue>;
-};
-
 export type VenueFetchRequest = {
     url: HttpUrl;
 };
@@ -792,7 +807,7 @@ export type Breadcrumb = {
 
 /**
  * Present on an event of kind `user_report`. The client shows the complete contents of the
- * report before it is sent (section 9.1.1).
+ * report before it is sent.
  *
  */
 export type UserReport = {
@@ -923,22 +938,21 @@ export type JobToken = string;
 
 /**
  * One key per user intent to start a check. The client mints a new one when the content
- * of the submission changes and when the previous job reaches a terminal state
- * (section 4.2).
+ * of the submission changes and when the previous job reaches a terminal state.
  *
  */
 export type IdempotencyKey = string;
 
 /**
  * `gzip` when the client compressed the body, which it does itself since `fetch` does
- * not. Both values are accepted at any body size (section 2.6).
+ * not. Both values are accepted at any body size.
  *
  */
 export const ContentEncoding = { GZIP: 'gzip', IDENTITY: 'identity' } as const;
 
 /**
  * `gzip` when the client compressed the body, which it does itself since `fetch` does
- * not. Both values are accepted at any body size (section 2.6).
+ * not. Both values are accepted at any body size.
  *
  */
 export type ContentEncoding = typeof ContentEncoding[keyof typeof ContentEncoding];
@@ -953,14 +967,13 @@ export type SubmitJobData = {
     headers: {
         /**
          * One key per user intent to start a check. The client mints a new one when the content
-         * of the submission changes and when the previous job reaches a terminal state
-         * (section 4.2).
+         * of the submission changes and when the previous job reaches a terminal state.
          *
          */
         'Idempotency-Key': string;
         /**
          * `gzip` when the client compressed the body, which it does itself since `fetch` does
-         * not. Both values are accepted at any body size (section 2.6).
+         * not. Both values are accepted at any body size.
          *
          */
         'Content-Encoding'?: 'gzip' | 'identity';
@@ -992,7 +1005,7 @@ export type SubmitJobErrors = {
      */
     403: ApiError;
     /**
-     * An intake limit was exceeded; `params` names the limit (section 12).
+     * An intake limit was exceeded; `params` names the limit.
      */
     413: ApiError;
     /**
@@ -1004,7 +1017,7 @@ export type SubmitJobErrors = {
      */
     422: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
@@ -1013,7 +1026,7 @@ export type SubmitJobErrors = {
     503: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1024,7 +1037,7 @@ export type SubmitJobError = SubmitJobErrors[keyof SubmitJobErrors];
 export type SubmitJobResponses = {
     /**
      * The same idempotency key with the same body: the job that key already names,
-     * whatever state it is in (section 4.2).
+     * whatever state it is in.
      *
      */
     200: SubmitJobResponse;
@@ -1064,12 +1077,12 @@ export type CancelJobErrors = {
      */
     409: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1110,12 +1123,12 @@ export type GetJobErrors = {
      */
     404: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1166,12 +1179,12 @@ export type GetModuleResultErrors = {
      */
     410: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1217,12 +1230,12 @@ export type RetryModuleErrors = {
      */
     409: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1259,12 +1272,12 @@ export type StreamJobEventsErrors = {
      */
     404: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1298,12 +1311,12 @@ export type GetEntitlementsData = {
 
 export type GetEntitlementsErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1339,7 +1352,7 @@ export type ScoutSearchErrors = {
      */
     400: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
@@ -1348,7 +1361,7 @@ export type ScoutSearchErrors = {
     503: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1378,12 +1391,12 @@ export type ScoutFeedbackErrors = {
      */
     400: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1399,37 +1412,6 @@ export type ScoutFeedbackResponses = {
 };
 
 export type ScoutFeedbackResponse = ScoutFeedbackResponses[keyof ScoutFeedbackResponses];
-
-export type ListVenuesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/venues';
-};
-
-export type ListVenuesErrors = {
-    /**
-     * A request was refused for volume (section 2.9).
-     */
-    429: ApiError;
-    /**
-     * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
-     *
-     */
-    default: ApiError;
-};
-
-export type ListVenuesError = ListVenuesErrors[keyof ListVenuesErrors];
-
-export type ListVenuesResponses = {
-    /**
-     * The preset list.
-     */
-    200: VenuesResponse;
-};
-
-export type ListVenuesResponse = ListVenuesResponses[keyof ListVenuesResponses];
 
 export type FetchVenueRequirementsData = {
     body: VenueFetchRequest;
@@ -1450,7 +1432,7 @@ export type FetchVenueRequirementsErrors = {
      */
     400: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
@@ -1463,7 +1445,7 @@ export type FetchVenueRequirementsErrors = {
     504: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1489,12 +1471,12 @@ export type SendClientEventsData = {
 
 export type SendClientEventsErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1525,12 +1507,12 @@ export type ReportCspViolationData = {
 
 export type ReportCspViolationErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1556,12 +1538,12 @@ export type GetSessionData = {
 
 export type GetSessionErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1595,12 +1577,12 @@ export type RegisterErrors = {
      */
     409: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1630,12 +1612,12 @@ export type LoginErrors = {
      */
     401: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1661,12 +1643,12 @@ export type LogoutData = {
 
 export type LogoutErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1692,12 +1674,12 @@ export type ForgotPasswordData = {
 
 export type ForgotPasswordErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1727,12 +1709,12 @@ export type ResetPasswordErrors = {
      */
     400: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1765,12 +1747,12 @@ export type StartOauthData = {
 
 export type StartOauthErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1781,7 +1763,7 @@ export type StartOauthError = StartOauthErrors[keyof StartOauthErrors];
 export type StartOauthResponses = {
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1803,12 +1785,12 @@ export type CompleteOauthData = {
 
 export type CompleteOauthErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1819,7 +1801,7 @@ export type CompleteOauthError = CompleteOauthErrors[keyof CompleteOauthErrors];
 export type CompleteOauthResponses = {
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1840,12 +1822,12 @@ export type ExportAccountDataErrors = {
      */
     401: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1877,12 +1859,12 @@ export type DeleteAccountErrors = {
      */
     401: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1912,12 +1894,12 @@ export type StartCheckoutErrors = {
      */
     401: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1947,12 +1929,12 @@ export type OpenBillingPortalErrors = {
      */
     401: ApiError;
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;
@@ -1978,12 +1960,12 @@ export type HealthData = {
 
 export type HealthErrors = {
     /**
-     * A request was refused for volume (section 2.9).
+     * A request was refused for volume.
      */
     429: ApiError;
     /**
      * Any other failure. Every non-2xx response carries the same envelope, so a client has one
-     * branch for a status it was not built to expect (section 2.8).
+     * branch for a status it was not built to expect.
      *
      */
     default: ApiError;

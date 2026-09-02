@@ -8,7 +8,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/test/**/*.test.ts"],
+    /*
+     * Two kinds of test, and one runner. The component tests are .tsx and ask
+     * for jsdom in a comment at the top of the file; everything else runs in
+     * plain Node, which is what keeps the fast lane fast.
+     */
+    include: ["src/test/**/*.test.ts", "src/test/**/*.test.tsx"],
     /*
      * The API origin, which the application reads from the environment. Node
      * has no notion of the page's own origin, so a relative address is not a

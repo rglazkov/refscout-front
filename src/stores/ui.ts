@@ -5,7 +5,9 @@ import { immer } from "zustand/middleware/immer";
 
 import { type ModuleId } from "@/lib/domain";
 
-/** Which text the overlay is showing, and whether it can be edited (M1.5, M1.9.7). */
+import { type Marks } from "./job";
+
+/** Which text the overlay is showing, and whether it can be edited. */
 export type OverlayTarget = {
   readonly docId: string;
   readonly mode: "edit" | "read";
@@ -13,7 +15,7 @@ export type OverlayTarget = {
 
 /**
  * What is open and what is folded. It belongs to the browser rather than to the
- * server, so it lives in Zustand and not in Query (M1.2.3).
+ * server, so it lives in Zustand and not in Query.
  */
 export type UiState = {
   readonly overlay: OverlayTarget | null;
@@ -21,9 +23,14 @@ export type UiState = {
   readonly retainedOverlay: OverlayTarget | null;
   readonly paywallModule: ModuleId | null;
   readonly docListCollapsed: boolean;
-  /** The check cards that have been opened on the results screen, by document. */
-  readonly openCards: readonly string[];
-  readonly openIssues: readonly string[];
+  /**
+   * The check cards that have been opened on the results screen, by document,
+   * and the findings opened inside them. Records rather than arrays: every row
+   * of a long list asks whether it is open, and over an array that question is
+   * a scan.
+   */
+  readonly openCards: Marks;
+  readonly openIssues: Marks;
   readonly openOverlay: (target: OverlayTarget) => void;
   readonly closeOverlay: () => void;
   readonly openPaywall: (module: ModuleId) => void;
@@ -39,8 +46,8 @@ export const useUiStore = create<UiState>()(
     retainedOverlay: null,
     paywallModule: null,
     docListCollapsed: false,
-    openCards: [],
-    openIssues: [],
+    openCards: {},
+    openIssues: {},
 
     openOverlay: (target) =>
       set((state) => {
@@ -66,15 +73,13 @@ export const useUiStore = create<UiState>()(
     toggleCard: (docId, module) =>
       set((state) => {
         const key = `${docId}:${module}`;
-        state.openCards = state.openCards.includes(key)
-          ? state.openCards.filter((open) => open !== key)
-          : [...state.openCards, key];
+        if (state.openCards[key] === true) delete state.openCards[key];
+        else state.openCards[key] = true;
       }),
     toggleIssue: (key) =>
       set((state) => {
-        state.openIssues = state.openIssues.includes(key)
-          ? state.openIssues.filter((open) => open !== key)
-          : [...state.openIssues, key];
+        if (state.openIssues[key] === true) delete state.openIssues[key];
+        else state.openIssues[key] = true;
       }),
   })),
 );

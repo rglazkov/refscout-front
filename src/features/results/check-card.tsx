@@ -1,18 +1,11 @@
 "use client";
 
 import * as React from "react";
-import {
-  CheckCheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, PencilIcon } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { flushSync } from "react-dom";
 
-import { Collapse } from "@/components/motion/collapse";
 import {
   motionEasing,
   motionMs,
@@ -21,23 +14,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import {
-  type Counts,
-  type Issue,
+  type Artifact,
   type ModuleId,
   type ModuleResult,
   type ModuleStatus,
-  type Severity,
 } from "@/lib/domain";
-import { fixedKey, useJobStore, useUiStore } from "@/stores";
+import { useIntake } from "@/features/intake/use-intake";
+import { useWording } from "@/lib/i18n";
+import { useUiStore } from "@/stores";
+
+import { CiteOverlay } from "./cite-overlay";
+import { IssueRow } from "./issue-row";
+import { SeverityDots } from "./severity-dots";
 
 /**
- * One check on one document (M1.9.2). The score as a number and as a bar, the
- * severity counters as dots so the state reads by shape and not by colour
- * alone, one headline problem in words, and a button that opens the findings in
- * place.
+ * One check on one document. The score as a number and as a bar, the severity
+ * counters as labelled dots, one headline problem in words, and a button that
+ * opens the findings in place.
  */
 export function CheckCard({
   docId,
+  documentName,
   module,
   status,
   result,
@@ -45,6 +42,8 @@ export function CheckCard({
   onRetry,
 }: {
   readonly docId: string;
+  /** The file a check produced is named after the document it was made from. */
+  readonly documentName: string;
   readonly module: ModuleId;
   readonly status: ModuleStatus;
   readonly result: ModuleResult | undefined;
@@ -52,21 +51,29 @@ export function CheckCard({
   readonly arrivalIndex: number;
   /**
    * Re-running one module is an operation on the job that already exists: the
-   * text is not sent again and no idempotency key takes part (M1.8.6). Absent
-   * once the server refuses further attempts.
+   * text is not sent again and no idempotency key takes part. Absent once the
+   * server refuses further attempts.
    */
   readonly onRetry?: (module: ModuleId) => void;
 }) {
   const t = useTranslations("results");
   const checkName = useTranslations("capabilities");
-  const phrase = useTranslations();
-  const open = useUiStore((state) => state.openCards.includes(`${docId}:${module}`));
+  const phrase = useWording();
+  const open = useUiStore((state) => state.openCards[`${docId}:${module}`] === true);
   const toggleCard = useUiStore((state) => state.toggleCard);
   const [cardRef, morphing, toggleMorph] = useCardMorph(open, () =>
     toggleCard(docId, module),
   );
 
   const issues = result?.issues ?? [];
+  /*
+   * Cite opens over the page instead of unfolding in the grid. It reports
+   * nothing wrong: it proposes sources, and reading one is a title, its
+   * authors, where it appeared and which databases returned it - a screenful
+   * per claim, which is not something a card in a row of cards can hold.
+   */
+  const asOverlay = module === "cite";
+  const [citeOpen, setCiteOpen] = React.useState(false);
   const openable = issues.length > 0;
   const findingCount =
     issues.length > 0
@@ -74,7 +81,7 @@ export function CheckCard({
       : status.counts.critical + status.counts.warning + status.counts.info;
 
   const handleCardClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!openable || open || morphing) return;
+    if (!openable || (!asOverlay && (open || morphing))) return;
     const target = event.target;
     if (
       target instanceof Element &&
@@ -83,7 +90,8 @@ export function CheckCard({
       return;
     }
     if (window.getSelection()?.isCollapsed === false) return;
-    toggleMorph();
+    if (asOverlay) setCiteOpen(true);
+    else toggleMorph();
   };
 
   const body = (
@@ -98,13 +106,13 @@ export function CheckCard({
       {status.state === "skipped" ? (
         /* A check that had nothing to check is not a zero. It is the module's
            verdict, not the interface's guess, which is why it does not lie
-           about a bibliography our parser failed to recognise (§9). */
+           about a bibliography our parser failed to recognise. */
         <>
           <p className="font-mono text-3xl leading-none text-muted-foreground">—</p>
           <p className="text-sm text-muted-foreground" data-testid="skipped">
             {status.skippedReasonKey === undefined
               ? t("skipped")
-              : phrase(status.skippedReasonKey, status.skippedReasonParams)}
+              : phrase(status.skippedReasonKey, status.skippedReasonParams, t("skipped"))}
           </p>
         </>
       ) : status.state === "error" ? (
@@ -160,23 +168,40 @@ export function CheckCard({
       }}
       onClick={handleCardClick}
       className={cn(
-        "flex flex-col gap-2.5 rounded-lg border bg-card p-3.5 transition-[background-color,border-color,box-shadow]",
+        // The card carries its own width, so the row it stands in can be a
+        // wrapping row that centres what is on it - including the last one,
+        // which is the row a grid leaves hanging off the left.
+        "flex w-full flex-col gap-2.5 rounded-lg border bg-card p-3.5 transition-[background-color,border-color,box-shadow] sm:w-[21rem]",
         openable &&
           !open &&
           !morphing &&
           "cursor-pointer hover:border-primary/50 hover:bg-[color-mix(in_srgb,var(--muted)_40%,var(--card))] hover:shadow-[var(--elevation-md)]",
-        open && "col-span-full",
+        open && "sm:w-full",
       )}
     >
       {/* While it is folded the card is a summary with one purpose - to open -
           so the whole of it is that button. Once open it holds rows a person is
-          reading, and only its own button folds it again (§9). */}
+          reading, and only its own button folds it again. */}
       {body}
 
-      {openable ? (
+      {openable && asOverlay ? (
         <Button
           type="button"
-          variant="outline"
+          variant="outlineOnCard"
+          size="sm"
+          className="self-start"
+          data-testid="open-cite"
+          onClick={() => setCiteOpen(true)}
+        >
+          <ChevronRightIcon aria-hidden="true" />
+          {t("open", { count: issues.length })}
+        </Button>
+      ) : null}
+
+      {openable && !asOverlay ? (
+        <Button
+          type="button"
+          variant="outlineOnCard"
           size="sm"
           className="self-start"
           aria-expanded={open}
@@ -191,13 +216,27 @@ export function CheckCard({
         </Button>
       ) : null}
 
+      {/* A file this check produced - a corrected bibliography, a generated
+          glossary - is a text of its own and not the manuscript, so it opens in
+          the editor of its own. Reading it, correcting it and saving it all
+          happen there, because the editor is the one place a document is
+          downloaded from. */}
+      {(result?.artifacts ?? []).map((artifact, index) => (
+        <OpenArtifactButton
+          key={index}
+          docId={docId}
+          documentName={documentName}
+          module={module}
+          artifact={artifact}
+        />
+      ))}
+
       {/* The button lives only on a module in state `error`; when the server
-          says the attempts are spent it goes, and the sentence above stays
-          (M1.8.6). */}
+          says the attempts are spent it goes, and the sentence above stays. */}
       {status.state === "error" && onRetry !== undefined ? (
         <Button
           type="button"
-          variant="outline"
+          variant="outlineOnCard"
           size="sm"
           className="w-full"
           data-testid="retry-module"
@@ -207,15 +246,87 @@ export function CheckCard({
         </Button>
       ) : null}
 
-      {open ? (
-        <ul className="border-t">
+      {open && !asOverlay ? (
+        /*
+         * There is no limit on the number of findings and there are no
+         * truncated lists: a finding dropped because the interface was built
+         * for a hundred makes the whole result untrustworthy. What is limited
+         * is how much of it the browser draws at once, which is a rendering
+         * optimisation and not a limit on the product.
+         *
+         * `content-visibility` is the half of that which costs nothing: a row
+         * below the fold is skipped for layout, style and paint until it comes
+         * near, while staying in the document, findable by the browser's own
+         * search and reachable by Tab. The intrinsic size is what a collapsed
+         * row measures, so the scrollbar does not jump as rows are drawn.
+         */
+        <ul className="border-t [&>li]:[contain-intrinsic-size:auto_2.25rem] [&>li]:[content-visibility:auto]">
           {issues.map((issue) => (
             <IssueRow key={issue.issueId} docId={docId} module={module} issue={issue} />
           ))}
         </ul>
       ) : null}
+
+      {asOverlay ? (
+        <CiteOverlay
+          open={citeOpen}
+          docId={docId}
+          documentName={documentName}
+          result={result}
+          onClose={() => setCiteOpen(false)}
+        />
+      ) : null}
     </m.div>
   );
+}
+
+/**
+ * The file the check wrote, taken into the browser as a text and opened. The
+ * server sends it as text and the browser assembles the file; there is no
+ * address anywhere from which the contents of a manuscript come back off a
+ * server.
+ */
+function OpenArtifactButton({
+  docId,
+  documentName,
+  module,
+  artifact,
+}: {
+  readonly docId: string;
+  readonly documentName: string;
+  readonly module: ModuleId;
+  readonly artifact: Artifact;
+}) {
+  const t = useTranslations("results");
+  const { adoptArtifact } = useIntake();
+  const openOverlay = useUiStore((state) => state.openOverlay);
+
+  return (
+    <Button
+      type="button"
+      variant="outlineOnCard"
+      size="sm"
+      className="self-start"
+      data-testid="open-artifact"
+      onClick={() => {
+        void adoptArtifact({
+          docId,
+          module,
+          name: `${baseName(documentName)}-${module}.${artifact.kind}`,
+          format: artifact.kind,
+          text: artifact.content,
+        }).then((id) => openOverlay({ docId: id, mode: "edit" }));
+      }}
+    >
+      <PencilIcon aria-hidden="true" />
+      {t("openArtifact", { extension: artifact.kind })}
+    </Button>
+  );
+}
+
+/** The document's name without its extension, so the new one is not a second. */
+function baseName(name: string): string {
+  return name.replace(/\.[A-Za-z0-9]+$/, "");
 }
 
 type MorphRun = {
@@ -227,8 +338,8 @@ type MorphRun = {
 /**
  * The card is the one surface whose final grid column has no intermediate
  * value. Commit the final layout, hold its cell with a placeholder, then move
- * the real box between the measured rectangles (spec §14). Width and height
- * are animated as real dimensions, so text is never stretched by `scale`.
+ * the real box between the measured rectangles. Width and height are animated
+ * as real dimensions, so text is never stretched by `scale`.
  */
 function useCardMorph(open: boolean, commit: () => void) {
   const ref = React.useRef<HTMLDivElement | null>(null);
@@ -378,8 +489,8 @@ function useCardMorph(open: boolean, commit: () => void) {
 
 /**
  * The colour comes from the semantic scale and never from the accent colour:
- * red below 50, amber to 79, green from 80 (§9). Cite has no score at all, and
- * a card without one is a normal sight rather than a data defect.
+ * red below 50, amber to 79, green from 80. Cite has no score at all, and a
+ * card without one is a normal sight rather than a data defect.
  */
 function Score({ score }: { readonly score: number }) {
   const t = useTranslations("results");
@@ -393,8 +504,8 @@ function Score({ score }: { readonly score: number }) {
       >
         {score}
         {/* The scale is named rather than turned into a percentage: the
-            contract defines `score` as 0-100 with no unit, and "%" would
-            assert a proportion of something the server never states (§9). */}
+            contract defines `score` as 0-100 with no unit, and "%" would assert
+            a proportion of something the server never states. */}
         <small className="ms-0.5 text-sm font-medium tracking-normal text-muted-foreground">
           /100
         </small>
@@ -403,35 +514,6 @@ function Score({ score }: { readonly score: number }) {
         <div className={cn("h-full rounded-full", tone)} style={{ width: `${score}%` }} />
       </div>
     </div>
-  );
-}
-
-/**
- * A counter dot: a bright fill with a ring of the severity's own text colour.
- * The ring is what gives the dot a defined edge on the card and on the page
- * ground alike, which frees the fill to be bright enough that the two
- * severities separate by lightness rather than by hue alone (§9).
- */
-const TONE: Readonly<Record<Severity, string>> = {
-  critical: "bg-[var(--critical-dot)] ring-1 ring-critical",
-  warning: "bg-[var(--warning-dot)] ring-1 ring-warning",
-  info: "bg-muted-foreground",
-};
-
-function SeverityDots({ counts }: { readonly counts: Counts }) {
-  const t = useTranslations("results.severity");
-  return (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] text-muted-foreground">
-      {(["critical", "warning"] as const).map((severity) => (
-        <span key={severity} className="inline-flex items-center gap-1">
-          <span
-            className={cn("size-2.5 rounded-full", TONE[severity])}
-            aria-hidden="true"
-          />
-          {t(severity, { count: counts[severity] })}
-        </span>
-      ))}
-    </p>
   );
 }
 
@@ -479,177 +561,4 @@ function StatusBadge({ status }: { readonly status: ModuleStatus }) {
       {label}
     </span>
   );
-}
-
-function IssueRow({
-  docId,
-  module,
-  issue,
-}: {
-  readonly docId: string;
-  readonly module: ModuleId;
-  readonly issue: Issue;
-}) {
-  const t = useTranslations("results");
-  const phrase = useTranslations();
-  const key = fixedKey(docId, module, issue.issueId);
-  const open = useUiStore((state) => state.openIssues.includes(key));
-  const toggleIssue = useUiStore((state) => state.toggleIssue);
-  const marked = useJobStore((state) => state.fixed.includes(key));
-  const toggleFixed = useJobStore((state) => state.toggleFixed);
-  const severityLabel =
-    issue.severity === "critical"
-      ? t("severityName.critical")
-      : issue.severity === "warning"
-        ? t("severityName.warning")
-        : t("severityName.info");
-
-  return (
-    <li className="border-b last:border-b-0">
-      <button
-        type="button"
-        aria-expanded={open}
-        className="flex w-full items-center gap-2.5 px-0.5 py-2 text-start text-sm transition-colors hover:bg-accent-bg"
-        onClick={() => toggleIssue(key)}
-      >
-        <ChevronRightIcon
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--motion-fast)] ease-[var(--ease-out)]",
-            open && "rotate-90",
-          )}
-          aria-hidden="true"
-        />
-        <span
-          className={cn(
-            "shrink-0 rounded-sm border px-1.5 py-0.5 text-[0.6875rem] font-semibold tracking-wide uppercase",
-            issue.severity === "critical" &&
-              "border-critical-border bg-critical-soft text-critical",
-            issue.severity === "warning" &&
-              "border-warning-border bg-warning-soft text-warning",
-            issue.severity === "info" && "border-border bg-muted text-muted-foreground",
-          )}
-        >
-          {severityLabel}
-        </span>
-        <span className={cn("min-w-0 flex-1", marked && "line-through opacity-70")}>
-          {phrase(issue.titleKey, issue.params)}
-        </span>
-      </button>
-
-      <Collapse open={open}>
-        <div className="pt-1 pb-3">
-          <div
-            className={cn(
-              "space-y-2 rounded-lg border border-s-[3px] p-3 text-sm shadow-sm",
-              issue.severity === "critical" &&
-                "border-critical-border border-s-critical bg-critical-soft",
-              issue.severity === "warning" &&
-                "border-warning-border border-s-warning bg-warning-soft",
-              issue.severity === "info" &&
-                "border-border border-s-muted-foreground bg-muted",
-            )}
-          >
-            {/* Plain text from the module, placed as a text node and never as
-                markup (§19). */}
-            {issue.detail === undefined ? null : <p>{issue.detail}</p>}
-
-            {issue.evidence.length === 0 ? null : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {issue.evidence.map((fact, index) => (
-                  <li key={index}>
-                    <Fact fact={fact} />
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              {issue.actions.map((action, index) => {
-                if (action.kind === "copy") {
-                  return (
-                    <Button
-                      key={index}
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      onClick={() => void navigator.clipboard.writeText(action.value)}
-                    >
-                      <CopyIcon aria-hidden="true" />
-                      {action.labelKey === undefined
-                        ? t("copy")
-                        : phrase(action.labelKey)}
-                    </Button>
-                  );
-                }
-                if (action.kind === "openSource") {
-                  return (
-                    <Button key={index} type="button" size="xs" variant="outline" asChild>
-                      <a href={action.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLinkIcon aria-hidden="true" />
-                        {action.labelKey === undefined
-                          ? t("openSource")
-                          : phrase(action.labelKey)}
-                      </a>
-                    </Button>
-                  );
-                }
-                // An action of a kind this version does not define is simply not
-                // offered; the rest of the card is shown (§5.9 of the contract).
-                return null;
-              })}
-
-              {/* "Fixed" marks the finding as dealt with and touches no text. It
-                  never travels to the server (M1.9.4). */}
-              <Button
-                type="button"
-                size="xs"
-                variant={marked ? "secondary" : "outline"}
-                aria-pressed={marked}
-                onClick={() => toggleFixed(docId, module, issue.issueId)}
-              >
-                <CheckCheckIcon aria-hidden="true" />
-                {t("fixed")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Collapse>
-    </li>
-  );
-}
-
-function Fact({ fact }: { readonly fact: Issue["evidence"][number] }) {
-  const phrase = useTranslations();
-  switch (fact.kind) {
-    case "doi":
-      return <>DOI {fact.value}</>;
-    case "url":
-      return (
-        <a
-          href={fact.value}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          {fact.value}
-        </a>
-      );
-    case "date":
-    case "number":
-    case "text":
-      return (
-        <>
-          {phrase(fact.labelKey)}: {fact.value}
-        </>
-      );
-    case "source":
-      return (
-        <>
-          {phrase(fact.labelKey)}: {fact.title}
-        </>
-      );
-    default:
-      // A fact of an unfamiliar kind is passed over, and the rest is shown.
-      return null;
-  }
 }

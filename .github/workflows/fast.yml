@@ -1,5 +1,5 @@
 # The fast lane: runs on every pull request. It has to finish in minutes, or
-# people will start routing around it (M0.5).
+# people will start routing around it.
 name: fast
 
 on:

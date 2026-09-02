@@ -11,10 +11,10 @@ import {
 import { track } from "@/lib/telemetry";
 
 /**
- * Four modules answer in four shapes, and the whole interface works with one
- * (M1.7.4). Because of that the list inside a card is the same component for
- * every module, the report assembled on download comes from the same array, and
- * a new module is connected by adding its codes and one renderer of details.
+ * Four modules answer in four shapes, and the whole interface works with one.
+ * Because of that the list inside a card is the same component for every
+ * module, the report assembled on download comes from the same array, and a new
+ * module is connected by adding its codes and one renderer of details.
  */
 export type PlacedIssue = {
   readonly docId: string;
@@ -44,7 +44,7 @@ export function addCounts(left: Counts, right: Counts): Counts {
  * The numbers a document's heading shows. Only the cards already on screen are
  * added up: a heading that reported checks which have not arrived yet would
  * name a number that cannot be found on the page, and the first thing a person
- * does is count the cards (§9).
+ * does is count the cards.
  */
 export function documentCounts(
   modules: Readonly<Partial<Record<ModuleId, ModuleStatus>>>,
@@ -61,7 +61,7 @@ export function documentCounts(
   return total;
 }
 
-/** The row at the top of the screen: the sum of the document rows (§9). */
+/** The row at the top of the screen: the sum of the document rows. */
 export function jobCounts(job: Job): Counts {
   let total = zeroCounts;
   for (const document of job.status.documents) {
@@ -80,8 +80,7 @@ export function countIssues(issues: readonly PlacedIssue[]): Counts {
  * The counters come from the poll and the findings come from the body, and the
  * two have to agree. When they do not, that is an event with an address rather
  * than a silent recount on the client: recounting would make the screen add up
- * while hiding that the server and the client disagree about the same job
- * (§18).
+ * while hiding that the server and the client disagree about the same job.
  */
 export function verifyCounts(status: ModuleStatus, result: ModuleResult): boolean {
   const found = countIssues(issuesOf(result));

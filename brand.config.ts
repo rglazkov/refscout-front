@@ -1,8 +1,8 @@
 /**
  * The brand is a swappable layer. This file lives outside `src/` because the
- * product name never appears inside `src/`: test M0.4.4 greps the source for
+ * product name never appears inside `src/`: a test greps the source for
  * it, and rebranding has to be an edit to one file rather than to a hundred
- * components (M0.3.3).
+ * components.
  *
  * In the dictionaries the name is substituted through the {brandName}
  * parameter instead of being written into the text. The absolute site address
@@ -26,12 +26,12 @@ export const brand = {
     dark: "#031513",
   },
   /**
-   * The tab icon and the social image are rasterised at build time (§15), and
-   * a PNG cannot hold a CSS variable any more than a <meta> tag can - which is
-   * the same reason themeColor is written out above. The two values are the
-   * light theme's --primary and --primary-foreground, and a test holds them to
-   * it. One image serves both themes: the tile carries its own ground, so it
-   * does not depend on the colour of the tab strip behind it.
+   * The tab icon and the social image are rasterised at build time, and a PNG
+   * cannot hold a CSS variable any more than a <meta> tag can - which is the
+   * same reason themeColor is written out above. The two values are the light
+   * theme's --primary and --primary-foreground, and a test holds them to it.
+   * One image serves both themes: the tile carries its own ground, so it does
+   * not depend on the colour of the tab strip behind it.
    */
   mark: {
     background: "#0b7571",
@@ -45,7 +45,7 @@ export const brand = {
    *
    * Empty while there is no account, and the tag is then left out rather than
    * written empty - a card unfurls perfectly well without it. Filling this in
-   * is the whole of what registering a handle costs us (§15).
+   * is the whole of what registering a handle costs us.
    */
   social: {
     /** The handle with its @, e.g. "@refscout". */

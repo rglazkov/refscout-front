@@ -1,9 +1,8 @@
 import { BUDGET_FILE, measure, readBudget } from "./bundle-sizes.mjs";
 
 /**
- * What a page is allowed to weigh (M0.9.3). Runs as part of `npm run build`,
- * so a page that grew says so where the growth happened rather than in CI an
- * hour later.
+ * What a page is allowed to weigh. Runs as part of `npm run build`, so a page
+ * that grew says so where the growth happened rather than in CI an hour later.
  *
  * A budget is only worth having if going over it is a conversation. So this
  * does not raise anything by itself: it says by how much, and it names the one

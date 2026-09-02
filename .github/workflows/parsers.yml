@@ -1,5 +1,5 @@
 # A separate trigger: updating the parsers or the editor forces the expensive
-# tests to run, even for a patch version (M0.5).
+# tests to run, even for a patch version.
 name: parsers
 
 on:
@@ -24,7 +24,7 @@ jobs:
         id: touched
         run: |
           if git diff HEAD^ HEAD -- package.json package-lock.json |
-             grep -qE '"(pdfjs-dist|codemirror|@codemirror/[a-z-]+|citation-js|@unified-latex/[a-z-]+|mammoth|turndown|markdown-it|html-to-docx)"'; then
+             grep -qE '"(pdfjs-dist|codemirror|@codemirror/[a-z-]+|citation-js|@unified-latex/[a-z-]+|mammoth|turndown|@joplin/turndown-plugin-gfm|@mixmark-io/domino|fflate|markdown-it|html-to-docx)"'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -35,7 +35,11 @@ jobs:
         run: npm run build
       - if: steps.touched.outputs.run == 'true'
         name: Browsers
-        run: npx playwright install --with-deps chromium
+        # Both engines the suite declares, as in the nightly lane.
+        run: npx playwright install --with-deps chromium firefox
       - if: steps.touched.outputs.run == 'true'
-        # The document corpus is added here in M2, and the editor tests in M9.
+        # `npm run build` above has already run the corpus - it is part of the
+        # fast tests - so what is left here is the browser lane, where the
+        # workers actually start and pdf.js actually fetches its character maps.
+        # The editor tests join it when they are written.
         run: npx playwright test

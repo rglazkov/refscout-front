@@ -7,8 +7,41 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
-function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+/**
+ * The control the dialogue was opened from, so that closing can hand the focus
+ * back to it.
+ *
+ * Radix hands it to its own `DialogTrigger` instead, and this product has no
+ * triggers: a dialogue is opened by a control that is doing something else as
+ * well - the document's name, "Remove", a locked check - and the open state
+ * lives in a store. With no trigger to return to, Radix cancels the restore and
+ * the focus falls to `body`: the person Tabs from the top of the page again,
+ * and a screen reader starts reading the site from its header.
+ *
+ * It is captured while rendering rather than in an effect. Effects run from the
+ * inside out, so by the time this component's own effect ran the panel would
+ * already have taken the focus, and what was recorded would be the panel.
+ */
+const OpenerContext = React.createContext<HTMLElement | null>(null);
+
+function Dialog({ open, ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const [opener, setOpener] = React.useState<HTMLElement | null>(null);
+  const [wasOpen, setWasOpen] = React.useState(false);
+
+  if (open === true && !wasOpen) {
+    setWasOpen(true);
+    const active = typeof document === "undefined" ? null : document.activeElement;
+    setOpener(active instanceof HTMLElement ? active : null);
+  } else if (open !== true && wasOpen) {
+    // The element is kept, because closing is when it is needed.
+    setWasOpen(false);
+  }
+
+  return (
+    <OpenerContext.Provider value={opener}>
+      <DialogPrimitive.Root data-slot="dialog" open={open} {...props} />
+    </OpenerContext.Provider>
+  );
 }
 
 function DialogTrigger({
@@ -46,16 +79,30 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const opener = React.useContext(OpenerContext);
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "dialog-panel fixed inset-0 z-50 m-auto grid h-fit w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none sm:max-w-lg",
+          // `minmax(0, 1fr)` rather than the default `auto`: a grid track sized to
+          // its content lets a row of buttons push itself wider than the panel
+          // it is in, and the panel has a fixed width, so what overflows is
+          // simply outside it.
+          "dialog-panel fixed inset-0 z-50 m-auto grid h-fit w-full max-w-[calc(100%-2rem)] grid-cols-[minmax(0,1fr)] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none sm:max-w-lg",
           className,
         )}
         {...props}
+        // Ours runs first and stops Radix's, which would look for a trigger
+        // that does not exist and leave the focus on `body`.
+        onCloseAutoFocus={(event) => {
+          props.onCloseAutoFocus?.(event);
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          opener?.focus();
+        }}
       >
         {children}
         {showCloseButton && (
@@ -93,7 +140,13 @@ function DialogFooter({
   return (
     <div
       data-slot="dialog-footer"
-      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+      className={cn(
+        // Wrapping rather than overflowing: three answers do not fit across a
+        // narrow panel, and a button half outside the dialogue is not an answer
+        // a person can give.
+        "flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end",
+        className,
+      )}
       {...props}
     >
       {children}

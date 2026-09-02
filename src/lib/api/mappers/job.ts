@@ -6,7 +6,6 @@ import {
   type ModuleId,
   type ModuleStatus,
   type SubmitJobResult,
-  type Venue,
   type VenueRequirements,
   moduleIds,
 } from "@/lib/domain";
@@ -18,15 +17,14 @@ import {
   type Stage as WireStage,
   type SubmitJobResponse as WireSubmitJobResponse,
   type VenueFetchResponse as WireVenueFetchResponse,
-  type VenuesResponse as WireVenuesResponse,
 } from "@/lib/api/wire";
 
 export function toModuleStatus(w: WireModuleStatus): ModuleStatus {
   return {
     state: w.state,
     attempt: w.attempt,
-    // Kept as null rather than folded into 0: "checked, and it is bad" and
-    // "not checked" are different sentences on the card (§9, M1.1.3).
+    // Kept as null rather than folded into 0: "checked, and it is bad" and "not
+    // checked" are different sentences on the card.
     score: w.score ?? null,
     counts: {
       critical: w.counts.critical,
@@ -111,14 +109,6 @@ export function toSubmitJobResult(w: WireSubmitJobResponse): SubmitJobResult {
     createdAt: w.createdAt,
     entitlements: toEntitlements(w.entitlements),
   };
-}
-
-export function toVenues(w: WireVenuesResponse): readonly Venue[] {
-  return w.venues.map((venue) => ({
-    id: venue.id,
-    name: venue.name,
-    ...(venue.publisher === undefined ? {} : { publisher: venue.publisher }),
-  }));
 }
 
 export function toVenueRequirements(w: WireVenueFetchResponse): VenueRequirements {

@@ -9,17 +9,19 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { limits } from "@/lib/docs";
 
+import { RefusalLine } from "./refusal-line";
 import { type RefusalNotice } from "./use-intake";
 
 /**
- * The drop zone (M1.3.1). Inside it is a real `<input type="file" multiple>`
- * rather than a div with handlers, so Tab, Enter and the system dialogue all
- * work; react-dropzone supplies the drag handling around it.
+ * The drop zone. Inside it is a real `<input type="file" multiple>` rather than
+ * a div with handlers, so Tab, Enter and the system dialogue all work;
+ * react-dropzone supplies the drag handling around it.
  *
  * On a narrow screen the zone becomes two large buttons, because drag and drop
- * does not exist on a phone (§5).
+ * does not exist on a phone.
  */
-const ACCEPTED = ".txt,.md,.bib,.tex,.gls";
+/** Every format the product reads. */
+const ACCEPTED = ".pdf,.docx,.txt,.md,.tex,.bib,.gls";
 
 export function DropZone({
   onFiles,
@@ -32,7 +34,10 @@ export function DropZone({
   readonly onPaste: () => void;
   readonly refusals: readonly RefusalNotice[];
   readonly busy: boolean;
-  /** Once the buffer has a document the zone shrinks in place; it never leaves (§4). */
+  /**
+   * Once the buffer has a document the zone shrinks in place; it never
+   * leaves.
+   */
   readonly compact: boolean;
 }) {
   const t = useTranslations("workspace.dropzone");
@@ -50,10 +55,11 @@ export function DropZone({
         data-testid="drop-zone"
         data-drag-active={isDragActive}
         className={cn(
-          "flex flex-col items-center gap-3 rounded-xl border-[1.5px] border-dashed border-input bg-[image:var(--surface-dropzone)] text-center transition-[padding,border-color,background-color,box-shadow] duration-[var(--motion-slow)] ease-[var(--ease-out)]",
+          "relative isolate flex flex-col items-center gap-3 overflow-hidden rounded-xl border-[1.5px] border-dashed border-input bg-[image:var(--surface-dropzone)] text-center transition-[padding,border-color,box-shadow] duration-[var(--motion-slow)] ease-[var(--ease-out)] before:absolute before:inset-0 before:-z-10 before:bg-primary-soft before:opacity-0 before:transition-opacity before:duration-[var(--motion-slow)] before:ease-[var(--ease-out)]",
           compact ? "px-5 py-6" : "px-6 py-10",
-          isDragActive &&
-            "border-primary bg-primary-soft bg-none ring-2 ring-primary ring-offset-2 ring-offset-background",
+          // Fade a separate fill over the gradient. Swapping the background
+          // image itself is discrete and makes the drag feedback jump.
+          isDragActive && "border-primary before:opacity-100",
         )}
       >
         <input {...getInputProps()} accept={ACCEPTED} data-testid="file-input" />
@@ -75,7 +81,7 @@ export function DropZone({
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="outlineOnCard"
             className="w-full nav:w-auto"
             onClick={onPaste}
           >
@@ -106,43 +112,11 @@ export function DropZone({
         >
           {refusals.map((notice, index) => (
             <li key={`${notice.name}-${index}`}>
-              <Refusal notice={notice} />
+              <RefusalLine notice={notice} />
             </li>
           ))}
         </ul>
       )}
     </div>
   );
-}
-
-/**
- * A refusal names the numbers. "This file is too large" without them leaves the
- * person guessing which of their files it was and by how much (M1.3.5).
- */
-function Refusal({ notice }: { readonly notice: RefusalNotice }) {
-  const t = useTranslations("intake.refusal");
-  const { refusal, name } = notice;
-
-  switch (refusal.code) {
-    case "FILE_TOO_LARGE":
-      return (
-        <>
-          {t("fileTooLarge", {
-            name,
-            sizeMb: (refusal.size / (1024 * 1024)).toFixed(1),
-            limitMb: Math.round(refusal.limit / (1024 * 1024)),
-          })}
-        </>
-      );
-    case "TOO_MANY_DOCUMENTS":
-      return <>{t("tooMany", { count: refusal.count, limit: refusal.limit })}</>;
-    case "DOC_TOO_LARGE":
-      return (
-        <>{t("docTooLarge", { name, chars: refusal.chars, limit: refusal.limit })}</>
-      );
-    case "JOB_TOO_LARGE":
-      return <>{t("jobTooLarge", { chars: refusal.chars, limit: refusal.limit })}</>;
-    default:
-      return <>{t("unsupported", { name, extension: refusal.extension })}</>;
-  }
 }

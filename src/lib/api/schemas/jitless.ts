@@ -5,7 +5,7 @@ import { config } from "zod";
  *
  * By default zod builds each object validator with the `Function` constructor
  * for speed, and probes for it as the schema is created. Our `script-src`
- * carries no `unsafe-eval` and is not going to (§18): the probe alone raises a
+ * carries no `unsafe-eval` and is not going to: the probe alone raises a
  * `securitypolicyviolation` on the page, and on a browser enforcing the policy
  * the compiled path would not run at all.
  *

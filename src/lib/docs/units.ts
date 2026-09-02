@@ -3,7 +3,7 @@
  * is the only module that knows how to take one. `String.length` counts UTF-16
  * units, which is a different number on exactly the formulas, emoji and CJK a
  * manuscript is made of - and the server counts code points, so two units would
- * disagree precisely where a limit is close (§6, §11, M1.3.5).
+ * disagree precisely where a limit is close.
  */
 export function countCodePoints(text: string): number {
   let count = 0;
@@ -32,7 +32,7 @@ export function countWords(text: string): number {
 /**
  * SHA-256 of the UTF-8 bytes, lowercase hex. This is `textSha256` on the wire:
  * the server recomputes it from what it received, and that is the only proof
- * that the offsets in an answer were counted over our text (§10).
+ * that the offsets in an answer were counted over our text.
  */
 export async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);

@@ -3,9 +3,9 @@
  *
  * The component in `logo.tsx` draws it, and so does
  * `scripts/generate-brand-assets.mjs`, which rasterises the tab icon and the
- * social image at build time and cannot use a React component (§15). Written
- * once here, the two stay the same drawing - and this file holds no JSX so
- * that a plain Node script can read it.
+ * social image at build time and cannot use a React component. Written once
+ * here, the two stay the same drawing - and this file holds no JSX so that a
+ * plain Node script can read it.
  */
 export const logoShapes = {
   viewBox: "0 0 24 24",

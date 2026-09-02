@@ -1,8 +1,8 @@
 /**
- * The single source of truth for the headers (§18, M0.7). It produces the file
- * the host serves, the snapshot used by the smoke test, and the reference the
- * smoke test compares the deployed environment against - otherwise the strict
- * policy exists only on paper.
+ * The single source of truth for the headers. It produces the file the host
+ * serves, the snapshot used by the smoke test, and the reference the smoke test
+ * compares the deployed environment against - otherwise the strict policy
+ * exists only on paper.
  */
 
 /**
@@ -23,12 +23,12 @@ for (const file of [".env", ".env.local"]) {
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? "";
 
 /**
- * Where a browser posts a policy violation (M0.7.3, §19).
+ * Where a browser posts a policy violation.
  *
  * The address is absolute and points at the API rather than at the static
- * origin: there is no Node in the delivery (§2), so nothing here could receive
- * a report, and a relative `/csp-report` would mean violations disappear into
- * a 404 while we believe we are watching. The receiver is stood up in M6; the
+ * origin: there is no Node in the delivery, so nothing here could receive a
+ * report, and a relative `/csp-report` would mean violations disappear into a
+ * 404 while we believe we are watching. The receiver is not stood up yet; the
  * declaration goes in from the start, because violations that happen before it
  * are visible nowhere and cannot be recovered afterwards.
  *
@@ -65,8 +65,8 @@ export const commonHeaders = {
  * The policy for the manuscript screen and every ordinary page.
  *
  * `script-src` is 'self' plus the listed hashes only: the inline theme script
- * (M0.2.3) and the housekeeping scripts of the static export. The post-build
- * step computes the hashes, so the policy never lags behind the build.
+ * and the housekeeping scripts of the static export. The post-build step
+ * computes the hashes, so the policy never lags behind the build.
  *
  * `style-src` is the one relaxed directive, and that is a price paid
  * knowingly. Popovers, dropdowns and scroll locking set coordinates through

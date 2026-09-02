@@ -1,5 +1,5 @@
-# The expensive lane: on the release branch and overnight (M0.5). The document
-# corpus lands here in M2, and the editor tests in M9.
+# The expensive lane: on the release branch and overnight. The document corpus
+# runs here, and the editor tests join it when they are written.
 name: nightly
 
 on:
@@ -21,7 +21,11 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Browsers
-        run: npx playwright install --with-deps chromium
+        # Both engines the suite declares. A project whose browser is missing
+        # fails before the application runs, and Firefox is where the one
+        # defect this milestone shipped - a worker that would not start -
+        # was caught.
+        run: npx playwright install --with-deps chromium firefox
       # `verify` is the build - which runs the checks first - followed by the
       # browser lane, and it is the same one command a person runs locally
       # before opening a pull request.
@@ -50,7 +54,7 @@ jobs:
       - run: npm run build
       - run: node scripts/check-headers.mjs "${{ vars.STAND_URL }}"
 
-  # The contract test against the stand (M1.11.2). It runs from the day a stand
+  # The contract test against the stand. It runs from the day a stand
   # exists, and not a week later: a mock that has drifted away from the server
   # is a way to have green tests and a broken product, and the drift is cheapest
   # to find on the night it appears.
@@ -69,10 +73,11 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Browsers
-        run: npx playwright install --with-deps chromium
+        # Both engines, as above.
+        run: npx playwright install --with-deps chromium firefox
       # The same path the fast lane runs against the mock, pointed at the stand:
       # switching the source is a variable, and the application contains no
-      # branch about which of the two answered (M1.7.6).
+      # branch about which of the two answered.
       - name: The whole path, against the stand
         run: npm run verify
         env:

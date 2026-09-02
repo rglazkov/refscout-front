@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 /**
  * A route placeholder. The page explains that it does not exist yet instead of
  * pretending to be empty: an unfinished thing is either absent or speaks for
- * itself (§13).
+ * itself.
  */
 export function StubPage({ titleKey }: { readonly titleKey: string }) {
   const nav = useTranslations("nav");
@@ -12,7 +12,7 @@ export function StubPage({ titleKey }: { readonly titleKey: string }) {
   return (
     // A page somebody came to read, so it takes the same column, the same
     // reading face and the same heading step as the other content pages: the
-    // top of the ladder is where a content page's title sits (§15).
+    // top of the ladder is where a content page's title sits.
     <div
       data-region="reading"
       className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8"

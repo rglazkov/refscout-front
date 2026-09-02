@@ -2,7 +2,7 @@ import { THEME_STORAGE_KEY } from "./script";
 
 export { THEME_INIT_SCRIPT, THEME_STORAGE_KEY } from "./script";
 
-/** The two positions of the toggle. "System" is not one of them (M0.2.4). */
+/** The two positions of the toggle. "System" is not one of them. */
 export const themes = ["light", "dark"] as const;
 
 export type Theme = (typeof themes)[number];
@@ -25,11 +25,11 @@ const listeners = new Set<() => void>();
 let switching = 0;
 
 /**
- * Swaps the theme with transitions muted (§14). Every colour on the page
- * changes at once, and each component carrying a bare `transition-*` utility
- * would otherwise interpolate on its own: hundreds of colours crossing over out
- * of step, which reads as a rendering fault rather than as a transition. The
- * rule that mutes them lives in the base layer of `globals.css`.
+ * Swaps the theme with transitions muted. Every colour on the page changes at
+ * once, and each component carrying a bare `transition-*` utility would
+ * otherwise interpolate on its own: hundreds of colours crossing over out of
+ * step, which reads as a rendering fault rather than as a transition. The rule
+ * that mutes them lives in the base layer of `globals.css`.
  *
  * The reflow between applying and releasing is what makes it work: it forces
  * the new colours to be computed while the attribute is still on, so lifting it
@@ -90,10 +90,10 @@ export function subscribeToTheme(listener: () => void): () => void {
   };
 
   // The environment changing theme under a page that has made no choice is a
-  // change of theme like any other, and is not animated either. Here the colours
-  // come from @media in the tokens, so the swap is the browser's and this
-  // handler can only catch it: arriving a moment late is harmless, because
-  // muting a transition midway leaves the interface at the end state (§14).
+  // change of theme like any other, and is not animated either. Here the
+  // colours come from @media in the tokens, so the swap is the browser's and
+  // this handler can only catch it: arriving a moment late is harmless, because
+  // muting a transition midway leaves the interface at the end state.
   const onSystemChange = (): void => {
     withoutTransitions(() => {});
     listener();
@@ -112,7 +112,7 @@ export function subscribeToTheme(listener: () => void): () => void {
 /**
  * The only function that writes the theme choice to localStorage. That keeps
  * the list of what is persisted between sessions small enough to survey and to
- * check with the persisted-state shape test (§13, M0.4.3).
+ * check with the persisted-state shape test.
  */
 export function chooseTheme(theme: Theme): void {
   withoutTransitions(() => {

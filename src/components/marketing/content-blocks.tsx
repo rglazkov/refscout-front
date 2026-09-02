@@ -28,9 +28,9 @@ export function Card({
 
 /**
  * A row of badges: lists such as "which databases are queried". A row of chips
- * is not prose, so the whole box is set in the interface face (§15) - unlike
- * Card and Callout, which hold text and take the serif of the region they
- * stand in, caption included.
+ * is not prose, so the whole box is set in the interface face - unlike Card and
+ * Callout, which hold text and take the serif of the region they stand in,
+ * caption included.
  */
 export function Badges({ items }: { readonly items: readonly string[] }) {
   return (

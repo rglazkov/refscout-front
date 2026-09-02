@@ -5,8 +5,8 @@ import dynamic from "next/dynamic";
 /**
  * The mount point of the workspace screen. A separate client module is needed
  * because ssr: false is not allowed in a server component, and the dynamic
- * loading rule (M0.9.4) requires exactly that: pdf.js and the workers arrive
- * here in M2, and a page somebody merely opened must not pull them in.
+ * loading rule requires exactly that: pdf.js and the workers are pulled in
+ * here, and a page somebody merely opened must not carry the weight of them.
  */
 const Workspace = dynamic(() => import("@/features/buffer/workspace"), {
   ssr: false,

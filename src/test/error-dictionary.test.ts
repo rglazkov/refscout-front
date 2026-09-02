@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import { errorCodes, isKnownErrorCode, messageKeyFor } from "@/lib/api";
 
 /**
- * Every code the contract names has a sentence in the person's language
- * (M1.7.7). A code that is missing from the dictionary is a person reading
- * "something went wrong" about a refusal we could have explained, so the
- * dictionary is checked against the contract rather than against memory.
+ * Every code the contract names has a sentence in the person's language. A code
+ * that is missing from the dictionary is a person reading "something went
+ * wrong" about a refusal we could have explained, so the dictionary is checked
+ * against the contract rather than against memory.
  *
  * The direction matters. An unfamiliar code is drawn as the general refusal
  * with a visible request identifier, which is what lets the server add a code

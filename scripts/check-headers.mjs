@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 
 /**
- * A smoke test of the headers against a deployed environment (M0.5, M0.7). A
- * strict policy that exists only in the repository protects nobody: the host
- * may fail to apply it, and we want to hear about that from CI rather than
- * from a security researcher.
+ * A smoke test of the headers against a deployed environment. A strict policy
+ * that exists only in the repository protects nobody: the host may fail to
+ * apply it, and we want to hear about that from CI rather than from a security
+ * researcher.
  *
- *   node scripts/check-headers.mjs https://stand.example
+ *  node scripts/check-headers.mjs https://stand.example
  */
 const base = process.argv[2];
 if (base === undefined) {
@@ -19,7 +19,7 @@ if (base === undefined) {
 const expected = JSON.parse(readFileSync("out/security-headers.json", "utf8"));
 const problems = [];
 
-/** Matches src/lib/i18n/routing.ts; the root is a copy of this language (§15). */
+/** Matches src/lib/i18n/routing.ts; the root is a copy of this language. */
 const DEFAULT_LOCALE = "en";
 
 for (const { route, headers } of expected) {
@@ -49,9 +49,9 @@ for (const { route, headers } of expected) {
 }
 
 /**
- * The unprefixed root is made by a post-build copy rather than by the router
- * (§15), so it is the one part of the site that no amount of building can
- * prove correct: a copy that stopped happening leaves a site that looks fine
+ * The unprefixed root is made by a post-build copy rather than by the router,
+ * so it is the one part of the site that no amount of building can prove
+ * correct: a copy that stopped happening leaves a site that looks fine
  * everywhere except at the address most people arrive on.
  */
 const rootPages = expected

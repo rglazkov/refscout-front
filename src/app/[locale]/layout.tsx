@@ -17,9 +17,9 @@ type LayoutProps = {
 
 /**
  * The root layout of every language other than the default one, which is served
- * from `/` by the sibling tree (§3). The folders come out of the list of
- * languages at build time, so adding a language is an entry in
- * `src/lib/i18n/routing.ts` and a dictionary beside it - not a new route.
+ * from `/` by the sibling tree. The folders come out of the list of languages
+ * at build time, so adding a language is an entry in `src/lib/i18n/routing.ts`
+ * and a dictionary beside it - not a new route.
  *
  * The default language is deliberately absent from these params: it already has
  * pages at the root, and generating it here as well would publish every page at

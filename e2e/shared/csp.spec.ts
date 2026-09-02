@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Any violation of the policy fails the test (M0.7). Without that the policy is
+ * Any violation of the policy fails the test. Without that the policy is
  * quietly weakened by the first inconvenient case: somebody adds
- * 'unsafe-inline' to script-src to "make it work for now", and nobody notices.
+ * 'unsafe-inline' to script-src to "make it work for now", and nobody
+ * notices.
  */
 function collectViolations(page: Page): string[] {
   const violations: string[] = [];
@@ -47,9 +48,9 @@ test("the root is the default language, copied there by the build", async ({
   request,
 }) => {
   // Every language is generated under its own prefix, and the unprefixed root
-  // is a post-build copy of the default one (§15). Nothing in the router
-  // produces it, so nothing but a check like this notices when it stops
-  // happening - and what stops working is the address most people arrive on.
+  // is a post-build copy of the default one. Nothing in the router produces it,
+  // so nothing but a check like this notices when it stops happening - and what
+  // stops working is the address most people arrive on.
   for (const path of ["/", "/features/", "/privacy/"]) {
     const prefixed = path === "/" ? "/en/" : `/en${path}`;
     const [root, underPrefix] = await Promise.all([
@@ -73,9 +74,9 @@ test("the security headers arrive with every page", async ({ request }) => {
     expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
     expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
 
-    // Where a violation is posted, declared under both names so that every
-    // live browser reports (M0.7.3). Without this the policy is only ever
-    // checked here, on our own code, and breaks silently at the user's end.
+    // Where a violation is posted, declared under both names so that every live
+    // browser reports. Without this the policy is only ever checked here, on
+    // our own code, and breaks silently at the user's end.
     expect(headers["content-security-policy"]).toContain("report-uri https://");
     expect(headers["content-security-policy"]).toContain("report-to csp");
     expect(headers["reporting-endpoints"]).toMatch(/^csp="https:\/\//);

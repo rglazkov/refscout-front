@@ -773,6 +773,129 @@ export const scenarios = {
         ]
       },
     },
+    presubmit: {
+      status: 200,
+      body: {
+        "module": "presubmit",
+        "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
+        "attempt": 1,
+        "offsetUnit": "codepoints",
+        "texts": [
+          {
+            "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
+            "textSha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "cpLength": 184203
+          }
+        ],
+        "issues": [
+          {
+            "issueId": "3f1c0a77-5b21-4de6-9a02-7c4e18b3d590",
+            "code": "PRESUBMIT_AUTHOR_IN_METADATA",
+            "severity": "critical",
+            "titleKey": "presubmit.author_in_metadata",
+            "params": {
+              "field": "Author"
+            },
+            "detail": "The file properties still carry the author's name, which a blind review must not see.",
+            "anchors": [
+              {
+                "kind": "document",
+                "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31"
+              }
+            ],
+            "evidence": [
+              {
+                "kind": "text",
+                "labelKey": "evidence.metadata_field",
+                "value": "Author: Jane Smith"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "copy",
+                "value": "Author: Jane Smith"
+              }
+            ]
+          },
+          {
+            "issueId": "8a2d4e13-90bc-4f77-b6a1-2e5c0d9f3b48",
+            "code": "PRESUBMIT_AUTHOR_REPO_LINK",
+            "severity": "warning",
+            "titleKey": "presubmit.author_repo_link",
+            "params": {
+              "host": "github.com"
+            },
+            "anchors": [
+              {
+                "kind": "range",
+                "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
+                "from": 31980,
+                "to": 32017,
+                "quote": "https://github.com/jsmith/dense-retrieval"
+              }
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "kind": "md",
+            "labelKey": "artifact.submission_checklist",
+            "content": "# Before you submit\n\n- [ ] Remove the author name from the file properties\n- [ ] Replace the repository link with an anonymised one\n"
+          }
+        ]
+      },
+    },
+    glossary: {
+      status: 200,
+      body: {
+        "module": "glossary",
+        "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
+        "attempt": 1,
+        "offsetUnit": "codepoints",
+        "texts": [
+          {
+            "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
+            "textSha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "cpLength": 184203
+          }
+        ],
+        "issues": [
+          {
+            "issueId": "c40b7e29-1d83-4a56-8f0e-9b7d2c614a3f",
+            "code": "GLOSSARY_UNDEFINED_ACRONYM",
+            "severity": "warning",
+            "titleKey": "glossary.undefined_acronym",
+            "params": {
+              "acronym": "MRR"
+            },
+            "anchors": [
+              {
+                "kind": "range",
+                "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
+                "from": 44120,
+                "to": 44123,
+                "quote": "MRR"
+              }
+            ],
+            "evidence": [
+              {
+                "kind": "number",
+                "labelKey": "evidence.occurrences",
+                "value": 14
+              }
+            ],
+            "actions": []
+          }
+        ],
+        "artifacts": [
+          {
+            "kind": "tex",
+            "labelKey": "artifact.generated_glossary",
+            "content": "\\newacronym{mrr}{MRR}{mean reciprocal rank}\n"
+          }
+        ]
+      },
+    },
     cite: {
       status: 200,
       body: {
@@ -1334,44 +1457,6 @@ export const scenarios = {
           "field": "documents[0].textSha256",
           "message": "Expected a 64-character lowercase hex digest."
         }
-      },
-    },
-    rateLimited: {
-      status: 429,
-      body: {
-        "error": {
-          "code": "RATE_LIMITED",
-          "requestId": "req_01J8Z3K4M5",
-          "retryAfterSec": 30
-        }
-      },
-    },
-    unexpected: {
-      status: 500,
-      body: {
-        "error": {
-          "code": "INTERNAL_ERROR",
-          "requestId": "req_01J8Z3K4M5"
-        }
-      },
-    },
-  },
-  listVenues: {
-    presets: {
-      status: 200,
-      body: {
-        "venues": [
-          {
-            "id": "acl-2026",
-            "name": "ACL 2026",
-            "publisher": "Association for Computational Linguistics"
-          },
-          {
-            "id": "neurips-2026",
-            "name": "NeurIPS 2026",
-            "publisher": "Neural Information Processing Systems Foundation"
-          }
-        ]
       },
     },
     rateLimited: {
@@ -1976,9 +2061,6 @@ export const handlers = [
   ),
   http.post("*/scout/feedback", () =>
     new HttpResponse(null, { status: 204 }),
-  ),
-  http.get("*/venues", () =>
-    HttpResponse.json(scenarios.listVenues.presets.body, { status: 200 }),
   ),
   http.post("*/venues/fetch", () =>
     HttpResponse.json(scenarios.fetchVenueRequirements.ready.body, { status: 200 }),

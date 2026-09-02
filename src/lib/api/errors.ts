@@ -2,9 +2,9 @@ import { type Params } from "@/lib/domain";
 
 /**
  * Every refusal the server can give carries the same envelope, so the client
- * has one branch for a status it was not built to expect (§2.8 of the
- * contract). This is that branch, in the domain's own terms: `wire` shapes do
- * not leave lib/api, and an error is something the screens have to render.
+ * has one branch for a status it was not built to expect. This is that branch,
+ * in the domain's own terms: `wire` shapes do not leave lib/api, and an error
+ * is something the screens have to render.
  */
 export type ApiFailure = {
   readonly code: string;
@@ -39,8 +39,7 @@ export class NetworkError extends Error {
 /**
  * The codes the interface has a sentence for. A code that is not here is drawn
  * as the general refusal with a visible request identifier, so adding a code on
- * the server stays an additive change and does not break a released client
- * (M1.7.7).
+ * the server stays an additive change and does not break a released client.
  *
  * The list is checked against the contract by a test: a code the contract names
  * and the dictionary does not have is a person reading "something went wrong".
@@ -59,6 +58,14 @@ export const errorCodes = [
   "JOB_TOO_LARGE",
   "TOO_MANY_DOCUMENTS",
   "UNSUPPORTED_ENCODING",
+  /*
+   * The two the compressed body can be refused with. They are named here even
+   * though no example in the contract carries one, because the failure they
+   * describe happens on the largest submissions - the ones we least want to
+   * answer with "something went wrong".
+   */
+  "BODY_TOO_LARGE",
+  "BAD_COMPRESSION",
   "IDEMPOTENCY_KEY_REUSE",
   "RATE_LIMITED",
   "SERVICE_UNAVAILABLE",

@@ -2,14 +2,14 @@ import { cpSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Puts the default language at the root of `out/` (§15).
+ * Puts the default language at the root of `out/`.
  *
  * Every language is generated under its own prefix, so the build leaves
  * `out/en/privacy/` and no `out/privacy/`. This step copies the default
  * language's folder to the top, which is how the root comes to exist at all:
  * next-intl's way of serving a default language without a prefix is the
  * `as-needed` mode, and that rests on middleware, which a static export does
- * not have (§2).
+ * not have.
  *
  * The prefixed copy is left in place rather than deleted - it is what was
  * copied from, and removing it would make the two forms disagree the moment
@@ -18,7 +18,7 @@ import { join } from "node:path";
  * the default language no prefix.
  *
  * The two must stay byte-identical, which the header smoke test checks against
- * a deployed environment (§20) - a copy that silently stopped happening would
+ * a deployed environment - a copy that silently stopped happening would
  * otherwise look like a working site right up until the root 404s.
  */
 const OUT = "out";

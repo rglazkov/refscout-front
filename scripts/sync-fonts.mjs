@@ -68,9 +68,9 @@ const FAMILIES = [
  * every desktop - and the numbers below are Literata's and Georgia's
  * published metrics run through the standard formula:
  *
- *   size-adjust = (xWidthAvg / unitsPerEm) of Literata over that of Georgia
- *   *-override  = Literata's ascent, descent and line gap over its own
- *                 unitsPerEm, divided again by size-adjust
+ *  size-adjust = (xWidthAvg / unitsPerEm) of Literata over that of Georgia
+ *  *-override = Literata's ascent, descent and line gap over its own
+ *                unitsPerEm, divided again by size-adjust
  *
  * Literata: unitsPerEm 1000, ascent 1177, descent -308, lineGap 0, xWidthAvg 480.
  * Georgia:  unitsPerEm 2048, xWidthAvg 913.

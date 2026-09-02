@@ -1,7 +1,6 @@
 /**
  * The list of routes is the source both for the sitemap and for the check that
- * every page has metadata (M0.9.1, M0.9.2). A new page that never made it here
- * turns CI red.
+ * every page has metadata. A new page that never made it here turns CI red.
  */
 export type RouteId = "home" | "features" | "pricing" | "account" | "privacy";
 

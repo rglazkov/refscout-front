@@ -84,7 +84,7 @@ export const zSourceId = z.enum([
 
 /**
  * Offsets are Unicode code points, which is the unit Python counts in natively and the
- * unit every measurement of text in this contract uses (section 5.3).
+ * unit every measurement of text in this contract uses.
  *
  */
 export const zOffsetUnit = z.literal('codepoints');
@@ -129,7 +129,7 @@ export const zApiError = z.object({
 /**
  * The document information the parser read out of the file, which PreSubmit reads for
  * anonymity. The six standard keys are named; XMP entries and custom document properties
- * travel alongside them and are where a name most often survives (section 4.1.3).
+ * travel alongside them and are where a name most often survives.
  *
  */
 export const zDocMeta = z.object({
@@ -142,40 +142,26 @@ export const zDocMeta = z.object({
 });
 
 /**
- * The venue this document targets. `preset` carries the preset id in `source`; `url` and
- * `text` carry the requirements in `text`; `file` names the requirements document in this
- * same job through `docId` (section 4.1.2).
+ * The venue this document targets. There are three ways to bring the requirements in - a
+ * file, pasted text, or an address the server fetches for the client - and all three end
+ * in the same place: the requirements are a document of this job, named here through
+ * `docId`. `kind` records which way was used and `source` what the person
+ * entered, both for the report rather than for the checking.
  *
  */
-export const zVenueRef = z.intersection(z.unknown(), z.object({
+export const zVenueRef = z.object({
     kind: z.enum([
-        'preset',
         'url',
         'text',
         'file'
     ]),
     source: z.string(),
-    text: z.string().optional(),
-    docId: z.uuid().optional()
-}));
-
-export const zSubmitDocument = z.object({
-    docId: z.uuid(),
-    name: z.string(),
-    role: zDocRole,
-    format: zSourceFormat,
-    checks: z.array(zModuleId),
-    uses: z.array(z.uuid()).optional(),
-    text: z.string(),
-    textSha256: zSha256Hex,
-    cpLength: zCpOffset,
-    meta: zDocMeta.optional(),
-    venue: zVenueRef.optional()
+    docId: z.uuid()
 });
 
 /**
- * A settings snapshot for all four modules, sent in full so that a re-run inside the same
- * job is unambiguous.
+ * A settings snapshot for all four modules, sent in full with every document so that a
+ * re-run inside the same job is unambiguous.
  *
  */
 export const zCheckOptions = z.object({
@@ -203,19 +189,33 @@ export const zCheckOptions = z.object({
         domain: z.string().optional()
     }),
     presubmit: z.object({
-        checklist: z.string().optional(),
         anonymity: z.boolean()
     }),
     cite: z.object({
-        field: z.string().optional(),
+        source: z.enum(['document', 'excerpt']),
+        excerpt: z.string().optional(),
         maxPerClaim: z.int().gte(1),
         instructions: z.string().optional()
     })
 });
 
+export const zSubmitDocument = z.object({
+    docId: z.uuid(),
+    name: z.string(),
+    role: zDocRole,
+    format: zSourceFormat,
+    checks: z.array(zModuleId),
+    uses: z.array(z.uuid()).optional(),
+    options: zCheckOptions,
+    text: z.string(),
+    textSha256: zSha256Hex,
+    cpLength: zCpOffset,
+    meta: zDocMeta.optional(),
+    venue: zVenueRef.optional()
+});
+
 export const zSubmitJobRequest = z.object({
     documents: z.array(zSubmitDocument).min(1),
-    options: zCheckOptions,
     locale: z.string()
 });
 
@@ -295,7 +295,7 @@ export const zArtifact = z.object({
 
 /**
  * The document the place is in, when it is a different document from the one this result
- * is about. Every id used this way appears in `texts[]` (section 5.2).
+ * is about. Every id used this way appears in `texts[]`.
  *
  */
 export const zAnchorDocId = z.uuid();
@@ -312,8 +312,7 @@ export const zAnchorUnknown = z.object({
  * Verbatim neighbouring text, present on every anchor of kind range, quote or point - 64
  * code points a side is ample. `prefix` ends exactly at the left boundary of the place and
  * `suffix` begins exactly at its right boundary. Optional here so that a missing context
- * costs its own anchor rather than the whole result; the rule that it is always sent is in
- * section 5.2.
+ * costs its own anchor rather than the whole result, though the server always sends it.
  *
  */
 export const zAnchorContext = z.string();
@@ -321,7 +320,7 @@ export const zAnchorContext = z.string();
 /**
  * The module knows the exact coordinates. `quote` is verbatim equal to the submitted text
  * between the offsets, and its length in code points equals `to - from`. Context is
- * present, as on every anchor that has one (section 5.2).
+ * present, as on every anchor that has one.
  *
  */
 export const zAnchorRange = z.object({
@@ -384,7 +383,7 @@ export const zAnchorDocument = z.object({
 /**
  * Tagged by `kind`. The last branch matches a kind this version of the schema does not
  * define, so an anchor of a new kind parses and the client shows the finding without a
- * jump target instead of losing the response (section 5.9).
+ * jump target instead of losing the response.
  *
  */
 export const zAnchor = z.union([
@@ -445,7 +444,7 @@ export const zEvidenceSource = z.object({
 
 /**
  * Tagged by `kind`. A fact of a kind this schema version does not define parses and the
- * card passes over it, showing the rest (section 5.9).
+ * card passes over it, showing the rest.
  *
  */
 export const zEvidence = z.union([
@@ -497,7 +496,7 @@ export const zActionDownload = z.object({
 
 /**
  * Tagged by `kind`. An action of a kind this schema version does not define parses and the
- * card does not offer that button, offering the rest (section 5.9).
+ * card does not offer that button, offering the rest.
  *
  */
 export const zIssueAction = z.union([
@@ -569,8 +568,7 @@ export const zModuleEntitlement = z.object({
 /**
  * Two independent answers. `modules[m].allowed` is the only source for the lock on module
  * m; `access` is the only source for what the launch row says about the period. Neither is
- * derived from the other: a trial run carries `allowed: true` with `access: false`
- * (section 6.1).
+ * derived from the other: a trial run carries `allowed: true` with `access: false`.
  *
  */
 export const zEntitlements = z.object({
@@ -623,16 +621,6 @@ export const zScoutFeedbackRequest = z.object({
     vote: z.enum(['up', 'down'])
 });
 
-export const zVenue = z.object({
-    id: z.string(),
-    name: z.string(),
-    publisher: z.string().optional()
-});
-
-export const zVenuesResponse = z.object({
-    venues: z.array(zVenue)
-});
-
 export const zVenueFetchRequest = z.object({
     url: zHttpUrl
 });
@@ -652,7 +640,7 @@ export const zBreadcrumb = z.object({
 
 /**
  * Present on an event of kind `user_report`. The client shows the complete contents of the
- * report before it is sent (section 9.1.1).
+ * report before it is sent.
  *
  */
 export const zUserReport = z.object({
@@ -774,15 +762,14 @@ export const zJobToken = z.string();
 
 /**
  * One key per user intent to start a check. The client mints a new one when the content
- * of the submission changes and when the previous job reaches a terminal state
- * (section 4.2).
+ * of the submission changes and when the previous job reaches a terminal state.
  *
  */
 export const zIdempotencyKey = z.uuid();
 
 /**
  * `gzip` when the client compressed the body, which it does itself since `fetch` does
- * not. Both values are accepted at any body size (section 2.6).
+ * not. Both values are accepted at any body size.
  *
  */
 export const zContentEncoding = z.enum(['gzip', 'identity']);
@@ -802,7 +789,7 @@ export const zSubmitJobHeaders = z.object({
 
 /**
  * The same idempotency key with the same body: the job that key already names,
- * whatever state it is in (section 4.2).
+ * whatever state it is in.
  *
  */
 export const zSubmitJobResponse2 = zSubmitJobResponse;
@@ -910,11 +897,6 @@ export const zScoutFeedbackBody = zScoutFeedbackRequest;
  */
 export const zScoutFeedbackResponse = z.void();
 
-/**
- * The preset list.
- */
-export const zListVenuesResponse = zVenuesResponse;
-
 export const zFetchVenueRequirementsBody = zVenueFetchRequest;
 
 export const zFetchVenueRequirementsHeaders = z.object({
@@ -995,7 +977,7 @@ export const zStartOauthQuery = z.object({
 
 /**
  * Any other failure. Every non-2xx response carries the same envelope, so a client has one
- * branch for a status it was not built to expect (section 2.8).
+ * branch for a status it was not built to expect.
  *
  */
 export const zStartOauthResponse = zApiError;
@@ -1015,7 +997,7 @@ export const zCompleteOauthQuery = z.object({
 
 /**
  * Any other failure. Every non-2xx response carries the same envelope, so a client has one
- * branch for a status it was not built to expect (section 2.8).
+ * branch for a status it was not built to expect.
  *
  */
 export const zCompleteOauthResponse = zApiError;

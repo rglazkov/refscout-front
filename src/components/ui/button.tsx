@@ -14,17 +14,17 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 active:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
         /*
-         * A secondary control carries its own surface, one rung of the ladder
-         * away from whatever it is standing on, and --muted is that rung: in
-         * the light theme it sits between the card and the page ground, in the
-         * dark theme it sits above both. One value therefore reads as a raised
-         * control on a card and on the ground alike, which is why the fill is
-         * set here once instead of being overridden per place - a button whose
-         * colour is chosen at the call site is a button that will be a
-         * different colour in the next screen (§14, M0.2.1).
+         * A secondary control carries its own surface, and there are two of
+         * them because a control has to be seen against whatever it is standing
+         * on. `outline` is for the page ground, `outlineOnCard` for inside a
+         * card; each fill sits a full step from its own parent, and one shared
+         * fill cannot do both - it clears one surface exactly by merging with
+         * the other.
          */
         outline:
-          "border bg-muted shadow-[var(--elevation-xs)] hover:bg-accent-bg active:bg-accent-bg",
+          "border bg-control-ground shadow-[var(--elevation-xs)] hover:bg-control-ground-hover active:bg-control-ground-hover",
+        outlineOnCard:
+          "border bg-control-card shadow-[var(--elevation-xs)] hover:bg-control-card-hover active:bg-control-card-hover",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/80",
         ghost:
@@ -35,7 +35,11 @@ const buttonVariants = cva(
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
         xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        /* The one large button in the product is "Run the check", and the
+           prototype gives it a size of its own: taller than the ordinary
+           control and set in the body size rather than in the small one, so
+           that the end of the screen has an obvious end. */
+        lg: "h-[2.625rem] rounded-md px-[1.125rem] text-base has-[>svg]:px-4",
         icon: "size-9",
         "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",

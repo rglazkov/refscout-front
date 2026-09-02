@@ -3,9 +3,9 @@ import type { ClientEvent, EventCode, EventContext, EventName } from "./events";
 export type { ClientEvent, EventCode, EventContext, EventName } from "./events";
 
 /**
- * The telemetry skeleton, with no sender (M0.6.3). Events go into an in-memory
- * ring buffer and travel nowhere: the IndexedDB queue, coalescing and sending
- * arrive in M6.
+ * The telemetry skeleton, with no sender. Events go into an in-memory ring
+ * buffer and travel nowhere: the IndexedDB queue, the coalescing and the sender
+ * are not built yet.
  *
  * The point of the skeleton is that track() calls are placed alongside the code
  * they belong to, instead of being hunted down afterwards.
@@ -34,7 +34,7 @@ export function track(
   }
 }
 
-/** For the tests and the "Report a problem" screen only (M6). */
+/** For the tests and the "Report a problem" screen only. */
 export function drainEvents(): readonly ClientEvent[] {
   return ring.splice(0, ring.length);
 }

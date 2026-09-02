@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { zJobStatus } from "@/lib/api/schemas";
 
 /**
- * The validators are interpreted, not compiled (M1.7.5, §18).
+ * The validators are interpreted, not compiled.
  *
  * zod builds each object validator with the `Function` constructor by default,
  * and probes for it while the schema is being created. Our `script-src` carries

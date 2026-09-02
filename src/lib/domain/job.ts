@@ -1,4 +1,5 @@
 import { type VenueRef } from "./document";
+import { type CheckOptions } from "./options";
 import {
   type Counts,
   type DocRole,
@@ -14,20 +15,24 @@ import { type Artifact, type ModuleResult, type Params } from "./issue";
 /**
  * What a poll returns: state, and never result bodies. A dissertation's
  * findings weigh tens of megabytes, and a full answer on every tick would
- * re-download them in a circle (§17, §18).
+ * re-download them in a circle.
  */
 export type ModuleStatus = {
   readonly state: ModuleRunState;
-  /** 1 on the first run, raised by a retry (§4.6 of the contract). */
+  /** 1 on the first run, raised by a retry. */
   readonly attempt: number;
   /**
    * `null` for Cite, which has no score at all, and for a module that did not
    * run. Without it the results screen cannot tell "checked, and it is bad"
-   * from "not checked", which are different sentences and different actions
-   * for the reader (§9, M1.1.3).
+   * from "not checked", which are different sentences and different actions for
+   * the reader.
    */
   readonly score: number | null;
-  /** The only source of the numbers on screen. The equalities of §9 hold on these. */
+  /**
+   * The only source of the numbers on screen. These and the findings in the
+   * body have to agree, and a disagreement is reported rather than quietly
+   * recounted.
+   */
   readonly counts: Counts;
   readonly headlineKey?: string;
   readonly headlineParams?: Params;
@@ -80,7 +85,7 @@ export function resultKey(docId: string, module: ModuleId): ResultKey {
 
 /**
  * The job as the client assembles it: the polled state plus the bodies fetched
- * for the modules that have finished. It does not exist on the wire (§18).
+ * for the modules that have finished. It does not exist on the wire.
  */
 export type Job = {
   readonly status: JobStatus;
@@ -91,7 +96,7 @@ export type Job = {
 /**
  * The intention to run a check - not the request that carries it out. One key
  * per press of the button, not per attempt, which is the whole point: a double
- * click and a retry after a broken connection are one intention (§17).
+ * click and a retry after a broken connection are one intention.
  */
 export type RunIntent = {
   readonly key: string;
@@ -113,20 +118,14 @@ export type ModuleEntitlement = {
 
 /**
  * Two independent answers. Whether a module is allowed is not derived from
- * whether access is open: a trial run carries `allowed: true` with
- * `access: false` (§6.1 of the contract, §13).
+ * whether access is open: a trial run carries `allowed: true` together with
+ * `access: false`.
  */
 export type Entitlements = {
   readonly role: "anonymous" | "free" | "paid";
   readonly access: boolean;
   readonly periodEndsAt?: string;
   readonly modules: Readonly<Record<ModuleId, ModuleEntitlement>>;
-};
-
-export type Venue = {
-  readonly id: string;
-  readonly name: string;
-  readonly publisher?: string;
 };
 
 export type VenueRequirements = {
@@ -136,59 +135,22 @@ export type VenueRequirements = {
   readonly fetchedAt: string;
 };
 
-/** The settings snapshot, sent in full so a re-run inside the job is unambiguous. */
-export type CheckOptions = {
-  readonly bibcheck: {
-    readonly verifyLive: boolean;
-    readonly showOrphans: boolean;
-    readonly unifyKeys: boolean;
-    readonly keyFormat:
-      "author-year" | "author-year-title" | "author-title-year" | "numeric";
-    readonly sortBy: "author" | "year" | "title" | "key" | "cited-order" | "original";
-    readonly countCommented: boolean;
-  };
-  readonly glossary: { readonly domain?: string };
-  readonly presubmit: { readonly checklist?: string; readonly anonymity: boolean };
-  readonly cite: {
-    readonly field?: string;
-    readonly maxPerClaim: number;
-    readonly instructions?: string;
-  };
-};
-
-/**
- * The plan is a summary, not a second set of switches: what is ticked on at
- * least one card is what runs (§7, M1.6.1).
- */
-export type CheckPlan = {
-  readonly modules: Readonly<
-    Record<
-      ModuleId,
-      {
-        readonly enabled: boolean;
-        readonly docIds: readonly string[];
-        readonly locked?: LockReason;
-        /**
-         * There is no text. That is the only reason a check switches off, since
-         * every check is available on every document (§4).
-         */
-        readonly blocked?: "extract-failed";
-      }
-    >
-  >;
-  readonly options: CheckOptions;
-};
-
-/** One document as it goes out. The only thing that leaves is text (§18). */
+/** One document as it goes out. The only thing that leaves is text. */
 export type SubmitDocument = {
   readonly docId: string;
   readonly name: string;
   readonly role: DocRole;
   readonly format: SourceFormat;
   readonly checks: readonly ModuleId[];
+  /**
+   * The other documents this one's checks read. Empty `checks` and a place in
+   * somebody's `uses` is how a companion travels.
+   */
   readonly uses?: readonly string[];
+  /** The settings for this document's checks. They belong to it, not to the job. */
+  readonly options: CheckOptions;
   readonly text: string;
-  /** SHA-256 of the UTF-8 bytes of `text`; the server recomputes it (§10). */
+  /** SHA-256 of the UTF-8 bytes of `text`; the server recomputes it. */
   readonly textSha256: string;
   readonly cpLength: number;
   readonly venue?: VenueRef;
@@ -197,11 +159,10 @@ export type SubmitDocument = {
 
 /**
  * The body of the job request. The idempotency key is not a field of it: it is
- * about delivery rather than content, and travels as a header (§17, §18).
+ * about delivery rather than content, and travels as a header.
  */
 export type SubmitJobRequest = {
   readonly documents: readonly SubmitDocument[];
-  readonly options: CheckOptions;
   readonly locale: string;
 };
 

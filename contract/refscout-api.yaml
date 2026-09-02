@@ -40,7 +40,7 @@ tags:
   - name: scout
     description: Search across the bibliographic databases.
   - name: venues
-    description: Venue presets and requirements fetched from a URL.
+    description: Venue requirements fetched from a URL.
   - name: telemetry
     description: Client events, problem reports and CSP violation reports.
   - name: auth
@@ -61,8 +61,7 @@ paths:
       description: |
         One job covers every document the user brought and every check they ticked. The body
         carries the text of each document, and may arrive gzip-compressed. Both `gzip` and
-        `identity` are accepted at any size; when the client compresses is its own decision
-        (section 2.6).
+        `identity` are accepted at any size; when the client compresses is its own decision.
       security:
         - session: []
           csrfToken: []
@@ -88,7 +87,7 @@ paths:
         '200':
           description: |
             The same idempotency key with the same body: the job that key already names,
-            whatever state it is in (section 4.2).
+            whatever state it is in.
           headers:
             X-Request-Id: { $ref: '#/components/headers/XRequestId' }
           content:
@@ -115,7 +114,7 @@ paths:
       summary: Poll job and module state
       description: |
         Returns the state of the job, its progress stages and the state of every module on
-        every document. Result bodies are fetched separately from `resultRef` (section 4.4).
+        every document. Result bodies are fetched separately from `resultRef`.
       security:
         - session: []
           jobToken: []
@@ -200,6 +199,8 @@ paths:
               schema: { $ref: '#/components/schemas/ModuleResult' }
               examples:
                 bibcheck: { $ref: '#/components/examples/ResultBibcheck' }
+                presubmit: { $ref: '#/components/examples/ResultPresubmit' }
+                glossary: { $ref: '#/components/examples/ResultGlossary' }
                 cite: { $ref: '#/components/examples/ResultCite' }
                 unknownKinds: { $ref: '#/components/examples/ResultUnknownKinds' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -255,7 +256,7 @@ paths:
       description: |
         OPTIONAL. Polling `GET /jobs/{jobId}` carries every state the interface shows, and a
         deployment that does not answer this address is a conforming deployment; the client
-        falls back to the poll (section 4.7).
+        falls back to the poll.
 
         Events named `status` carry a complete JobStatus as data, a full snapshot each time. A
         final `done` event precedes the close, and a comment heartbeat every 20 seconds keeps
@@ -362,23 +363,6 @@ paths:
 
         default: { $ref: '#/components/responses/Default' }
 
-  /venues:
-    get:
-      operationId: listVenues
-      tags: [venues]
-      summary: The venue presets offered on a document card
-      responses:
-        '200':
-          description: The preset list.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/VenuesResponse' }
-              examples:
-                presets: { $ref: '#/components/examples/VenueList' }
-
-        '429': { $ref: '#/components/responses/TooManyRequests' }
-        default: { $ref: '#/components/responses/Default' }
-
   /venues/fetch:
     post:
       operationId: fetchVenueRequirements
@@ -387,7 +371,7 @@ paths:
       description: |
         Runs on an explicit press and carries the address alone. This is the one place where the
         server fetches on the client's behalf, because a strict `connect-src` names only our own
-        API and a third-party site sends no CORS headers (section 8.2).
+        API and a third-party site sends no CORS headers.
       security:
         - session: []
           csrfToken: []
@@ -761,21 +745,20 @@ components:
       name: rs_session
       description: |
         The session cookie, set with HttpOnly, Secure, SameSite=Lax and Domain=.refscout.app.
-        An anonymous session is a legitimate principal for the free modules (section 2.3).
+        An anonymous session is a legitimate principal for the free modules.
     jobToken:
       type: apiKey
       in: header
       name: X-Job-Token
       description: |
         Issued when the job is created and required for every read of it. It stops working when
-        the job is cancelled, and every read of that job then answers 404 (section 4.3).
+        the job is cancelled, and every read of that job then answers 404.
     csrfToken:
       type: apiKey
       in: header
       name: X-CSRF-Token
       description: |
-        The double-submit token from `GET /auth/session`, echoed on every mutating request
-        (section 2.5).
+        The double-submit token from `GET /auth/session`, echoed on every mutating request.
 
   parameters:
     JobId:
@@ -811,8 +794,7 @@ components:
       required: true
       description: |
         One key per user intent to start a check. The client mints a new one when the content
-        of the submission changes and when the previous job reaches a terminal state
-        (section 4.2).
+        of the submission changes and when the previous job reaches a terminal state.
       schema: { type: string, format: uuid }
     ContentEncoding:
       name: Content-Encoding
@@ -820,7 +802,7 @@ components:
       required: false
       description: |
         `gzip` when the client compressed the body, which it does itself since `fetch` does
-        not. Both values are accepted at any body size (section 2.6).
+        not. Both values are accepted at any body size.
       schema:
         type: string
         enum: [gzip, identity]
@@ -898,7 +880,7 @@ components:
           examples:
             resultSuperseded: { $ref: '#/components/examples/ErrorResultSuperseded' }
     PayloadTooLarge:
-      description: An intake limit was exceeded; `params` names the limit (section 12).
+      description: An intake limit was exceeded; `params` names the limit.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
@@ -921,7 +903,7 @@ components:
     Default:
       description: |
         Any other failure. Every non-2xx response carries the same envelope, so a client has one
-        branch for a status it was not built to expect (section 2.8).
+        branch for a status it was not built to expect.
       headers:
         X-Request-Id: { $ref: '#/components/headers/XRequestId' }
       content:
@@ -930,7 +912,7 @@ components:
           examples:
             unexpected: { $ref: '#/components/examples/ErrorUnexpected' }
     TooManyRequests:
-      description: A request was refused for volume (section 2.9).
+      description: A request was refused for volume.
       headers:
         Retry-After: { $ref: '#/components/headers/RetryAfter' }
       content:
@@ -995,7 +977,7 @@ components:
       const: codepoints
       description: |
         Offsets are Unicode code points, which is the unit Python counts in natively and the
-        unit every measurement of text in this contract uses (section 5.3).
+        unit every measurement of text in this contract uses.
 
     # ---- shared primitives --------------------------------------------------
 
@@ -1036,7 +1018,7 @@ components:
             code:
               type: string
               pattern: '^[A-Z][A-Z0-9_]*$'
-              description: An enumerated code from section 11.
+              description: An enumerated code from the error dictionary.
             requestId: { type: string }
             params: { $ref: '#/components/schemas/Params' }
             field:
@@ -1055,7 +1037,7 @@ components:
       description: |
         The document information the parser read out of the file, which PreSubmit reads for
         anonymity. The six standard keys are named; XMP entries and custom document properties
-        travel alongside them and are where a name most often survives (section 4.1.3).
+        travel alongside them and are where a name most often survives.
       properties:
         Author: { type: string }
         Title: { type: string }
@@ -1067,47 +1049,32 @@ components:
     VenueRef:
       type: object
       additionalProperties: false
-      required: [kind, source]
+      required: [kind, source, docId]
       description: |
-        The venue this document targets. `preset` carries the preset id in `source`; `url` and
-        `text` carry the requirements in `text`; `file` names the requirements document in this
-        same job through `docId` (section 4.1.2).
+        The venue this document targets. There are three ways to bring the requirements in - a
+        file, pasted text, or an address the server fetches for the client - and all three end
+        in the same place: the requirements are a document of this job, named here through
+        `docId`. `kind` records which way was used and `source` what the person
+        entered, both for the report rather than for the checking.
       properties:
         kind:
           type: string
-          enum: [preset, url, text, file]
+          enum: [url, text, file]
         source:
           type: string
-          description: What the user entered - a preset id, an address, or a file name.
-        text:
-          type: string
-          description: The requirements as text.
+          description: What the user entered - an address, a file name, or "pasted".
         docId:
           type: string
           format: uuid
           description: |
             The document in this job carrying `role: venue-requirements` and `checks: []`.
-      allOf:
-        - if:
-            properties: { kind: { const: url } }
-            required: [kind]
-          then:
-            required: [text]
-        - if:
-            properties: { kind: { const: text } }
-            required: [kind]
-          then:
-            required: [text]
-        - if:
-            properties: { kind: { const: file } }
-            required: [kind]
-          then:
-            required: [docId]
+            A venue whose requirements never arrived is not sent at all, so this is always
+            present.
 
     SubmitDocument:
       type: object
       additionalProperties: false
-      required: [docId, name, role, format, checks, text, textSha256, cpLength]
+      required: [docId, name, role, format, checks, options, text, textSha256, cpLength]
       properties:
         docId:
           type: string
@@ -1133,8 +1100,22 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: |
-            docIds of other documents in this job that the checks on this document read - a
-            manuscript names its bibliography here (section 4.1.1).
+            docIds of other documents in this job that the checks on this document read.
+            The link is written from whichever document carries the tick,
+            and both directions occur: a manuscript with BibCheck ticked names the
+            bibliography it cites, and a bibliography with BibCheck ticked names the
+            manuscript that cites it - either way BibCheck can report missing citations and
+            uncited entries. A manuscript with Glossary ticked names a glossary file that
+            already exists, so that those acronyms are left alone. A document named here
+            that carries no ticks of its own is sent with an empty `checks`; one that does
+            carry ticks is an ordinary document of the job and keeps them.
+        options:
+          allOf:
+            - $ref: '#/components/schemas/CheckOptions'
+          description: |
+            The settings for this document's checks. They belong to the document rather than to
+            the job: two manuscripts in one job are two manuscripts with two subject areas and
+            two key formats.
         text:
           type: string
           description: The content, verbatim.
@@ -1154,8 +1135,8 @@ components:
       additionalProperties: false
       required: [bibcheck, glossary, presubmit, cite]
       description: |
-        A settings snapshot for all four modules, sent in full so that a re-run inside the same
-        job is unambiguous.
+        A settings snapshot for all four modules, sent in full with every document so that a
+        re-run inside the same job is unambiguous.
       properties:
         bibcheck:
           type: object
@@ -1188,34 +1169,45 @@ components:
           additionalProperties: false
           required: [anonymity]
           properties:
-            checklist: { type: string }
-            anonymity: { type: boolean }
+            anonymity:
+              type: boolean
+              description: |
+                The double-blind check: names, affiliations, acknowledgements and
+                self-identifying references that a blind review must not see.
         cite:
           type: object
           additionalProperties: false
-          required: [maxPerClaim]
+          required: [source, maxPerClaim]
           properties:
-            field: { type: string }
+            source:
+              type: string
+              enum: [document, excerpt]
+              description: |
+                Which piece of writing Cite reads - the whole document, or the paragraph or
+                draft section in `excerpt`.
+            excerpt:
+              type: string
+              description: |
+                The passage to propose sources for, when `source` is `excerpt`. A paragraph or
+                a draft section rather than a phrase; up to 50 000 code points.
             maxPerClaim: { type: integer, minimum: 1 }
             instructions: { type: string }
 
     SubmitJobRequest:
       type: object
       additionalProperties: false
-      required: [documents, options, locale]
+      required: [documents, locale]
       properties:
         documents:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/SubmitDocument' }
-        options: { $ref: '#/components/schemas/CheckOptions' }
         locale:
           type: string
           description: |
             BCP-47. Sets the language of every word a module writes for a person to read:
             `detail`, the content of an artifact, and any free text inside evidence. Codes and
-            dictionary keys are unaffected - the client composes those phrases itself
-            (section 4.1).
+            dictionary keys are unaffected - the client composes those phrases itself.
 
     SubmitJobResponse:
       type: object
@@ -1224,7 +1216,7 @@ components:
         jobId: { type: string, format: uuid }
         jobToken:
           type: string
-          description: Required for every read of this job (section 4.3).
+          description: Required for every read of this job.
         createdAt: { type: string, format: date-time }
         entitlements: { $ref: '#/components/schemas/Entitlements' }
 
@@ -1276,7 +1268,7 @@ components:
         attempt:
           type: integer
           minimum: 1
-          description: 1 on the first run, raised by a retry (section 4.6).
+          description: 1 on the first run, raised by a retry.
         score:
           type: [integer, 'null']
           minimum: 0
@@ -1290,7 +1282,7 @@ components:
         headlineParams: { $ref: '#/components/schemas/Params' }
         errorCode:
           type: string
-          description: Present exactly when state is `error` (section 11.4).
+          description: Present exactly when state is `error`.
         skippedReasonKey:
           allOf:
             - $ref: '#/components/schemas/DictionaryKey'
@@ -1300,7 +1292,7 @@ components:
           type: string
           description: |
             The address of the result body, appearing together with a terminal state. A path on
-            the API origin beginning with `/jobs/{jobId}/` (section 4.4).
+            the API origin beginning with `/jobs/{jobId}/`.
         finishedAt: { type: string, format: date-time }
 
     JobDocument:
@@ -1386,7 +1378,7 @@ components:
           description: |
             Every document whose coordinates appear in this body: this result's own document
             first, then each document named by an anchor's `docId`. Both values in each entry
-            are recomputed by the server from the text it received (section 4.4).
+            are recomputed by the server from the text it received.
         issues:
           type: array
           items: { $ref: '#/components/schemas/Issue' }
@@ -1427,13 +1419,13 @@ components:
         cite:
           allOf:
             - $ref: '#/components/schemas/CiteBlock'
-          description: The claims-and-candidates block Cite's card is built from (section 5.6).
+          description: The claims-and-candidates block Cite's card is built from.
 
     Anchor:
       description: |
         Tagged by `kind`. The last branch matches a kind this version of the schema does not
         define, so an anchor of a new kind parses and the client shows the finding without a
-        jump target instead of losing the response (section 5.9).
+        jump target instead of losing the response.
       oneOf:
         - $ref: '#/components/schemas/AnchorRange'
         - $ref: '#/components/schemas/AnchorQuote'
@@ -1458,7 +1450,7 @@ components:
       format: uuid
       description: |
         The document the place is in, when it is a different document from the one this result
-        is about. Every id used this way appears in `texts[]` (section 5.2).
+        is about. Every id used this way appears in `texts[]`.
 
     AnchorContext:
       type: string
@@ -1466,8 +1458,7 @@ components:
         Verbatim neighbouring text, present on every anchor of kind range, quote or point - 64
         code points a side is ample. `prefix` ends exactly at the left boundary of the place and
         `suffix` begins exactly at its right boundary. Optional here so that a missing context
-        costs its own anchor rather than the whole result; the rule that it is always sent is in
-        section 5.2.
+        costs its own anchor rather than the whole result, though the server always sends it.
 
     AnchorRange:
       type: object
@@ -1475,7 +1466,7 @@ components:
       description: |
         The module knows the exact coordinates. `quote` is verbatim equal to the submitted text
         between the offsets, and its length in code points equals `to - from`. Context is
-        present, as on every anchor that has one (section 5.2).
+        present, as on every anchor that has one.
       properties:
         kind: { type: string, const: range }
         docId: { $ref: '#/components/schemas/AnchorDocId' }
@@ -1538,7 +1529,7 @@ components:
     Evidence:
       description: |
         Tagged by `kind`. A fact of a kind this schema version does not define parses and the
-        card passes over it, showing the rest (section 5.9).
+        card passes over it, showing the rest.
       oneOf:
         - $ref: '#/components/schemas/EvidenceDoi'
         - $ref: '#/components/schemas/EvidenceUrl'
@@ -1609,7 +1600,7 @@ components:
     IssueAction:
       description: |
         Tagged by `kind`. An action of a kind this schema version does not define parses and the
-        card does not offer that button, offering the rest (section 5.9).
+        card does not offer that button, offering the rest.
       oneOf:
         - $ref: '#/components/schemas/ActionCopy'
         - $ref: '#/components/schemas/ActionReplace'
@@ -1731,8 +1722,7 @@ components:
       description: |
         Two independent answers. `modules[m].allowed` is the only source for the lock on module
         m; `access` is the only source for what the launch row says about the period. Neither is
-        derived from the other: a trial run carries `allowed: true` with `access: false`
-        (section 6.1).
+        derived from the other: a trial run carries `allowed: true` with `access: false`.
       properties:
         role:
           type: string
@@ -1807,22 +1797,6 @@ components:
 
     # ---- venues -------------------------------------------------------------
 
-    Venue:
-      type: object
-      required: [id, name]
-      properties:
-        id: { type: string }
-        name: { type: string }
-        publisher: { type: string }
-
-    VenuesResponse:
-      type: object
-      required: [venues]
-      properties:
-        venues:
-          type: array
-          items: { $ref: '#/components/schemas/Venue' }
-
     VenueFetchRequest:
       type: object
       additionalProperties: false
@@ -1860,7 +1834,7 @@ components:
       required: [message]
       description: |
         Present on an event of kind `user_report`. The client shows the complete contents of the
-        report before it is sent (section 9.1.1).
+        report before it is sent.
       properties:
         message:
           type: string
@@ -2034,10 +2008,9 @@ components:
 
   examples:
 
-    # Every example below is a body the stub environment serves (section 15), so
+    # Every example below is a body the stub environment serves, so
     # the mocks the client is built against and the contract are one artifact.
-    # The four ids and the two hashes are the same throughout, and the same ones
-    # Appendices A-D walk through.
+    # The four ids and the two hashes are the same throughout.
 
     # ---- creating a job -----------------------------------------------------
 
@@ -2211,7 +2184,7 @@ components:
       summary: |
         One module in `error`, one `skipped`, the rest fine. A normal state rather than a
         degraded one: the skipped card is a verdict the person paid for and stays on screen
-        next to the one offering a retry (section 4.3).
+        next to the one offering a retry.
       value:
         id: 6d0b8b41-2f7a-4c1e-b3d9-0a5c7e2f9481
         createdAt: '2026-08-24T09:41:07Z'
@@ -2388,7 +2361,7 @@ components:
       summary: |
         A finding whose place lives in another document: the retracted work is cited twice in
         the manuscript and its entry is in the bibliography, so the body declares both
-        documents in `texts[]` (Appendix C).
+        documents in `texts[]`.
       value:
         module: bibcheck
         docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
@@ -2457,7 +2430,7 @@ components:
     ResultCite:
       summary: |
         A claim with candidates in both groups: one already cited, one offered, one under
-        "Potentially low relevance" (Appendix D).
+        "Potentially low relevance".
       value:
         module: cite
         docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
@@ -2519,11 +2492,95 @@ components:
                   alreadyCited: false
                   lowRelevance: true
 
+    ResultPresubmit:
+      summary: |
+        The venue check on a manuscript. Its artifact is the checklist as Markdown - the thing
+        a person takes into the submission form beside them - and not a bibliography: the kind
+        an artifact carries is the kind of file that module writes, and it is what the client
+        saves it under.
+      value:
+        module: presubmit
+        docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+        attempt: 1
+        offsetUnit: codepoints
+        texts:
+          - docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+            textSha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+            cpLength: 184203
+        issues:
+          - issueId: 3f1c0a77-5b21-4de6-9a02-7c4e18b3d590
+            code: PRESUBMIT_AUTHOR_IN_METADATA
+            severity: critical
+            titleKey: presubmit.author_in_metadata
+            params: { field: Author }
+            detail: The file properties still carry the author's name, which a blind review must not see.
+            anchors:
+              - kind: document
+                docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+            evidence:
+              - kind: text
+                labelKey: evidence.metadata_field
+                value: 'Author: Jane Smith'
+            actions:
+              - kind: copy
+                value: 'Author: Jane Smith'
+          - issueId: 8a2d4e13-90bc-4f77-b6a1-2e5c0d9f3b48
+            code: PRESUBMIT_AUTHOR_REPO_LINK
+            severity: warning
+            titleKey: presubmit.author_repo_link
+            params: { host: github.com }
+            anchors:
+              - kind: range
+                docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+                from: 31980
+                to: 32017
+                quote: https://github.com/jsmith/dense-retrieval
+        artifacts:
+          - kind: md
+            labelKey: artifact.submission_checklist
+            content: "# Before you submit\n\n- [ ] Remove the author name from the file properties\n- [ ] Replace the repository link with an anonymised one\n"
+
+    ResultGlossary:
+      summary: |
+        The glossary check on a manuscript that brought no glossary file. It still finds the
+        acronyms, and what it writes is a glossary in the format the manuscript is written in -
+        a `.tex` here - so that the file it hands back can be included as it stands.
+      value:
+        module: glossary
+        docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+        attempt: 1
+        offsetUnit: codepoints
+        texts:
+          - docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+            textSha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+            cpLength: 184203
+        issues:
+          - issueId: c40b7e29-1d83-4a56-8f0e-9b7d2c614a3f
+            code: GLOSSARY_UNDEFINED_ACRONYM
+            severity: warning
+            titleKey: glossary.undefined_acronym
+            params: { acronym: MRR }
+            anchors:
+              - kind: range
+                docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
+                from: 44120
+                to: 44123
+                quote: MRR
+            evidence:
+              - kind: number
+                labelKey: evidence.occurrences
+                value: 14
+            actions: []
+        artifacts:
+          - kind: tex
+            labelKey: artifact.generated_glossary
+            content: "\\newacronym{mrr}{MRR}{mean reciprocal rank}\n"
+
     ResultUnknownKinds:
       summary: |
         An anchor, a fact and an action of kinds this version of the schema does not define,
         alongside ones it does. The finding parses and reaches the card; the unfamiliar anchor
-        offers no jump target and the unfamiliar action is not drawn (section 5.9). This is the
+        offers no jump target and the unfamiliar action is not drawn. This is the
         body the open-branch test feeds the client.
       value:
         module: presubmit
@@ -2578,7 +2635,7 @@ components:
       summary: |
         A registered account with the trial run of Cite unspent: `allowed: true` with
         `access: false`. The ordinary case, and the reason neither field is derived from the
-        other (section 6.1).
+        other.
       value:
         role: free
         access: false
@@ -2639,17 +2696,6 @@ components:
             relevance: 0.81
         searchedSources: [arxiv, semanticscholar]
         degraded: [openalex]
-
-    VenueList:
-      summary: The presets offered on a document card.
-      value:
-        venues:
-          - id: acl-2026
-            name: 'ACL 2026'
-            publisher: Association for Computational Linguistics
-          - id: neurips-2026
-            name: 'NeurIPS 2026'
-            publisher: Neural Information Processing Systems Foundation
 
     VenueRequirementsFetched:
       summary: The page was read and its text extracted.
@@ -2746,7 +2792,7 @@ components:
     ErrorJobNotFound:
       summary: |
         An unknown job, an erased job, or a valid job read without its token. The client treats
-        the three identically (section 4.3).
+        the three identically.
       value:
         error:
           code: JOB_NOT_FOUND
@@ -2786,7 +2832,7 @@ components:
           requestId: req_01J8Z3K4M5
 
     ErrorKeyReuse:
-      summary: The same idempotency key arrived with a different body (section 4.2).
+      summary: The same idempotency key arrived with a different body.
       value:
         error:
           code: IDEMPOTENCY_KEY_REUSE
@@ -2795,7 +2841,7 @@ components:
     ErrorRateLimited:
       summary: |
         Refused for volume. On a poll this means "ask later" and nothing else: the job is
-        running whatever the poll is told (section 4.3).
+        running whatever the poll is told.
       value:
         error:
           code: RATE_LIMITED
@@ -2813,7 +2859,7 @@ components:
     ErrorUnexpected:
       summary: |
         A status the client was not built to expect still carries the envelope, so there is one
-        branch for all of them (section 2.8).
+        branch for all of them.
       value:
         error:
           code: INTERNAL_ERROR

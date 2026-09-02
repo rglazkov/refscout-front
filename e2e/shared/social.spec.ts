@@ -5,7 +5,7 @@ import { brand } from "../../brand.config";
 
 /**
  * What a shared link looks like on the five networks the product is passed
- * around on: Facebook, Instagram, WhatsApp, Telegram and X (§15).
+ * around on: Facebook, Instagram, WhatsApp, Telegram and X.
  *
  * Four of them read Open Graph - Instagram and WhatsApp through Facebook's own
  * crawler, Telegram through its own - and X reads the `twitter:` tags. None of

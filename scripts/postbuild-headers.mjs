@@ -10,9 +10,8 @@ import {
 
 /**
  * Post-build: collects the hashes of every page's inline scripts and puts them
- * into script-src (M0.7). The static export writes housekeeping scripts into
- * the HTML; we have exactly one of our own - applying the theme before the
- * first paint.
+ * into script-src. The static export writes housekeeping scripts into the HTML;
+ * we have exactly one of our own - applying the theme before the first paint.
  *
  * Output: `out/_headers` for the host, and `out/security-headers.json`, the
  * reference the smoke test compares a deployed environment against.

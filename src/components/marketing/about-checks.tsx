@@ -8,10 +8,10 @@ import { type Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/seo";
 
 /**
- * A short block about the product at the bottom of the workspace screen
- * (M0.6.2). It lives outside features/ and renders statically: that is the only
- * way to keep it in the HTML under the dynamic loading rule (M0.9.4) - and
- * without HTML this text is invisible to search engines and pointless.
+ * A short block about the product at the bottom of the workspace screen. It
+ * lives outside features/ and renders statically: that is the only way to keep
+ * it in the HTML under the dynamic loading rule - and without HTML this text is
+ * invisible to search engines and pointless.
  */
 export function AboutChecks({ locale }: { readonly locale: Locale }) {
   const features = listFeatures(locale);

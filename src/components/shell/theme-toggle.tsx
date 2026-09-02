@@ -10,9 +10,9 @@ import { track } from "@/lib/telemetry";
 import { chooseTheme, resolveTheme, subscribeToTheme, type Theme } from "@/lib/theme";
 
 /**
- * Two positions: light and dark (M0.2.4). There is no separate "system"
- * position in the toggle - on a first visit whatever the environment says is
- * selected, and until the user touches the toggle the page follows the system.
+ * Two positions: light and dark. There is no separate "system" position in the
+ * toggle - on a first visit whatever the environment says is selected, and
+ * until the user touches the toggle the page follows the system.
  *
  * A two-icon segmented control rather than a list: both options are fully
  * visible, the current one can be read without opening anything, and in the

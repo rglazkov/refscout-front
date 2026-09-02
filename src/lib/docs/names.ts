@@ -1,9 +1,11 @@
+import { isTextFormat, type SourceFormat } from "@/lib/domain";
+
 /**
  * A document's name arrives from someone else's file system and ends up in the
  * DOM, in a download dialogue and in the user's own folder. It is sanitised for
  * display and for the file we hand back; what travels to the server is the raw
- * name, so that a document named in a support conversation can be found again
- * (M1.3.5, §18, §19).
+ * name, so that a document named in a support conversation can be found
+ * again.
  */
 const MAX_NAME_LENGTH = 80;
 
@@ -40,7 +42,7 @@ export function sanitizeDocumentName(rawName: string): string {
 /**
  * The name a download is offered under. It is built from the document's own
  * name so that the corrected file lands next to the original instead of
- * becoming `download (3).txt` (M1.10.5).
+ * becoming `download (3).txt`.
  */
 export function downloadName(
   documentName: string,
@@ -50,4 +52,20 @@ export function downloadName(
   const base = sanitizeDocumentName(documentName).replace(/\.[A-Za-z0-9]{1,8}$/, "");
   const stem = base === "" ? "document" : base;
   return `${stem}${suffix}.${extension}`;
+}
+
+/**
+ * The extension a document is handed back under. The rule is "the format it was
+ * brought in", and the exceptions are the formats the browser cannot build yet.
+ * Each loses its exception when its builder is written, and the rule above it
+ * does not change.
+ *
+ * Word is the interesting one. From the moment it is converted it lives in the
+ * buffer as markdown - that is the text the person reads, corrects and sends -
+ * so `.md` is not a downgrade of the file but the honest name for what is being
+ * handed over. PDF and typed text have no such form and come back as `.txt`.
+ */
+export function downloadExtensionOf(format: SourceFormat): string {
+  if (isTextFormat(format)) return format;
+  return format === "docx" ? "md" : "txt";
 }

@@ -14,8 +14,8 @@ import {
 import { scenarios } from "./msw/handlers.gen";
 
 /**
- * The contract test (M0.8.3). It checks not the server but our own chain: the
- * examples from the contract are parsed by the schemas generated from that same
+ * The contract test. It checks not the server but our own chain: the examples
+ * from the contract are parsed by the schemas generated from that same
  * contract. For now that is a tautology - and that is exactly what makes it
  * valuable: the day somebody edits a schema by hand or a mock drifts away from
  * the contract, the tautology stops adding up.
@@ -75,7 +75,7 @@ describe("the contract examples parse against the schemas", () => {
 
   it("a refusal names the request it refused", () => {
     // Without the request id a report from a user cannot be matched to a log
-    // line, and the whole error envelope stops being worth having (section 2.8).
+    // line, and the whole error envelope stops being worth having.
     const refused = zApiError.parse(scenarios.getJob.rateLimited.body);
     expect(refused.error.requestId).not.toBe("");
     expect(refused.error.retryAfterSec).toBeGreaterThan(0);
@@ -88,7 +88,7 @@ describe("the job state a screen is built from", () => {
   it("a partial job carries a failed module and a skipped one side by side", () => {
     // `partial` is a normal state rather than a degraded one: the skipped card
     // is a verdict the person paid for and stays on screen next to the card
-    // offering a retry (section 4.3).
+    // offering a retry.
     const modules = partial.documents[0]?.modules;
     expect(partial.state).toBe("partial");
     expect(modules?.cite?.state).toBe("error");
@@ -105,7 +105,7 @@ describe("the job state a screen is built from", () => {
 
   it("a terminal module names where its result body is fetched from", () => {
     // The poll returns state; a dissertation's results are fetched once each
-    // from resultRef while the poll ticks (section 4.3).
+    // from resultRef while the poll ticks.
     const finished = zJobStatus.parse(scenarios.getJob.finished.body);
     const bibcheck = finished.documents[0]?.modules?.bibcheck;
     expect(bibcheck?.state).toBe("ok");
@@ -134,7 +134,7 @@ describe("entitlements", () => {
     // The ordinary case, not the exotic one: a registered account with the
     // trial run of Cite unspent carries allowed: true with access: false. A
     // client that computed one from the other would be wrong for most accounts
-    // that have ever pressed the button (section 6.1).
+    // that have ever pressed the button.
     const trial = zEntitlements.parse(scenarios.getEntitlements.trial.body);
     expect(trial.access).toBe(false);
     expect(trial.modules.cite.allowed).toBe(true);
@@ -161,7 +161,7 @@ describe("entitlements", () => {
 
   it("no balance and no run counter reach the client", () => {
     // Quota is measured in days of access and the server does the spending, so
-    // there is nothing here to count down on screen (section 6.1).
+    // there is nothing here to count down on screen.
     const paid = zEntitlements.parse(scenarios.getEntitlements.paid.body);
     expect(Object.keys(paid)).toEqual(["role", "access", "periodEndsAt", "modules"]);
   });
@@ -182,7 +182,7 @@ describe("a module result body", () => {
 
   it("every document an anchor points into is declared in texts[]", () => {
     // Without this the client cannot check that the coordinates belong to the
-    // text it holds, and a jump lands in the wrong place (section 4.4).
+    // text it holds, and a jump lands in the wrong place.
     const declared = new Set(bibcheck.texts.map((text) => text.docId));
     const pointedAt = bibcheck.issues
       .flatMap((issue) => issue.anchors)
@@ -195,7 +195,7 @@ describe("a module result body", () => {
   it("a range anchor's quote is as long as the offsets say", () => {
     // Parsed against the branch rather than narrowed by `kind`: the open branch
     // of the union accepts any kind at all, so a check on the tag alone tells
-    // TypeScript nothing (section 5.9).
+    // TypeScript nothing.
     const found = bibcheck.issues
       .flatMap((issue) => issue.anchors)
       .find((anchor) => anchor.kind === "range");
@@ -206,7 +206,7 @@ describe("a module result body", () => {
 
   it("an artifact arrives as text rather than as a link", () => {
     // The file is assembled in the browser, so the body carries the content
-    // itself and nothing has to be fetched to download it (section 5.8).
+    // itself and nothing has to be fetched to download it.
     expect(bibcheck.artifacts?.[0]?.content).toContain("@article");
   });
 
@@ -220,12 +220,11 @@ describe("a module result body", () => {
   });
 });
 
-describe("kinds this version of the schema does not define (section 5.9)", () => {
+describe("kinds this version of the schema does not define", () => {
   /**
-   * The first thing section 15 asks to be built from the contract: a body whose
-   * anchor, fact and action are of kinds we have never heard of. The finding
-   * has to survive - the card shows it without a jump target - rather than the
-   * whole response being rejected over one unfamiliar branch.
+   * A body whose anchor, fact and action are of kinds we have never heard of.
+   * The finding has to survive - the card shows it without a jump target -
+   * rather than the whole response being rejected over one unfamiliar branch.
    */
   const result = zModuleResult.parse(scenarios.getModuleResult.unknownKinds.body);
   const issue = result.issues[0];

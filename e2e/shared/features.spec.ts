@@ -50,6 +50,15 @@ test("a row on the workspace screen opens on click and responds to a press", asy
 }) => {
   await page.goto("/");
 
+  /*
+   * The working screen is mounted after hydration, and the list of checks sits
+   * below it: until it has landed, the row is still moving down the page. A
+   * pointer put on a row that then slides out from under it is over nothing at
+   * all, and neither :hover nor :active applies - which is a flapping test rather
+   * than a product that failed to answer.
+   */
+  await expect(page.locator("[data-workspace-screen]")).toBeVisible();
+
   const [href] = await featureLinks(page);
   expect(href).toBeDefined();
   const row = page

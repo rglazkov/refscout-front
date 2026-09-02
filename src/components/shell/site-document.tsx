@@ -7,24 +7,29 @@ import { SiteHeader } from "@/components/shell/site-header";
 import { ZoneBoundary } from "@/components/shell/zone-boundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { type Locale } from "@/lib/i18n";
+import { publicPath } from "@/lib/public-path";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 /**
  * The document every page is served inside. It exists as a component rather
  * than as one root layout because there are two of those: the default language
- * is served from `/` and the rest from a `/{locale}` prefix (§3), which in a
- * static export means two trees under `app/` - and `lang` on <html> differs
- * between them.
+ * is served from `/` and the rest from a `/{locale}` prefix, which in a static
+ * export means two trees under `app/` - and `lang` on <html> differs between
+ * them.
  *
- * The fonts are vendored in `public/fonts` and declared in `src/app/fonts.css`
- * (M0.9.5); nothing is fetched from a third-party host, which is also a CSP
- * requirement (M0.7). Only the Latin slices are preloaded - the Latin-Extended
- * and Cyrillic ones are fetched by the browser when a page actually contains
- * those characters.
+ * The fonts are vendored in `public/fonts` and declared in `src/app/fonts.css`;
+ * nothing is fetched from a third-party host, which is also a CSP requirement.
+ * Only the Latin slices are preloaded - the Latin-Extended and Cyrillic ones
+ * are fetched by the browser when a page actually contains those characters.
  */
 const PRELOADED_FONTS = [
   "inter-latin-wght-normal",
-  "literata-latin-wght-normal",
+  // Literata varies by optical size rather than by weight, so its slices are
+  // named for that axis. A name that matches no file preloads nothing: the
+  // request 404s, the face is fetched later from the stylesheet, and the page
+  // shows the fallback serif for exactly as long as the preload existed to
+  // prevent. The names are checked against the folder in `fonts.test.ts`.
+  "literata-latin-opsz-normal",
   "jetbrains-mono-latin-wght-normal",
 ];
 
@@ -35,7 +40,7 @@ type SiteDocumentProps = {
 
 export async function SiteDocument({ locale, children }: SiteDocumentProps) {
   for (const file of PRELOADED_FONTS) {
-    ReactDOM.preload(`/fonts/${file}.woff2`, {
+    ReactDOM.preload(publicPath(`/fonts/${file}.woff2`), {
       as: "font",
       type: "font/woff2",
       crossOrigin: "anonymous",
@@ -52,8 +57,8 @@ export async function SiteDocument({ locale, children }: SiteDocumentProps) {
           here. */}
       <head>
         {/* The project's only inline script: it applies the theme before the
-            first paint, or a dark page flashes light (M0.2.3). Its hash goes
-            into script-src during the post-build step (M0.7). */}
+            first paint, or a dark page flashes light. Its hash goes into
+            script-src during the post-build step. */}
         <script>{THEME_INIT_SCRIPT}</script>
       </head>
       <body className="min-h-svh">

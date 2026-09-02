@@ -1,6 +1,13 @@
-export { readableItems, submittableItems, totalChars, useBufferStore } from "./buffer";
+export {
+  attachmentOf,
+  companionChoices,
+  companionOf,
+  mainItems,
+  readableItems,
+  totalChars,
+  useBufferStore,
+} from "./buffer";
 export { useEntitlementsStore } from "./entitlements";
 export { useIntakeDraftStore } from "./intake-draft";
-export { fixedKey, useJobStore, type JobHandle } from "./job";
-export { defaultOptions, usePlanStore } from "./plan";
+export { acceptedKey, fixedKey, useJobStore, type JobHandle } from "./job";
 export { useUiStore, type OverlayTarget } from "./ui";

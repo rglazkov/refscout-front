@@ -1,5 +1,7 @@
+import { publicPath } from "@/lib/public-path";
+
 /**
- * Which server answers is a switch, not a branch in the code (M1.7.6).
+ * Which server answers is a switch, not a branch in the code.
  *
  * `stand` is the real API named by `NEXT_PUBLIC_API_ORIGIN`; `mock` is the
  * contract's own bodies served from a service worker in this tab. Both go
@@ -31,6 +33,18 @@ export function startApiSource(): Promise<void> {
       // Anything this project did not ask for goes to the network as usual;
       // the worker is here to answer our API, not to police the page.
       onUnhandledRequest: "bypass",
+      /*
+       * Named rather than left to the default, which is the site root. Under a
+       * project page the whole site lives one folder down, and a worker looked
+       * for at the root is not there - so the mock never starts, and every
+       * request the product makes leaves for an address that answers nothing.
+       * A script served from that folder may claim it as its scope, and that is
+       * the scope the pages under it need.
+       */
+      serviceWorker: {
+        url: publicPath("/mockServiceWorker.js"),
+        options: { scope: publicPath("/") },
+      },
     });
   })();
   return started;

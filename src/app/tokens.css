@@ -1,14 +1,15 @@
 /*
- * The ONLY file in the project that contains colour values.
- * Test M0.4.4 fails if a hex or rgb value turns up anywhere else: the dark
- * theme drifts away from the light one exactly one hard-coded colour at a time.
+ * The ONLY file in the project that contains colour values. The test that
+ * colours appear nowhere outside the tokens file fails if a hex or rgb value
+ * turns up anywhere else: the dark theme drifts away from the light one exactly
+ * one hard-coded colour at a time.
  *
  * Light and dark are written as separate sets rather than as an inversion.
  * The ladder of surfaces, from raised to recessed:
- *   card -> muted (a fill on the card) -> background (the page ground) ->
- *   accent-bg (hover) -> border.
+ *  card -> muted (a fill on the card) -> background (the page ground) ->
+ *  accent-bg (hover) -> border.
  * A near-white ground under white cards gives no separation at all, so in the
- * light theme the ground is noticeably darker than the card (§14, M0.2.1).
+ * light theme the ground is noticeably darker than the card.
  *
  * The dark set mirrors the light ladder rather than inverting it. The ground
  * sits at L* 5 so the page reads as a deep surface the cards stand on, and
@@ -32,40 +33,44 @@
   --popover: #fafffd;
   --muted: #e4f0ed;
   --muted-foreground: #50615b;
-  /* The header lets the page through, so its links sit on whatever is
-     scrolling past rather than on a ground we know; --muted-foreground has
-     no contrast to spare for that (M0.6.1). */
+  /* The header lets the page through, so its links sit on whatever is scrolling
+     past rather than on a ground we know; --muted-foreground has no contrast to
+     spare for that. */
   --nav-foreground: #1b2622;
   --accent-bg: #b6d1cb;
   --border: #9fbfb9;
   --input: #6d978f;
   --ring: #0b7571;
 
+  /* Two surfaces for a secondary control, because one cannot do the job.
+     A control has to be seen against whatever it is standing on, and the two
+     things it stands on are far apart: the card and the page ground. A single
+     fill that clears the card ends up level with the ground, and one that
+     clears the ground disappears into the card - which is what a shared
+     --muted did in the dark theme, where it sat 4.8 L* from the card and read
+     as part of it. So there are two, each a full step (11-12 L*) from its own
+     parent, and the variant a button is given says which surface it is on. */
+  --control-ground: #fafffd;
+  /* On the light ground the control is already near white, so its hover has
+     nowhere darker to go without walking into the page ground. It tints
+     towards the accent instead and stays light: the control reads as reacting,
+     and it stays a full step away from what it is standing on. */
+  --control-ground-hover: #e6f8f4;
+  --control-card: #d7e5e1;
+  --control-card-hover: #c9dad6;
+
   --primary: #0b7571;
   --primary-foreground: #ffffff;
   --primary-soft: #d3f3f0;
 
-  /* The severity scale. Deliberately separate from the accent (M0.2.2):
-     colour encodes meaning here, and matching the interface accent erases the
-     difference between "there is an error here" and "there is a button here".
-
-     Two values per severity, because the two jobs pull in opposite directions.
-     --critical and --warning are TEXT on their own soft tint, so they have to
-     be dark enough to read; that forces both of them to nearly the same
-     lightness, and as small filled circles they then become two dark blobs
-     that only hue tells apart - which is exactly what a red-green deficiency
-     removes. --critical-dot and --warning-dot are the FILL of the counter
-     dots: bright, and set 19 L* apart in the light theme and 19 in the dark,
-     so they separate by lightness before hue is consulted at all. The dot
-     wears its text colour as a ring, which is what gives it a defined edge on
-     the card and on the page ground alike - so the fill is free to be bright
-     without having to carry the contrast on its own (§9). */
-  --critical: #a6392f;
-  --critical-dot: #d93a2b;
+  /* The severity scale, and one scale only: the badge, the bar, the panel
+     behind an opened finding and the filled counter dot all take their colour
+     from here, so a severity looks the same wherever it appears. Counter dots
+     always sit beside a label that names the severity explicitly. */
+  --critical: #a02a26;
   --critical-soft: #ffeae8;
   --critical-border: #f4cbc6;
-  --warning: #8a5a00;
-  --warning-dot: #f0a500;
+  --warning: #975f10;
   --warning-soft: #f9efde;
   --warning-border: #e3d4b6;
   --ok: #1b7a52;
@@ -73,6 +78,29 @@
   --ok-border: #b9decd;
   --add-soft: #e0f4eb;
   --del-soft: #ffeae8;
+
+  /* The syntax palette. It is decoration of text rather than a statement about
+     it - a field name is not a warning - so it is deliberately separate from
+     the severity scale and from the accent, and it is only ever ink: nothing
+     here fills a surface. Four roles are enough for the three formats that
+     carry markup, and every one of them is checked against the editor's card
+     at the text threshold, because it is text and it is read for hours. */
+  --syntax-keyword: #6a2d91;
+  --syntax-name: #004f82;
+  --syntax-string: #793b00;
+  --syntax-number: #00573f;
+
+  /* The fill under selected text, and the line drawn around it. A selection is
+     read through, so the fill stays on the same side of the scale as the
+     editor's own surface - light here, dark in the dark theme - and the line
+     rather than the fill is what makes it unmistakable. A fill that crosses to
+     the middle of the scale is visible from across the room and illegible under
+     either colour of text, which is what a mix of the accent into the card
+     produced in both themes. Every editor colour is checked against this fill
+     as well as against the card, because text stays text when it is
+     selected. */
+  --editor-selection: #a2ddd8;
+  --editor-selection-line: #0b7571;
 
   --elevation-xs: 0 1px 2px rgba(12, 22, 20, 0.06);
   --elevation-sm: 0 1px 2px rgba(12, 22, 20, 0.08), 0 1px 3px rgba(12, 22, 20, 0.06);
@@ -83,11 +111,11 @@
   --radius: 0.625rem;
 
   /* The drop zone's own surface. Written once rather than per theme: it is
-     built out of the surface tokens above, and a custom property resolves
-     where it is used, so each theme gets its own two colours from one line.
-     A flat fill is not enough here - the zone is the largest empty area on the
-     screen, and without the step from card to muted it reads as a hole in the
-     page rather than as a surface waiting for a document (§14). */
+     built out of the surface tokens above, and a custom property resolves where
+     it is used, so each theme gets its own two colours from one line. A flat
+     fill is not enough here - the zone is the largest empty area on the screen,
+     and without the step from card to muted it reads as a hole in the page
+     rather than as a surface waiting for a document. */
   --surface-dropzone: linear-gradient(
     180deg,
     var(--card),
@@ -110,9 +138,9 @@
   --stack-mono:
     "JetBrains Mono", ui-monospace, "Cascadia Mono", "SF Mono", Consolas,
     "DejaVu Sans Mono", monospace;
-  /* Motion. One table for the whole product: a component takes a duration
-     and a curve from here and never picks one on the spot, or the interface
-     ends up with seven different "roughly two hundred milliseconds" (§14). */
+  /* Motion. One table for the whole product: a component takes a duration and a
+     curve from here and never picks one on the spot, or the interface ends up
+     with seven different "roughly two hundred milliseconds". */
   --motion-fast: 110ms;
   --motion: 160ms;
   --motion-slow: 200ms;
@@ -129,7 +157,7 @@
 
 /* CSS has no mixins, so the dark set cannot be written once and reused: it is
    repeated twice, for the system preference and for an explicit choice. The
-   contrast test catches any drift between the two copies (M0.2). */
+   contrast test catches any drift between the two copies. */
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -147,16 +175,19 @@
     --input: #537b74;
     --ring: #4fc5be;
 
+    --control-ground: #1c332f;
+    --control-ground-hover: #263f3a;
+    --control-card: #2c4541;
+    --control-card-hover: #35514b;
+
     --primary: #4fc5be;
     --primary-foreground: #06201f;
     --primary-soft: #034642;
 
     --critical: #f08c7d;
-    --critical-dot: #f4514f;
     --critical-soft: #552b26;
     --critical-border: #773d33;
     --warning: #ddab63;
-    --warning-dot: #ffc247;
     --warning-soft: #453418;
     --warning-border: #624920;
     --ok: #5fc795;
@@ -164,6 +195,12 @@
     --ok-border: #285737;
     --add-soft: #193e25;
     --del-soft: #552b26;
+    --syntax-keyword: #e2bcff;
+    --syntax-name: #8dd5ff;
+    --syntax-string: #f7c28b;
+    --syntax-number: #85ddb2;
+    --editor-selection: #0c4b48;
+    --editor-selection-line: #4fc5be;
 
     --elevation-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
     --elevation-sm:
@@ -192,16 +229,19 @@
   --input: #537b74;
   --ring: #4fc5be;
 
+  --control-ground: #1c332f;
+  --control-ground-hover: #263f3a;
+  --control-card: #2c4541;
+  --control-card-hover: #35514b;
+
   --primary: #4fc5be;
   --primary-foreground: #06201f;
   --primary-soft: #034642;
 
   --critical: #f08c7d;
-  --critical-dot: #f4514f;
   --critical-soft: #552b26;
   --critical-border: #773d33;
   --warning: #ddab63;
-  --warning-dot: #ffc247;
   --warning-soft: #453418;
   --warning-border: #624920;
   --ok: #5fc795;
@@ -209,6 +249,12 @@
   --ok-border: #285737;
   --add-soft: #193e25;
   --del-soft: #552b26;
+  --syntax-keyword: #e2bcff;
+  --syntax-name: #8dd5ff;
+  --syntax-string: #f7c28b;
+  --syntax-number: #85ddb2;
+  --editor-selection: #0c4b48;
+  --editor-selection-line: #4fc5be;
 
   --elevation-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
   --elevation-sm:

@@ -5,42 +5,52 @@ import { useTranslations } from "next-intl";
 
 import { BlockedButton } from "@/components/ui/blocked-button";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CodeMirror } from "@/features/editor/code-mirror";
+import { detectedSyntax, draftSyntaxKind, useSyntax } from "@/features/editor/syntax";
 import { useVisualViewportHeight } from "@/features/editor/use-visual-viewport";
 import { type IntakeDraft, type SourceFormat } from "@/lib/domain";
 import { useIntakeDraftStore } from "@/stores";
 
 /**
- * "Paste text" (§5). The same editor as the one documents are read in, only
- * empty, with a syntax switch above it. What is typed becomes an element of the
- * buffer exactly like a file: a name, a volume, checks, a way to remove it.
+ * "Paste text". The same editor as the one documents are read in, only empty,
+ * with a syntax switch above it. What is typed becomes an element of the buffer
+ * exactly like a file: a name, a volume, checks, a way to remove it.
  *
  * Closing the overlay does not lose the draft. "Done" closes the overlay - it
  * does not confirm anything - and there is no "changed but not saved" state in
- * this product at all (§4).
+ * this product at all.
+ *
+ * A bibliography is not one of the syntaxes offered. It is not a document of
+ * the buffer but what BibCheck on a document reads, and it is pasted into the
+ * slot on that document's card instead.
  */
-const SYNTAXES: readonly IntakeDraft["syntax"][] = [
-  "auto",
-  "latex",
-  "bibtex",
-  "markdown",
-  "text",
-];
+const SYNTAXES: readonly IntakeDraft["syntax"][] = ["auto", "latex", "markdown", "text"];
 
 const FORMAT_OF: Readonly<Record<IntakeDraft["syntax"], SourceFormat>> = {
   auto: "typed",
   latex: "tex",
-  bibtex: "bib",
   markdown: "md",
   text: "txt",
 };
+
+/**
+ * What the text becomes when it joins the buffer. A person who chose a syntax
+ * has answered; on "auto" the text answers for itself, and it has to answer
+ * here rather than later - the format is what the document is highlighted as,
+ * proposed checks from, and handed back as.
+ */
+const FORMAT_OF_DETECTED: Readonly<Record<string, SourceFormat>> = {
+  bibtex: "bib",
+  latex: "tex",
+  markdown: "md",
+};
+
+function formatOfDraft(draft: IntakeDraft): SourceFormat {
+  if (draft.syntax !== "auto") return FORMAT_OF[draft.syntax];
+  const detected = detectedSyntax(draft.text);
+  return detected === null ? "txt" : (FORMAT_OF_DETECTED[detected] ?? "txt");
+}
 
 export function PasteOverlay({
   open,
@@ -57,17 +67,27 @@ export function PasteOverlay({
   const setSyntax = useIntakeDraftStore((state) => state.setSyntax);
   const clear = useIntakeDraftStore((state) => state.clear);
   const height = useVisualViewportHeight();
+  // The switch above the field is not decoration: the text is shown as what it
+  // is while it is being written, the same way a document of the buffer is
+  // shown as what it is when it is opened.
+  const language = useSyntax(draftSyntaxKind(draft.text, draft.syntax));
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         showCloseButton={false}
-        style={{ height }}
-        className="flex max-w-none flex-col gap-3 rounded-none p-4 sm:max-w-3xl sm:rounded-lg"
+        /*
+         * On a phone the overlay is the whole screen. On anything wider it
+         * leaves only 0.5rem above and below, maximising the text that stays
+         * visible while retaining the overlay's established width. The height
+         * travels as a custom property because an inline `height` could not
+         * then be narrowed by a breakpoint.
+         */
+        style={{ "--overlay-height": height } as React.CSSProperties}
+        className="flex h-[var(--overlay-height)] max-w-none flex-col gap-3 rounded-none p-4 sm:h-[calc(var(--overlay-height)-1rem)] sm:max-w-3xl sm:rounded-lg"
       >
         <DialogHeader>
           <DialogTitle className="text-base">{t("title")}</DialogTitle>
-          <DialogDescription className="text-xs">{t("lead")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap gap-2">
@@ -88,6 +108,7 @@ export function PasteOverlay({
           <CodeMirror
             value={draft.text}
             onChange={setText}
+            language={language}
             ariaLabel={t("fieldLabel")}
             className="h-full overflow-auto"
           />
@@ -106,7 +127,7 @@ export function PasteOverlay({
               type="button"
               size="sm"
               onClick={() => {
-                onAdd(draft.text, t("defaultName"), FORMAT_OF[draft.syntax]);
+                onAdd(draft.text, t("defaultName"), formatOfDraft(draft));
                 clear();
                 onClose();
               }}

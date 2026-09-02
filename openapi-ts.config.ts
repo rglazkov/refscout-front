@@ -2,8 +2,8 @@ import { defineConfig } from "@hey-api/openapi-ts";
 
 /**
  * Wire types and schemas are generated from the contract by a script rather
- * than rewritten by hand (M0.8.3). The point is that a mock drifting away from
- * the contract becomes structurally impossible: the mock is not "based on" the
+ * than rewritten by hand. The point is that a mock drifting away from the
+ * contract becomes structurally impossible: the mock is not "based on" the
  * contract, it is the contract.
  *
  * Domain types are still written by hand from the screens, and the seam

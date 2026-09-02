@@ -47,7 +47,14 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 
-# Brand images: drawn from brand.config.ts at build time, not kept as files (§15).
+# Brand images: drawn from brand.config.ts at build time, not kept as files.
 /public/icon.png
 /public/apple-icon.png
 /public/opengraph-image.png
+
+# pdf.js character maps, standard fonts and wasm: copied out of the installed
+# package at build time, not kept as files.
+/public/pdfjs/
+
+# The workers, built from src/workers by scripts/build-workers.mjs.
+/public/workers/

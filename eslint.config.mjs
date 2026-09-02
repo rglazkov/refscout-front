@@ -9,7 +9,7 @@ import tseslint from "typescript-eslint";
 /**
  * A rule written in prose survives until the first deadline. Every constraint
  * from the specification that privacy or the real API integration depends on
- * gets a machine enforcer here, while there is still nothing to violate (M0.4).
+ * gets a machine enforcer here, while there is still nothing to violate.
  *
  * The linter catches direct imports; the architecture test
  * (src/test/architecture.test.ts) catches the way around them through a
@@ -28,7 +28,7 @@ const a11yRules = Object.fromEntries(
  * and wraps it still reads as a label with nothing in it. Its replacement,
  * `label-has-associated-control`, is told which components are controls and
  * checks the same thing correctly - the requirement is not relaxed, it is
- * expressed in the rule that can still see it (M1.4.1, M1.6.4).
+ * expressed in the rule that can still see it.
  */
 a11yRules["jsx-a11y/label-has-for"] = "off";
 a11yRules["jsx-a11y/label-has-associated-control"] = [
@@ -51,7 +51,15 @@ export default tseslint.config(
       "playwright-report/**",
       "test-results/**",
       "next-env.d.ts",
-      // Generated from the contract (M0.8.3): the contract is what you edit.
+      // Copied verbatim out of pdfjs-dist at build time: vendor code, and not
+      // ours to hold to our rules.
+      "public/pdfjs/**",
+      // Built from src/workers by scripts/build-workers.mjs; the source is linted.
+      "public/workers/**",
+      // A local scratch copy of the project, made outside the build. It is a
+      // second checkout rather than source, and linting it lints everything twice.
+      ".audit-head/**",
+      // Generated from the contract: the contract is what you edit.
       "src/lib/api/wire/**",
       "**/*.gen.ts",
     ],
@@ -104,19 +112,19 @@ export default tseslint.config(
                 { element: { type: "test" } },
               ],
               disallow: [{ to: { element: { type: "lib-api-wire" } } }],
-              message: "api/wire types live only inside lib/api (§16).",
+              message: "api/wire types live only inside lib/api.",
             },
             {
               from: [{ element: { type: "lib", captured: { lib: "telemetry" } } }],
               disallow: [{ to: { element: { type: "lib", captured: { lib: "docs" } } } }],
-              message: "Telemetry has no access to the text registry (§12, §13).",
+              message: "Telemetry has no access to the text registry.",
             },
             {
               from: [{ element: { type: "feature", captured: { feature: "intake" } } }],
               disallow: [
                 { to: { element: { type: "feature", captured: { feature: "buffer" } } } },
               ],
-              message: "Intake and extraction know nothing about the buffer (§16).",
+              message: "Intake and extraction know nothing about the buffer.",
             },
           ],
         },
@@ -135,7 +143,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ["**/lib/api/wire/*", "**/api/wire/*", "@/lib/api/wire/*"],
-              message: "api/wire types live only inside lib/api (§16).",
+              message: "api/wire types live only inside lib/api.",
             },
           ],
         },
@@ -147,15 +155,15 @@ export default tseslint.config(
         "error",
         {
           name: "fetch",
-          message: "The network lives only in lib/api and lib/telemetry (§13).",
+          message: "The network lives only in lib/api and lib/telemetry.",
         },
         {
           name: "XMLHttpRequest",
-          message: "The network lives only in lib/api and lib/telemetry (§13).",
+          message: "The network lives only in lib/api and lib/telemetry.",
         },
         {
           name: "EventSource",
-          message: "The network lives only in lib/api and lib/telemetry (§13).",
+          message: "The network lives only in lib/api and lib/telemetry.",
         },
       ],
       "no-restricted-properties": [
@@ -163,12 +171,12 @@ export default tseslint.config(
         {
           object: "navigator",
           property: "sendBeacon",
-          message: "Sending lives only in lib/api and lib/telemetry (§13).",
+          message: "Sending lives only in lib/api and lib/telemetry.",
         },
         {
           object: "window",
           property: "fetch",
-          message: "The network lives only in lib/api and lib/telemetry (§13).",
+          message: "The network lives only in lib/api and lib/telemetry.",
         },
       ],
 

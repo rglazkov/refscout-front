@@ -1,8 +1,8 @@
 /**
  * The enumerations the whole application speaks in. They are written here by
- * hand rather than inferred from the generated schemas (M1.1.1): `z.infer`
- * yields wire types, and a domain inferred from the wire is a domain shaped by
- * somebody else's JSON.
+ * hand rather than inferred from the generated schemas: `z.infer` yields wire
+ * types, and a domain inferred from the wire is a domain shaped by somebody
+ * else's JSON.
  *
  * They are declared as const tuples because the screens need to iterate them -
  * four checkboxes on a card, three severity dots on a result - and a union type
@@ -12,7 +12,7 @@ export { isModuleId, moduleIds, type ModuleId } from "./modules";
 
 /**
  * What a check needs to know about a document. Derived from the ticked checks
- * and never asked of the user (§4, §18).
+ * and never asked of the user.
  */
 export const docRoles = [
   "manuscript",
@@ -27,7 +27,7 @@ export type DocRole = (typeof docRoles)[number];
 /**
  * What the document was brought as. It is kept apart from what the content
  * turned out to be, because a download has to give the file back in the format
- * it arrived in (§9, §18).
+ * it arrived in.
  */
 export const sourceFormats = [
   "pdf",
@@ -42,7 +42,7 @@ export const sourceFormats = [
 
 export type SourceFormat = (typeof sourceFormats)[number];
 
-/** The formats this milestone reads. PDF and Word arrive with their parsers in M2. */
+/** The formats read as text. PDF and Word arrive through their parsers. */
 export const textFormats = ["txt", "md", "bib", "tex", "gls"] as const;
 
 export type TextFormat = (typeof textFormats)[number];
@@ -51,7 +51,10 @@ export function isTextFormat(format: SourceFormat): format is TextFormat {
   return (textFormats as readonly SourceFormat[]).includes(format);
 }
 
-/** What the content turned out to be, read from the text rather than the extension (§4). */
+/**
+ * What the content turned out to be, read from the text rather than the
+ * extension.
+ */
 export const detectedKinds = [
   "pdf",
   "latex",
@@ -70,7 +73,7 @@ export type Severity = (typeof severities)[number];
 /**
  * Only the first two are added up anywhere on screen. `info` is what Cite's
  * claims arrive as, and mixing it into the counters would leave a document
- * whose heading and whose cards name different numbers (§9).
+ * whose heading and whose cards name different numbers.
  */
 export const countedSeverities = ["critical", "warning"] as const;
 

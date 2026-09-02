@@ -9,8 +9,8 @@ import {
 
 /**
  * The linter catches direct imports; this test catches the way around them
- * through a re-export (M0.4.2). Both are needed: a rule with a single enforcer
- * gets bypassed on the first day bypassing it is convenient.
+ * through a re-export. Both are needed: a rule with a single enforcer gets
+ * bypassed on the first day bypassing it is convenient.
  */
 const files = readSources();
 const graph = buildGraph(files);
@@ -39,7 +39,7 @@ describe("layer boundaries", () => {
     // than by layer: the file handed back to the person is assembled from the
     // text, and the line numbers in the report are counted over it. It writes a
     // Blob and touches no network, so letting a screen ask it for a download
-    // keeps the text out of the screen (M1.10).
+    // keeps the text out of the screen.
     expect(
       importersOutside(/lib\/docs\/registry/, [
         "src/features/intake/",
@@ -82,7 +82,7 @@ describe("layer boundaries", () => {
   });
 });
 
-describe("dynamic loading of features (M0.9.4)", () => {
+describe("dynamic loading of features", () => {
   const outsideFeatures = files.filter((file) => !file.path.startsWith("src/features/"));
 
   it("features is never pulled in by a static import", () => {
@@ -93,6 +93,53 @@ describe("dynamic loading of features (M0.9.4)", () => {
         const resolved = resolveSpecifier(file.path, specifier) ?? specifier;
         if (resolved.startsWith("src/features/"))
           offenders.push(`${file.path} -> ${specifier}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * A parser is tens of kilobytes of generated table, and it is of no use until
+   * a document of that kind is open. Imported statically it would join the
+   * chunk the editor lives in, and every person who opened any text would carry
+   * the tables for all three formats.
+   */
+  it("a language parser is only ever reached through import()", () => {
+    const parsers = [
+      "@codemirror/lang-markdown",
+      "@codemirror/legacy-modes",
+      "codemirror-lang-bib",
+    ];
+    const offenders: string[] = [];
+    for (const file of files) {
+      if (file.path.startsWith("src/test/")) continue;
+      for (const specifier of file.imports) {
+        if (parsers.some((parser) => specifier.startsWith(parser))) {
+          offenders.push(`${file.path} -> ${specifier}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * `markdown()` from the language package carries a whole HTML parser with it,
+   * and JavaScript and CSS behind that, for the markup a Markdown file may
+   * embed - a hundred kilobytes to colour a `<br>` in somebody's manuscript.
+   * `markdownLanguage` is the same GFM grammar without them.
+   */
+  it("the HTML, JavaScript and CSS parsers are reached by nothing", () => {
+    const unwanted = [
+      "@codemirror/lang-html",
+      "@codemirror/lang-javascript",
+      "@codemirror/lang-css",
+    ];
+    const offenders: string[] = [];
+    for (const file of files) {
+      for (const specifier of [...file.imports, ...file.dynamicImports]) {
+        if (unwanted.some((parser) => specifier.startsWith(parser))) {
+          offenders.push(`${file.path} -> ${specifier}`);
+        }
       }
     }
     expect(offenders).toEqual([]);
@@ -112,7 +159,7 @@ describe("dynamic loading of features (M0.9.4)", () => {
   });
 });
 
-describe("one tree, every language (§15)", () => {
+describe("one tree, every language", () => {
   it("every page lives under [locale]", () => {
     // The default language is served from `/` too, but not by a second tree:
     // the root is a post-build copy of its folder. A page added outside
@@ -141,7 +188,7 @@ describe("one tree, every language (§15)", () => {
   });
 });
 
-describe("static export (M0.1.1)", () => {
+describe("static export", () => {
   it("every page declares its locale statically", () => {
     // Without setRequestLocale next-intl asks the request for the locale,
     // reading the request turns the page into a server page, and a static

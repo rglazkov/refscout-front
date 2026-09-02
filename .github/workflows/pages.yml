@@ -35,6 +35,13 @@ jobs:
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
           NEXT_PUBLIC_SITE_URL: ${{ steps.pages.outputs.base_url }}
+          # Named here rather than inherited from the committed .env, because
+          # what it selects is what the published page answers with. `mock`
+          # serves the contract's own example bodies from a service worker in
+          # the tab: the pages work end to end and the findings are examples,
+          # not an analysis of what the visitor brought. Point this at `stand`
+          # with an API origin the day one answers.
+          NEXT_PUBLIC_API_SOURCE: mock
         run: npm run build
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

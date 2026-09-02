@@ -7,18 +7,18 @@ import { BlockedButton } from "@/components/ui/blocked-button";
 import { Button } from "@/components/ui/button";
 import { messageKeyFor } from "@/lib/api";
 import { type BufferItem } from "@/lib/domain";
-import { totalChars, useEntitlementsStore, usePlanStore } from "@/stores";
+import { totalChars, useEntitlementsStore } from "@/stores";
 
-import { runnableItems } from "@/features/plan/compute";
+import { sendingItems } from "@/features/plan/compute";
 
 import { type RunFailure } from "./use-run";
 
 /**
- * The button, and the sentence under it (M1.6.3).
+ * The button, and the sentence under it.
  *
  * The sentence is literal: "text will be sent: 3 documents, 61 800 characters".
  * It describes the fact of the action about to happen and makes no promise
- * about privacy - promises live in the privacy policy, not under a button (§7).
+ * about privacy - promises live in the privacy policy, not under a button.
  */
 export function LaunchRow({
   items,
@@ -29,18 +29,15 @@ export function LaunchRow({
   readonly items: readonly BufferItem[];
   readonly pending: boolean;
   readonly failure: RunFailure | null;
-  readonly onRun: (
-    items: readonly BufferItem[],
-    options: ReturnType<typeof usePlanStore.getState>["options"],
-  ) => void;
+  readonly onRun: (items: readonly BufferItem[], buffer: readonly BufferItem[]) => void;
 }) {
   const t = useTranslations("job");
   const errors = useTranslations();
   const format = useFormatter();
-  const options = usePlanStore((state) => state.options);
   const entitlements = useEntitlementsStore((state) => state.entitlements);
 
-  const sending = runnableItems(items, entitlements);
+  // The companions go with them, so this number is the number that leaves.
+  const sending = sendingItems(items, entitlements);
   const paidRequested = items.some((item) =>
     item.checks.some((module) => module === "presubmit" || module === "cite"),
   );
@@ -49,10 +46,10 @@ export function LaunchRow({
   return (
     <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(180deg,var(--card),var(--primary-soft))] p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-4 max-[767px]:flex-col max-[767px]:items-stretch">
-        {/* A button that cannot run is not made `disabled`. It stays
-            focusable, is marked `aria-disabled`, says why when it is pressed
-            and reports the attempt - a grey button is a silent wall for the
-            person and no signal at all for us (§14, §16). */}
+        {/* A button that cannot run is not made `disabled`. It stays focusable,
+            is marked `aria-disabled`, says why when it is pressed and reports
+            the attempt - a grey button is a silent wall for the person and no
+            signal at all for us. */}
         {sending.length === 0 ? (
           <BlockedButton action="job.run" reason={t("nothingToSend")} size="lg">
             <PlayIcon aria-hidden="true" />
@@ -62,7 +59,7 @@ export function LaunchRow({
           <Button
             type="button"
             size="lg"
-            onClick={() => onRun(sending, options)}
+            onClick={() => onRun(sending, items)}
             data-testid="run"
             aria-busy={pending}
           >
@@ -71,11 +68,17 @@ export function LaunchRow({
           </Button>
         )}
         <div className="flex flex-col gap-0.5 text-right text-[0.8125rem] text-muted-foreground max-[767px]:text-left">
+          {/* The mono face is for the quantities, not for the sentence around
+              them: setting the whole line in it makes a label look like a
+              measurement. */}
           <p data-testid="launch-line">
             <strong className="font-semibold text-foreground">
               {t("textToSend", { documents: sending.length })}
             </strong>{" "}
-            · {t("characters", { chars: format.number(totalChars(sending)) })}
+            ·{" "}
+            <span className="font-mono">
+              {t("characters", { chars: format.number(totalChars(sending)) })}
+            </span>
           </p>
           {paidRequested ? (
             <p data-testid="paid-access-line">

@@ -3,12 +3,13 @@ import { getTranslations } from "next-intl/server";
 
 import { absoluteUrl, site } from "@/lib/brand";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n";
+import { publicPath } from "@/lib/public-path";
 
 import { routes, type RouteId } from "./routes";
 
 /**
  * The pictures a browser tab and a shared link show. Both are drawn from the
- * brand config by `scripts/generate-brand-assets.mjs` at build time (§15).
+ * brand config by `scripts/generate-brand-assets.mjs` at build time.
  *
  * They are named here rather than left to Next's own icon convention, because
  * a metadata route in a static export comes out without a file extension, and
@@ -17,10 +18,20 @@ import { routes, type RouteId } from "./routes";
  */
 const socialImage = { url: "/opengraph-image.png", width: 1200, height: 630 };
 
-const icons = { icon: "/icon.png", apple: "/apple-icon.png" };
+/*
+ * Carried as a path on the deployment rather than as an absolute address. The
+ * tab icon is fetched by the page itself, so it meets `img-src 'self'`, and a
+ * build whose configured site address is not the address it is served from -
+ * a preview, a stand, the browser lane - would otherwise have its own policy
+ * block its own icon. The prefix is what keeps it right under a base path.
+ */
+const icons = {
+  icon: publicPath("/icon.png"),
+  apple: publicPath("/apple-icon.png"),
+};
 
 /**
- * The picture as each network wants it described (§15).
+ * The picture as each network wants it described.
  *
  * Four of the five read Open Graph and nothing else - Facebook, Instagram and
  * WhatsApp through Facebook's crawler, Telegram through its own - and the
@@ -64,9 +75,9 @@ export function localizedPath(path: string, locale: Locale): string {
 
 /**
  * The inverse: the address with its language prefix taken off, which is what
- * the language switcher needs to name this same page in another language (§15).
- * The default language carries no prefix, so an address that has none is
- * already the answer.
+ * the language switcher needs to name this same page in another language. The
+ * default language carries no prefix, so an address that has none is already
+ * the answer.
  *
  * The switcher itself is not built while there is one language. This is the
  * part of it that is worth having ready, because it is the only part with a
@@ -152,9 +163,8 @@ export async function buildFeatureMetadata(
 }
 
 /**
- * Page metadata (M0.9.1). The texts come from the dictionary in the page's
- * language; hreflang comes from the translations that actually exist, plus
- * x-default.
+ * Page metadata. The texts come from the dictionary in the page's language;
+ * hreflang comes from the translations that actually exist, plus x-default.
  */
 export async function buildMetadata(id: RouteId, locale: Locale): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: "meta" });

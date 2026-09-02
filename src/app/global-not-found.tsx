@@ -30,7 +30,7 @@ import "./globals.css";
  *
  * The language is the default one: an address that matched no route has no
  * segment to read a locale from, and asking the request for one is what turns a
- * page dynamic (§2).
+ * page dynamic.
  */
 export default async function GlobalNotFound() {
   setRequestLocale(defaultLocale);
@@ -39,9 +39,8 @@ export default async function GlobalNotFound() {
   return (
     <html lang={defaultLocale} suppressHydrationWarning>
       <head>
-        {/* Ahead of the first paint - without it a dark 404 flashes light
-            (M0.2.3). Its hash reaches script-src the same way every other
-            page's does. */}
+        {/* Ahead of the first paint - without it a dark 404 flashes light. Its
+            hash reaches script-src the same way every other page's does. */}
         <script>{THEME_INIT_SCRIPT}</script>
       </head>
       <body className="min-h-svh">

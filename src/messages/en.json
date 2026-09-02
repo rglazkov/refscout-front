@@ -41,7 +41,7 @@
   },
   "workspace": {
     "title": "Check your manuscript before you submit",
-    "lead": "Drop a PDF, .docx, .tex, .bib or .md. {brandName} reads the text, checks every reference against live scholarly databases and shows you what a reviewer will notice first.",
+    "lead": "Drop a PDF, .docx, .tex or .md. {brandName} reads the text, checks every reference against live scholarly databases and shows you what a reviewer will notice first. Your bibliography, your glossary file and the venue's requirements go on the document's own card.",
     "reloadLoses": "Reloading this page loses the buffer: the extracted text lives in this tab only. Download anything you want to keep before you leave.",
     "starting": "Starting the check…",
     "failedTitle": "The check did not run",
@@ -55,7 +55,7 @@
       "paste": "Paste text",
       "orPaste": "or press",
       "pasteShortcut": "Ctrl+V",
-      "limits": "TXT · MD · BIB · TEX · GLS — up to {maxSizeMb} MB per file, {maxDocuments} documents"
+      "limits": "PDF · DOCX · TEX · BIB · GLS · MD · TXT — up to {maxSizeMb} MB each, {maxDocuments} texts in all, counting the ones your checks read"
     },
     "about": {
       "title": "What {brandName} checks",
@@ -66,14 +66,15 @@
   "intake": {
     "refusal": {
       "fileTooLarge": "{name} is {sizeMb} MB, and the limit is {limitMb} MB per file.",
-      "tooMany": "That would make {count} documents, and the buffer holds {limit}.",
+      "tooMany": "That would make {count} texts in the browser, and it holds {limit} — counting the bibliographies, glossaries and requirements your checks read.",
       "docTooLarge": "{name} has {chars} characters, and one document may have {limit}.",
       "jobTooLarge": "That would make {chars} characters in the buffer, and the limit is {limit}.",
-      "unsupported": "{name} is a .{extension} file, which is not read yet. Save it as .txt, .md, .bib, .tex or .gls, or paste the text."
+      "checkTooLarge": "That would make {chars} characters for one check to read, counting the document and everything it reads alongside it, and the limit is {limit}.",
+      "attachmentTooLarge": "{name} has {chars} characters, and a {slot} may have {limit}.",
+      "unsupported": "{name} is a .{extension} file, which is not read. Bring it as PDF, Word, .txt, .md, .tex, .bib or .gls, or paste the text."
     },
     "paste": {
       "title": "Paste or type text",
-      "lead": "It becomes an element of the buffer like any file: a name, a volume, checks, a way to remove it.",
       "fieldLabel": "Text to add to the buffer",
       "defaultName": "Pasted text",
       "close": "Close",
@@ -82,7 +83,6 @@
       "syntax": {
         "auto": "Auto",
         "latex": "LaTeX",
-        "bibtex": "BibTeX",
         "markdown": "Markdown",
         "text": "Plain text"
       }
@@ -99,86 +99,121 @@
     "volume": "{words} words · {chars} characters",
     "edited": "edited",
     "checkFor": "Check for",
-    "venueLabel": "Venue",
+    "configure": "Configure",
     "noChecks": "no checks ticked",
     "remove": "Remove {name}",
     "removeConfirmTitle": "Remove this document",
-    "removeConfirm": "{name} and its text will be gone, and there is nowhere to get them back from.",
+    "removeConfirm": "{name}, its text and everything brought in on its card will be gone, and there is nowhere to get them back from.",
     "removeConfirmYes": "Remove",
     "cancel": "Keep it",
     "clearConfirmTitle": "Clear the buffer",
     "clearConfirm": "All {documents} documents and every edit you made will be gone. Download anything you want first.",
     "clearConfirmYes": "Clear everything",
-    "venueLine": "Venue: {source}",
     "extract": {
       "reading": "reading…",
       "extracting": "extracting…",
-      "needs-password": "needs a password",
+      "needs-password": "password protected",
       "empty": "no text found",
-      "suspicious": "the text looks wrong",
-      "failed": "could not be read"
-    },
-    "venue": {
-      "open": "Venue requirements for {name}",
-      "notSet": "Not set",
-      "title": "Venue requirements",
-      "lead": "They belong to {name}. Two manuscripts in the buffer mean two venues.",
-      "ways": "Where the requirements come from",
-      "way": {
-        "preset": "From the list",
-        "url": "By address",
-        "text": "Pasted text",
-        "file": "From a file"
-      },
-      "presetLabel": "Venue",
-      "presetEmpty": "Choose a venue",
-      "pickFirst": "Choose a venue from the list first.",
-      "urlLabel": "Address of the page for authors",
-      "addressFirst": "Type the address of the page first.",
-      "load": "Load requirements",
-      "loading": "Loading…",
-      "textLabel": "Requirements",
-      "textFirst": "Paste the requirements first.",
-      "fileLabel": "Requirements file",
-      "use": "Use these",
-      "clear": "Remove the venue",
-      "wayOut": "You can paste the requirements in by hand instead.",
-      "notRequirements": "no requirements on that page",
+      "suspicious": "the text came out badly",
       "failed": "could not be read",
-      "timeout": "the site did not answer",
-      "state": {
-        "failed": "That address could not be read.",
-        "timeout": "That address did not answer in time.",
-        "not-requirements": "That page opened, but there are no requirements on it — it may be the journal's front page rather than its page for authors."
+      "partial": "{parsed} of {pages} pages read",
+      "progressPages": "page {done} of {total}",
+      "progressWorking": "reading…",
+      "stop": "Stop",
+      "missingPages": "Pages that were not read: {pages}",
+      "announce": {
+        "reading": "Reading {name}…",
+        "read": "{name} is read: {chars} characters.",
+        "password": "{name} is protected — a password field is on its card."
+      },
+      "password": {
+        "label": "Password for {name}",
+        "unlock": "Unlock",
+        "hint": "It is used here and travels nowhere — the document is read in this browser."
+      },
+      "reason": {
+        "FILE_UNREADABLE": "This file could not be read. It may have been moved, renamed or changed since it was brought in.",
+        "PDF_PASSWORD_REQUIRED": "This PDF is protected. Enter its password and it will be read here.",
+        "PDF_PASSWORD_WRONG": "That password did not open this PDF.",
+        "PDF_CORRUPT": "This PDF could not be opened — the file looks damaged. Try again, or paste the text in.",
+        "NO_TEXT_LAYER": "No text found. {brandName} analyses text, and the pages of this document are images. Check that the document contains text rather than scans.",
+        "DOCX_UNREADABLE": "This file could not be opened as Word — it is either not a .docx or its container is damaged. Save it as PDF, or paste the text in.",
+        "DOCX_EMPTY": "This Word file opened and held no text.",
+        "ARCHIVE_TOO_MANY_ENTRIES": "This Word file holds {entries} parts, and the ceiling is {limit}. Load a PDF instead, or paste the text in.",
+        "ARCHIVE_ENTRY_TOO_LARGE": "A part of this Word file unpacks to {bytes} bytes, and the ceiling is {limit}. Load a PDF instead, or paste the text in.",
+        "ARCHIVE_TOTAL_TOO_LARGE": "The parts of this Word file unpack to {unpacked} bytes together, and the ceiling is {limit}. Load a PDF instead, or paste the text in.",
+        "ARCHIVE_RATIO_TOO_HIGH": "A part of this Word file unpacks to {unpacked} bytes from {packed}, past the ceiling of {limit} to one. Load a PDF instead, or paste the text in.",
+        "TEXT_EMPTY": "Nothing was extracted from this file.",
+        "TEXT_SUSPICIOUS": "The text came out badly — read it before the check runs.",
+        "TEXT_BAD_ENCODING": "The text came out badly: replacement characters are visible in it, so the file is not the UTF-8 it was read as. Correct it here, or save it again as UTF-8.",
+        "PAGES_MISSING": "{parsed} of {pages} pages were read. Work with what is here, or fill the rest in by hand.",
+        "WORKER_TIMEOUT": "Reading this document took too long and was stopped.",
+        "WORKER_CRASHED": "This document could not be read.",
+        "CANCELLED": "Reading this document was stopped."
+      },
+      "way": {
+        "retry": "Try again",
+        "chooseAgain": "Choose the file again",
+        "type": "Type the text in",
+        "open": "Open and correct"
       }
-    }
-  },
-  "editor": {
-    "done": "Done",
-    "volume": "{chars} characters · {words} words",
-    "readOnlyReason": "Read-only here: an edit would move the findings, and recomputing where they point comes later. Edit before a run, or download the text.",
-    "fieldLabel": "The text of {name}"
-  },
-  "plan": {
-    "heading": "Check plan",
-    "willRunLabel": "Will run",
-    "nothingToRun": "Nothing ticked yet — tick a check on a document above.",
-    "venuesLabel": "Venue requirements",
-    "venuesNone": "— PreSubmit is not ticked on any document",
-    "venueNotSet": "not set",
-    "accessChecking": "Checking access for the paid checks…",
-    "accessOpen": "PreSubmit and Cite are paid checks. Your access is open, so both can run.",
-    "accessOpenUntil": "PreSubmit and Cite are paid checks. Your access is open until {date}.",
-    "accessLocked": "PreSubmit and Cite are paid checks. Access is currently closed; free checks can still run.",
-    "learnPaid": "See what they do",
-    "excluded": "is not included — {reason}.",
-    "configure": "Configure",
-    "reason": {
-      "no-text": "no text",
-      "no-checks": "no checks ticked"
+    },
+    "attach": {
+      "fromBuffer": "From the buffer:",
+      "notChosen": "Not chosen",
+      "dropHere": "or drop a file here, or",
+      "chooseFile": "Choose a file",
+      "pasteText": "Paste text",
+      "open": "Open in the editor",
+      "close": "Close",
+      "attach": "Attach",
+      "nothingPasted": "There is nothing to attach yet — paste the text first.",
+      "volume": "{chars} characters",
+      "removeLabel": "Remove {name}",
+      "unlinkLabel": "Stop reading {name} here",
+      "removeTitle": "Remove this text",
+      "removeBody": "{name} will be gone, and there is nowhere to get it back from. The check will still run, and will do less.",
+      "removeYes": "Remove",
+      "keep": "Keep it",
+      "bibcheck": {
+        "label": "The bibliography this manuscript cites",
+        "what": "bibliography",
+        "pastedName": "Pasted bibliography",
+        "pasteTitle": "Paste the bibliography"
+      },
+      "bibcheckCites": {
+        "label": "The manuscript that cites this bibliography"
+      },
+      "glossary": {
+        "label": "The glossary file you already have",
+        "what": "glossary file",
+        "pastedName": "Pasted glossary",
+        "pasteTitle": "Paste the glossary"
+      },
+      "glossaryUsedBy": {
+        "label": "The manuscript this glossary belongs to"
+      },
+      "venue": {
+        "label": "The venue's requirements",
+        "what": "requirements file",
+        "pastedName": "Pasted requirements",
+        "pasteTitle": "Paste the requirements",
+        "fromLink": "From a link",
+        "linkTitle": "Load the requirements from a page",
+        "urlLabel": "Address of the page for authors",
+        "addressFirst": "Type the address of the page first.",
+        "load": "Load requirements",
+        "loading": "Loading…",
+        "wayOut": "You can paste the requirements in by hand instead.",
+        "state": {
+          "loading": "That address is being read.",
+          "failed": "That address could not be read.",
+          "timeout": "That address did not answer in time.",
+          "not-requirements": "That page opened, but there are no requirements on it — it may be the journal's front page rather than its page for authors."
+        }
+      }
     },
     "settings": {
-      "bibcheck": "BibCheck",
       "verifyLive": "Verify against live databases",
       "showOrphans": "Report entries nothing cites",
       "countCommented": "Count commented-out entries",
@@ -199,15 +234,49 @@
         "cited-order": "In the order they are cited",
         "original": "As they arrived"
       },
-      "glossary": "Glossary",
       "domain": "Subject area",
-      "presubmit": "PreSubmit",
-      "anonymity": "Check for anonymity before blind review",
-      "checklist": "Reproducibility checklist",
-      "cite": "Cite",
-      "field": "Field",
+      "anonymity": "Double-blind check",
+      "citeSource": {
+        "excerpt": "A passage of your own",
+        "document": "The whole document"
+      },
+      "excerpt": "Paste a paragraph or draft section into the text box",
+      "excerptEmpty": "Nothing pasted yet",
+      "excerptPaste": "Paste text",
+      "excerptOpen": "Open in the editor",
+      "excerptClear": "Remove the passage",
+      "excerptUse": "Use this passage",
+      "excerptVolume": "{chars} characters",
+      "excerptTooLong": "That is longer than a section — up to {limit} characters here. Use the whole document instead.",
+      "citeWholeDocument": "Cite will read this document from the first line to the last and propose sources for the claims it finds.",
       "maxPerClaim": "Sources per claim",
       "instructions": "Instructions for Cite"
+    }
+  },
+  "editor": {
+    "done": "Done",
+    "download": "Download .{extension}",
+    "volume": "{chars} characters · {words} words",
+    "readOnlyReason": "Read-only here: an edit would move the findings, and recomputing where they point comes later. Edit before a run, or download the text.",
+    "fieldLabel": "The text of {name}"
+  },
+  "plan": {
+    "heading": "Check plan",
+    "headingFor": "Check plan for {name}",
+    "willRunLabel": "Will run",
+    "nothingToRun": "Nothing ticked yet — tick a check above.",
+    "venuesLabel": "Venue requirements",
+    "venueNotSet": "not set",
+    "learnPaid": "See what it does",
+    "excludedHere": "This document is not included — {reason}.",
+    "reason": {
+      "no-text": "no text",
+      "no-checks": "no checks ticked"
+    },
+    "incompleteHere": "{module} will run, but {missing}.",
+    "missing": {
+      "bibcheck": "it cannot say which references are missing or uncited without the bibliography this manuscript cites",
+      "glossary": "it cannot leave alone the acronyms you already defined without your existing glossary file"
     }
   },
   "job": {
@@ -225,7 +294,8 @@
     "accessOpen": "Paid checks: access open",
     "accessOpenUntil": "Paid checks: access open until {date}",
     "accessLocked": "Paid checks: access closed — free checks will still run",
-    "progressOf": "{done} of {total}"
+    "progressOf": "{done} of {total}",
+    "checksDone": "{done} of {total}"
   },
   "results": {
     "heading": "Check results",
@@ -236,10 +306,36 @@
     "finishedNote": "This check is finished. You can still edit and download the text. To check again, start a new check from the drop zone; the new check starts with an empty buffer.",
     "characters": "{chars} characters",
     "openInEditor": "Open in the editor",
-    "download": "Download",
-    "downloadReport": "Findings report (.md)",
-    "downloadText": "Text of {name}",
-    "downloadArtifact": "Generated file from {module}",
+    "editedAfterRun": "This text has been edited since the check ran. The lines, pages and quotes below point at the text as it was sent, so they may no longer match. Download gives back the text as it stands now.",
+    "downloadReport": "Download report (.md)",
+    "openArtifact": "Open the .{extension} this check made",
+    "cite": {
+      "title": "Cite · {name}",
+      "lead": "The claims that need a source, each with real candidates to review.",
+      "close": "Close",
+      "acceptedCount": "{count, plural, =0 {no sources accepted} one {# source accepted} other {# sources accepted}}",
+      "checkedAgainst": "The text this was checked against",
+      "openText": "Open in the editor",
+      "claims": "{count, plural, one {citation-worthy claim} other {citation-worthy claims}}",
+      "candidates": "{count, plural, one {candidate found} other {candidates found}}",
+      "noClaims": "Cite found nothing in this document that needs a source.",
+      "disclaimerLead": "These are real, reviewable sources — not proof that a source supports your claim.",
+      "disclaimer": "Read the article before you cite it.",
+      "needsSource": "Needs a source",
+      "searched": "Searched",
+      "alreadyCited": "Already cited ({count})",
+      "lowRelevance": "Potentially low relevance ({count})",
+      "citedBy": "Citations {count}",
+      "relevance": "Relevance {score}/100",
+      "openAccess": "Open access",
+      "abstract": "Show abstract",
+      "use": "Use this",
+      "accepted": "Accepted",
+      "copyBibtex": "Copy BibTeX",
+      "openSource": "Open the source",
+      "exportLabel": "The sources you accepted are assembled into a .bib you can read and save in the editor.",
+      "exportAction": "{count, plural, =0 {Accept a source first} one {Open # accepted source} other {Open # accepted sources}}"
+    },
     "newCheck": "New check",
     "newCheckTitle": "Start a new check",
     "newCheckConfirm": "This destroys the documents, your edits and these results, and there is nowhere to get them back from. Download what you need first.",
@@ -329,6 +425,8 @@
       "JOB_TOO_LARGE": "The buffer is longer than one check allows.",
       "TOO_MANY_DOCUMENTS": "There are more documents than one check allows.",
       "UNSUPPORTED_ENCODING": "The server refused the encoding of this request.",
+      "BODY_TOO_LARGE": "This check is larger than the server accepts in one request. Remove a document, or shorten one.",
+      "BAD_COMPRESSION": "The server could not read the compressed request. Try again.",
       "IDEMPOTENCY_KEY_REUSE": "This is our defect, not yours: the request was refused rather than run against the wrong version of your text. Nothing was checked. Press the button again.",
       "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
       "SERVICE_UNAVAILABLE": "The service is briefly unavailable. Try again shortly.",
@@ -338,6 +436,9 @@
       "VENUE_FETCH_TIMEOUT": "That address did not answer in time.",
       "VENUE_URL_INVALID": "That is not an address we can open."
     }
+  },
+  "wording": {
+    "unknown": "This check reported something this version has no wording for."
   },
   "stage": {
     "accepted": "Text accepted",
@@ -368,14 +469,18 @@
     "matched_name": "Matched title",
     "retracted_on": "Retracted on",
     "retraction_watch": "Retraction Watch",
-    "confidence": "Confidence"
+    "confidence": "Confidence",
+    "metadata_field": "In the file properties",
+    "occurrences": "Times it appears"
   },
   "action": {
     "copy_url": "Copy the address",
     "download_bibliography": "Download the corrected bibliography"
   },
   "artifact": {
-    "corrected_bibliography": "Corrected bibliography"
+    "corrected_bibliography": "Corrected bibliography",
+    "submission_checklist": "Submission checklist",
+    "generated_glossary": "Generated glossary"
   },
   "footer": {
     "rights": "© {brandName}",

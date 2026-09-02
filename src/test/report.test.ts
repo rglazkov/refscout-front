@@ -2,15 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { toModuleResult } from "@/lib/api/mappers";
 import { zModuleResult } from "@/lib/api/wire/zod.gen";
-import { buildIssueReport, lineOf, pageOf, type ReportLabels } from "@/lib/export";
+import {
+  buildIssueReport,
+  lineAt,
+  lineOf,
+  lineStarts,
+  pageOf,
+  type ReportLabels,
+} from "@/lib/export";
 import { issuesOf } from "@/lib/normalize";
 
 import { scenarios } from "./msw/handlers.gen";
 
 /**
- * The findings report (M1.10.2). In this first section it is the main thing the
- * product produces: a person takes it into their own editor and fixes the
- * manuscript there, so what is in it decides whether the run was worth making.
+ * The findings report. In this first section it is the main thing the product
+ * produces: a person takes it into their own editor and fixes the manuscript
+ * there, so what is in it decides whether the run was worth making.
  */
 const labels: ReportLabels = {
   severity: { critical: "Critical", warning: "Warning", info: "Note" },
@@ -62,7 +69,7 @@ describe("the report says where each finding is", () => {
 
   it("gives the line and the page of a finding with coordinates", () => {
     // Both are computed in the browser from the text it holds: line numbers do
-    // not travel over the wire in either direction (§10).
+    // not travel over the wire in either direction.
     const markdown = report();
     expect(markdown).toMatch(/line \d+ · page 7/);
   });
@@ -119,5 +126,13 @@ describe("the place is worked out in code points", () => {
     expect(pageOf(pages, 100)).toBe(2);
     expect(pageOf(pages, 500)).toBeNull();
     expect(pageOf(undefined, 5)).toBeNull();
+  });
+
+  it("the index answers the same line the whole text does", () => {
+    const text = "one\n𝄞two\n\nthree";
+    const starts = lineStarts(text);
+    for (let offset = 0; offset <= [...text].length; offset += 1) {
+      expect(lineAt(starts, offset)).toBe(lineOf(text, offset));
+    }
   });
 });

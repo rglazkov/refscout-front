@@ -1,12 +1,14 @@
 import { type DocContent } from "@/lib/domain";
 
+import { releaseAllSourceFiles, releaseSourceFile } from "./sources";
+
 /**
- * The text registry (M1.2.2). Four operations and an adapter behind them; in M4
- * the adapter becomes IndexedDB and not one line of calling code changes.
+ * The text registry. Four operations and an adapter behind them; when the
+ * adapter becomes IndexedDB not one line of calling code changes.
  *
  * It lives outside React on purpose. Text that has once been in a store will be
  * in the serialised state and in an error report soon after, and the extracted
- * text is the only copy of the document in existence (§17).
+ * text is the only copy of the document in existence.
  */
 export type DocRegistryAdapter = {
   readonly get: (docId: string) => DocContent | undefined;
@@ -31,8 +33,8 @@ let adapter: DocRegistryAdapter = memoryAdapter();
 
 /**
  * Replaces the store behind the registry, and gives back the one it replaced.
- * M4 hands it the IndexedDB adapter; the previous one is returned so that a
- * caller which swapped it can put it back without rebuilding it.
+ * This is how the IndexedDB adapter is handed in; the previous one is returned
+ * so that a caller which swapped it can put it back without rebuilding it.
  */
 export function useAdapter(next: DocRegistryAdapter): DocRegistryAdapter {
   const previous = adapter;
@@ -50,9 +52,9 @@ export const docRegistry = {
 
 /**
  * Replaces the text of a document, keeping everything the extraction learned
- * about it. This is what an edit in the editor commits to (M1.5.4): the edit
- * applies to the buffer itself, not to a copy made for viewing, and what leaves
- * for the server is the edited text.
+ * about it. This is what an edit in the editor commits to: the edit applies to
+ * the buffer itself, not to a copy made for viewing, and what leaves for the
+ * server is the edited text.
  */
 export function replaceText(docId: string, text: string): DocContent | undefined {
   const current = adapter.get(docId);
@@ -65,17 +67,21 @@ export function replaceText(docId: string, text: string): DocContent | undefined
 /**
  * Removes every document. This is the one operation over the texts that a
  * screen is allowed to ask for, because it destroys rather than reads: "Clear
- * all" and "New check" both mean it, and both ask before they call it (§4, §9).
+ * all" and "New check" both mean it, and both ask before they call it.
  */
 export function clearAllDocuments(): void {
   adapter.clear();
+  releaseAllSourceFiles();
 }
 
 /**
  * Forgets one document. It is called with the removal of the card, because a
  * description leaving the store while its text stays behind is a copy of a
- * manuscript that nothing on screen can reach any more (§4).
+ * manuscript that nothing on screen can reach any more.
  */
 export function forgetDocument(docId: string): void {
   adapter.remove(docId);
+  // The handle to the file on disk goes with the text. Kept, it would be a
+  // reference to somebody's manuscript that no card can reach any more.
+  releaseSourceFile(docId);
 }

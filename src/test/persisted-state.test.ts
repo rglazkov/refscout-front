@@ -5,13 +5,13 @@ import { describe, expect, it } from "vitest";
 import { readSources } from "./utils/source-graph";
 
 /**
- * The persisted-state shape test (M0.4.3). While there are no stores yet it
- * checks empty lists, and that is fine: its job is to already exist by the time
- * the first store appears, not to wait for it.
+ * The persisted-state shape test. While there are no stores yet it checks empty
+ * lists, and that is fine: its job is to already exist by the time the first
+ * store appears, not to wait for it.
  *
  * The rule it holds: document contents are allowed in IndexedDB and not allowed
- * in Zustand persist, in localStorage or in the telemetry queue (§13). When the
- * first store appears, its manifest is added here.
+ * in Zustand persist, in localStorage or in the telemetry queue. When the first
+ * store appears, its manifest is added here.
  */
 
 /** The modules allowed to write to localStorage, and the keys they write. */

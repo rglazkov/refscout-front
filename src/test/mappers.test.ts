@@ -13,14 +13,13 @@ import {
   zModuleResult,
   zSubmitJobResponse,
 } from "@/lib/api/wire/zod.gen";
-import { defaultOptions } from "@/stores/plan";
-import { type SubmitJobRequest } from "@/lib/domain";
+import { type SubmitJobRequest, defaultOptions } from "@/lib/domain";
 
 import { scenarios } from "./msw/handlers.gen";
 
 /**
- * The seam (M1.7.2). The mappers are fed the contract's own examples, parsed by
- * the schemas generated from that same contract, and what comes out is checked
+ * The seam. The mappers are fed the contract's own examples, parsed by the
+ * schemas generated from that same contract, and what comes out is checked
  * against what the screens need. When the server's shape moves, this is where
  * it stops compiling - one directory, rather than a `undefined` inside JSX.
  */
@@ -35,8 +34,8 @@ describe("a module result becomes findings the cards can draw", () => {
   });
 
   it("every finding starts un-stale, and the field is in the domain from the start", () => {
-    // Nothing sets it before M9. Added later it would drag the mapper, the
-    // schema and the contract with it (M1.1.3).
+    // Nothing sets it yet. Added later it would drag the mapper, the schema
+    // and the wire types with it.
     expect(result.issues.every((issue) => issue.stale === false)).toBe(true);
   });
 
@@ -52,7 +51,7 @@ describe("a module result becomes findings the cards can draw", () => {
   });
 });
 
-describe("a kind this version does not define survives (§5.9 of the contract)", () => {
+describe("a kind this version does not define survives", () => {
   const result = toModuleResult(
     zModuleResult.parse(scenarios.getModuleResult.unknownKinds.body),
   );
@@ -87,7 +86,7 @@ describe("job state becomes what the results screen reads", () => {
 
   it("a module without a score keeps null rather than becoming zero", () => {
     // "Checked, and it is bad" and "not checked" are different sentences on the
-    // card and different actions for the reader (§9, M1.1.3).
+    // card and different actions for the reader.
     const status = toJobStatus(zJobStatus.parse(scenarios.getJob.finished.body));
     expect(status.documents[0]?.modules.cite?.score).toBeNull();
     expect(status.documents[0]?.modules.bibcheck?.score).toBe(64);
@@ -109,13 +108,13 @@ describe("job state becomes what the results screen reads", () => {
   });
 });
 
-describe("what goes out (M1.7.2)", () => {
+describe("what goes out", () => {
   const request: SubmitJobRequest = {
     documents: [
       {
         docId: "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
         // The raw name travels, not the displayed one: sanitisation is a rule
-        // about showing a name (§18).
+        // about showing a name.
         name: "../paper v7.tex",
         role: "manuscript",
         format: "tex",
@@ -123,10 +122,15 @@ describe("what goes out (M1.7.2)", () => {
         text: "\\documentclass{article}",
         textSha256: "a".repeat(64),
         cpLength: 23,
-        venue: { kind: "preset", source: "NeurIPS 2026", state: "ready" },
+        options: defaultOptions,
+        venue: {
+          kind: "file",
+          source: "neurips-2026.txt",
+          docId: "5b1f7a02-3c4e-4d19-9a76-8e2b0c4d5f63",
+          state: "ready",
+        },
       },
     ],
-    options: defaultOptions,
     locale: "en",
   };
 
@@ -136,12 +140,21 @@ describe("what goes out (M1.7.2)", () => {
     expect(wire.documents[0]?.name).toBe("../paper v7.tex");
   });
 
-  it("the venue travels as what the person chose, and no state of ours goes with it", () => {
-    expect(wire.documents[0]?.venue).toEqual({ kind: "preset", source: "NeurIPS 2026" });
+  it("the venue names the document carrying the requirements, and no state of ours goes with it", () => {
+    // The requirements themselves travel as a document of the job like every
+    // other text; the fetch state describes a request the browser made and says
+    // nothing about the check.
+    expect(wire.documents[0]?.venue).toEqual({
+      kind: "file",
+      source: "neurips-2026.txt",
+      docId: "5b1f7a02-3c4e-4d19-9a76-8e2b0c4d5f63",
+    });
   });
 
-  it("the settings of all four modules go in full, so a re-run is unambiguous", () => {
-    expect(Object.keys(wire.options).sort()).toEqual([
+  it("the settings of all four modules go with the document, in full", () => {
+    // They belong to the document rather than to the job: two manuscripts in
+    // one buffer are two manuscripts with two subject areas.
+    expect(Object.keys(wire.documents[0]?.options ?? {}).sort()).toEqual([
       "bibcheck",
       "cite",
       "glossary",
@@ -151,8 +164,8 @@ describe("what goes out (M1.7.2)", () => {
 
   it("the idempotency key is not a field of the body", () => {
     // It is about delivery rather than about the content of the job, and it
-    // travels as a header (§17, §18).
+    // travels as a header.
     expect(JSON.stringify(wire)).not.toContain("Idempotency");
-    expect(Object.keys(wire).sort()).toEqual(["documents", "locale", "options"]);
+    expect(Object.keys(wire).sort()).toEqual(["documents", "locale"]);
   });
 });

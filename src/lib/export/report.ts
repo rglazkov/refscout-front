@@ -2,9 +2,9 @@ import { type Anchor, type Counts, type PageSpan, type Severity } from "@/lib/do
 import { type PlacedIssue } from "@/lib/normalize";
 
 /**
- * The findings report in Markdown (M1.10.2). In this first section it is the
- * main thing the product produces: a person takes it into their own editor and
- * fixes the manuscript there.
+ * The findings report in Markdown. In this first section it is the main thing
+ * the product produces: a person takes it into their own editor and fixes the
+ * manuscript there.
  *
  * The assembler is our own rather than a Markdown library's: what is needed is
  * a handful of headings and lists, and the text inside them is someone else's -
@@ -45,14 +45,42 @@ export type ReportLabels = {
 };
 
 /**
+ * Where every line of a document begins, in code points. It is built once per
+ * document and then answered from, because a report over a dissertation asks
+ * the same question a thousand times over the same three million characters,
+ * and walking the whole text again for each finding is minutes of a tab that
+ * has stopped responding.
+ */
+export function lineStarts(text: string): readonly number[] {
+  const starts = [0];
+  let offset = 0;
+  // Iterating a string yields code points, which is the unit every offset in
+  // an answer is counted in.
+  for (const character of text) {
+    offset += 1;
+    if (character === "\n") starts.push(offset);
+  }
+  return starts;
+}
+
+/** The line an offset falls on, over an index built by `lineStarts`. */
+export function lineAt(starts: readonly number[], offset: number): number {
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if ((starts[middle] ?? 0) <= offset) low = middle;
+    else high = middle - 1;
+  }
+  return low + 1;
+}
+
+/**
  * The line an offset falls on. Computed here from the text the browser holds:
- * line numbers do not travel over the wire in either direction (§10).
+ * line numbers do not travel over the wire in either direction.
  */
 export function lineOf(text: string, offset: number): number {
-  let line = 1;
-  const upTo = [...text].slice(0, offset).join("");
-  for (const character of upTo) if (character === "\n") line += 1;
-  return line;
+  return lineAt(lineStarts(text), offset);
 }
 
 export function pageOf(
@@ -92,6 +120,10 @@ export function buildIssueReport(input: ReportInput): string {
       continue;
     }
 
+    // One pass over the text for the whole document, however many findings
+    // point into it.
+    const starts = document.text === undefined ? undefined : lineStarts(document.text);
+
     let heading: string | null = null;
     for (const placed of document.issues) {
       if (placed.module !== heading) {
@@ -112,8 +144,8 @@ export function buildIssueReport(input: ReportInput): string {
       for (const anchor of issue.anchors) {
         const offset = offsetOf(anchor);
         const place: string[] = [];
-        if (offset !== null && document.text !== undefined) {
-          place.push(`${input.labels.line} ${lineOf(document.text, offset)}`);
+        if (offset !== null && starts !== undefined) {
+          place.push(`${input.labels.line} ${lineAt(starts, offset)}`);
           const page = pageOf(document.pages, offset);
           if (page !== null) place.push(`${input.labels.page} ${page}`);
         }

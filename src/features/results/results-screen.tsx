@@ -1,22 +1,14 @@
 "use client";
 
 import * as React from "react";
-import {
-  ChevronDownIcon,
-  DownloadIcon,
-  FileTextIcon,
-  LibraryIcon,
-  PencilIcon,
-  TriangleAlertIcon,
-  UploadIcon,
-} from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { PencilIcon, TriangleAlertIcon, UploadIcon } from "lucide-react";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 
+import { DocumentIcon } from "@/components/document-icon";
 import { Collapse } from "@/components/motion/collapse";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/cn";
-import { extensionOf } from "@/lib/docs";
 import {
   type Counts,
   type Job,
@@ -25,22 +17,22 @@ import {
   moduleIds,
   resultKey,
 } from "@/lib/domain";
-import { downloadDocumentText, downloadJobReport, downloadText } from "@/lib/export";
 import { documentCounts, jobCounts } from "@/lib/normalize";
-import { useBufferStore, useJobStore, useUiStore } from "@/stores";
+import { useBufferStore, useUiStore } from "@/stores";
 
 import { CheckCard } from "./check-card";
+import { DownloadReportButton } from "./download-report";
 
 /**
- * The results (§9). Three levels and no extra screen: a document, then the
- * cards of its checks, then the findings inside a card. The top level is the
- * document, because a person works with a manuscript rather than with a module,
- * and "what is wrong with this file" gets a direct answer.
+ * The results. Three levels and no extra screen: a document, then the cards of
+ * its checks, then the findings inside a card. The top level is the document,
+ * because a person works with a manuscript rather than with a module, and "what
+ * is wrong with this file" gets a direct answer.
  *
- * No job is created from this screen - not by any path (M1.9.5). The invariant
- * is worded that way rather than as "no text is sent", because a test is
- * written from this wording and it stays true when a single failed module is
- * re-run inside the job that already exists.
+ * No job is created from this screen - not by any path. The invariant is worded
+ * that way rather than as "no text is sent", because a test is written from
+ * this wording and it stays true when a single failed module is re-run inside
+ * the job that already exists.
  */
 export function ResultsScreen({
   job,
@@ -55,11 +47,15 @@ export function ResultsScreen({
 }) {
   const t = useTranslations("results");
   const format = useFormatter();
+  const now = useNow();
   const [confirming, setConfirming] = React.useState(false);
 
   const totals = jobCounts(job);
-  const documents = orderByReadiness(job.status.documents).filter(
-    (document) => !running || hasVisibleResult(document),
+  // A text a check read without being run on it - a bibliography, a glossary
+  // file, the venue's requirements - is in the job and has no results of its
+  // own. It is not a row here: the results are about what was checked.
+  const documents = orderByReadiness(job.status.documents).filter((document) =>
+    running ? hasVisibleResult(document) : hasAnyModule(document),
   );
   const notRun = job.status.documents.reduce(
     (total, document) => total + notRunCount(document),
@@ -71,7 +67,11 @@ export function ResultsScreen({
 
   return (
     <section
-      className={running ? "mt-5" : "mt-6"}
+      // While the run is on, the results sit under the progress card and are
+      // spaced from it. Once it is over the card is gone and this is the top of
+      // the screen, where a margin of its own only adds to the one the screen
+      // already has.
+      className={running ? "mt-5" : undefined}
       aria-labelledby={running ? "ready-results-heading" : "results-heading"}
     >
       {running ? (
@@ -96,12 +96,12 @@ export function ResultsScreen({
               <p className="text-sm text-muted-foreground">
                 {t("documentsChecked", {
                   documents: job.status.documents.length,
-                  when: format.relativeTime(new Date(checkedAt)),
+                  when: format.relativeTime(new Date(checkedAt), now),
                 })}
               </p>
             </div>
             <div className="flex gap-2">
-              <DownloadMenu job={job} />
+              <DownloadReportButton job={job} />
               <Button
                 type="button"
                 variant="outline"
@@ -133,41 +133,31 @@ export function ResultsScreen({
             <span>{t("finishedNote")}</span>
           </p>
 
-          {/* It destroys the documents, the edits and everything stored, and there
-          is nowhere to get them back from. So it asks before the clearing
-          rather than reporting the loss after it (M1.9.6). */}
-          {confirming ? (
-            <div
-              role="alertdialog"
-              aria-label={t("newCheckTitle")}
-              data-testid="new-check-confirm"
-              className="mt-3 rounded-lg border border-critical-border bg-critical-soft p-3 text-sm"
-            >
-              <p>{t("newCheckConfirm")}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <DownloadReportButton job={job} />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => {
-                    setConfirming(false);
-                    onNewCheck();
-                  }}
-                >
-                  {t("newCheckYes")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConfirming(false)}
-                >
-                  {t("cancel")}
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          {/* It destroys the documents, the edits and everything stored, and
+              there is nowhere to get them back from. So it asks before the
+              clearing rather than reporting the loss after it, and it asks in a
+              dialogue: a strip at the end of the page is answerable by
+              scrolling past it. The report is offered inside the question,
+              where it is still worth taking. */}
+          <ConfirmDialog
+            open={confirming}
+            onOpenChange={setConfirming}
+            title={t("newCheckTitle")}
+            body={t("newCheckConfirm")}
+            confirmLabel={t("newCheckYes")}
+            cancelLabel={t("cancel")}
+            testId="new-check-confirm"
+            // Full width beside the answers when they stack, so that the three
+            // read as three answers and not as two and an afterthought.
+            extra={
+              <DownloadReportButton
+                job={job}
+                variant="outline"
+                className="w-full sm:w-auto"
+              />
+            }
+            onConfirm={onNewCheck}
+          />
         </div>
       </Collapse>
 
@@ -220,6 +210,18 @@ function DocumentResults({
     return () => name.removeEventListener("click", handlePointerClick);
   }, [openDocument]);
 
+  /*
+   * The text was corrected after the job carrying it left. Editing here is the
+   * point - the corrected file is what Download gives back - but the findings
+   * below were written against the text as it was sent, and their line numbers
+   * and quotes now point at a document that has moved under them. Recomputing
+   * the places is not built yet; saying so is what the screen owes the reader,
+   * because a coordinate that is quietly wrong looks exactly like one that is
+   * right.
+   */
+  const movedUnderFindings =
+    item !== undefined && item.extract.sha256 !== document.textSha256;
+
   const volume =
     item !== undefined &&
     (item.extract.state === "ready" || item.extract.state === "partial")
@@ -229,52 +231,89 @@ function DocumentResults({
         })
       : t("characters", { chars: format.number(document.cpLength) });
 
+  /*
+   * The result opens the same live document the buffer used, and edits apply at
+   * once to the text Download returns. Written once and placed twice: on a wide
+   * screen it belongs at the end of the heading, and on anything narrower there
+   * is no room for it there, so it becomes a row of its own under the counters
+   * rather than a small button floated into the corner below them.
+   */
+  const openInEditor = (className: string) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={className}
+      onClick={openDocument}
+    >
+      <PencilIcon aria-hidden="true" />
+      {t("openInEditor")}
+    </Button>
+  );
+
   return (
     <section aria-labelledby={`doc-${document.docId}`} data-testid="document-results">
-      <div className="flex flex-wrap items-center gap-2.5 border-b pb-2">
-        <h3
-          id={`doc-${document.docId}`}
-          className="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-[-0.01em]"
-        >
-          <ResultDocumentIcon item={item} />
-          {/* The adjacent labelled button is the keyboard and screen-reader
-              control. The name is intentionally only a pointer target, so Tab
-              encounters one action rather than two identical actions. */}
-          <span
-            ref={nameRef}
-            className="min-w-0 cursor-pointer break-all underline decoration-foreground/25 underline-offset-[3px] transition-colors hover:text-primary hover:decoration-primary"
-            data-testid="document-name-open"
+      <div className="border-b pb-2">
+        <div className="flex items-center gap-2.5">
+          <h3
+            id={`doc-${document.docId}`}
+            className="flex min-w-0 flex-1 items-center gap-2 text-lg font-semibold tracking-[-0.01em]"
           >
-            {document.name}
+            <DocumentIcon item={item} size="sm" />
+            {/* The adjacent labelled button is the keyboard and screen-reader
+                control. The name is intentionally only a pointer target, so Tab
+                encounters one action rather than two identical actions. */}
+            <span
+              ref={nameRef}
+              className="min-w-0 cursor-pointer font-mono break-all underline decoration-foreground/25 underline-offset-[3px] transition-colors hover:text-primary hover:decoration-primary"
+              data-testid="document-name-open"
+            >
+              {document.name}
+            </span>
+          </h3>
+          {openInEditor("hidden shrink-0 nav:inline-flex")}
+        </div>
+
+        {/* The measurements and the counters go under the heading and across
+            the full width, as they do on the card in the buffer. */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 nav:ps-9">
+          <span className="font-mono text-[0.8125rem] text-muted-foreground">
+            {volume}
           </span>
-        </h3>
-        <span className="text-[0.8125rem] text-muted-foreground">{volume}</span>
-        <ProblemCounts counts={counts} notRun={notRun} />
-        {/* The result opens the same live document that the buffer used. Edits
-            apply immediately to the text that Download returns. */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="ms-auto"
-          onClick={openDocument}
-        >
-          <PencilIcon aria-hidden="true" />
-          {t("openInEditor")}
-        </Button>
+          <ProblemCounts counts={counts} notRun={notRun} />
+        </div>
+
+        {openInEditor("mt-2.5 w-full nav:hidden")}
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(14rem,21rem))]">
+      {movedUnderFindings ? (
+        <p
+          role="status"
+          data-testid="edited-after-run"
+          className="mt-2 flex items-start gap-2 rounded-lg border border-warning-border bg-warning-soft p-2.5 text-[0.8125rem] text-warning"
+        >
+          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>{t("editedAfterRun")}</span>
+        </p>
+      ) : null}
+
+      {/* A wrapping row rather than a grid, and centred. A grid centres its
+          columns but not what is in them: the last row is rarely full, and its
+          one card stays in the first column, hanging off the left edge under
+          three above it. A wrapping row centres every row it makes, including
+          the last. */}
+      <div className="mt-3 flex flex-wrap justify-center gap-3">
         {moduleIds.map((module, moduleIndex) => {
           const status = document.modules[module];
           if (status === undefined) return null;
           // A card appears as soon as its module has finished, without waiting
-          // for the others (§8).
+          // for the others.
           if (status.state === "queued" || status.state === "running") return null;
           return (
             <CheckCard
               key={module}
               docId={document.docId}
+              documentName={document.name}
               module={module}
               status={status}
               result={job.results[resultKey(document.docId, module)]}
@@ -285,83 +324,6 @@ function DocumentResults({
         })}
       </div>
     </section>
-  );
-}
-
-/** The findings report, and the text of each document as it stands (M1.10). */
-function DownloadMenu({ job }: { readonly job: Job }) {
-  const t = useTranslations("results");
-  const items = useBufferStore((state) => state.items);
-  const [open, setOpen] = React.useState(false);
-
-  const artifacts = Object.values(job.results).flatMap((result) =>
-    result.artifacts.map((artifact) => ({ result, artifact })),
-  );
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="default" size="sm" data-testid="download-menu">
-          <DownloadIcon aria-hidden="true" />
-          {t("download")}
-          <ChevronDownIcon
-            className={cn(
-              "transition-transform duration-[var(--motion-fast)] ease-[var(--ease-out)]",
-              open && "rotate-180",
-            )}
-            aria-hidden="true"
-          />
-        </Button>
-      </PopoverTrigger>
-
-      <PopoverContent align="end" className="w-72 p-2">
-        <ul className="space-y-1">
-          <li>
-            <DownloadReportButton job={job} />
-          </li>
-          {job.status.documents.map((document) => {
-            const item = items.find((candidate) => candidate.id === document.docId);
-            const extension =
-              item === undefined ? "txt" : extensionOf(item.name) || "txt";
-            return (
-              <li key={document.docId}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() =>
-                    downloadDocumentText(document.docId, document.name, extension)
-                  }
-                >
-                  {t("downloadText", { name: document.name })}
-                </Button>
-              </li>
-            );
-          })}
-          {artifacts.map(({ result, artifact }, index) => (
-            <li key={`${result.docId}-${index}`}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() =>
-                  downloadText(
-                    artifact.content,
-                    documentNameOf(job, result.docId),
-                    `-${result.module}`,
-                    artifact.kind,
-                  )
-                }
-              >
-                {t("downloadArtifact", { module: result.module })}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -385,20 +347,14 @@ function ProblemCounts({
       )}
     >
       <span className="inline-flex items-center gap-1.5">
-        <span
-          className="size-2.5 rounded-full bg-[var(--critical-dot)] ring-1 ring-critical"
-          aria-hidden="true"
-        />
+        <span className="size-2.5 rounded-full bg-critical" aria-hidden="true" />
         <strong className="font-mono font-semibold text-foreground">
           {format.number(counts.critical)}
         </strong>
         {t("criticalLabel", { count: counts.critical })}
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span
-          className="size-2.5 rounded-full bg-[var(--warning-dot)] ring-1 ring-warning"
-          aria-hidden="true"
-        />
+        <span className="size-2.5 rounded-full bg-warning" aria-hidden="true" />
         <strong className="font-mono font-semibold text-foreground">
           {format.number(counts.warning)}
         </strong>
@@ -406,7 +362,13 @@ function ProblemCounts({
       </span>
       {notRun > 0 ? (
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-muted-foreground" aria-hidden="true" />
+          {/* A third form again, and a dash rather than a circle: it is the
+              same mark the card without a score shows, and it says "nothing to
+              report here" rather than "none of them". */}
+          <span
+            className="h-0.5 w-2.5 rounded-full bg-muted-foreground"
+            aria-hidden="true"
+          />
           <strong className="font-mono font-semibold text-foreground">
             {format.number(notRun)}
           </strong>
@@ -422,6 +384,10 @@ function notRunCount(document: JobDocument): number {
     (count, module) => count + (document.modules[module]?.state === "skipped" ? 1 : 0),
     0,
   );
+}
+
+function hasAnyModule(document: JobDocument): boolean {
+  return moduleIds.some((module) => document.modules[module] !== undefined);
 }
 
 function hasVisibleResult(document: JobDocument): boolean {
@@ -469,87 +435,4 @@ function latestFinishedAt(documents: readonly JobDocument[]): string | null {
     }
   }
   return latest?.value ?? null;
-}
-
-function ResultDocumentIcon({
-  item,
-}: {
-  readonly item: ReturnType<typeof useBufferStore.getState>["items"][number] | undefined;
-}) {
-  const className = "size-4";
-  const icon =
-    item?.detected === "bibtex" ? (
-      <LibraryIcon className={className} aria-hidden="true" />
-    ) : item?.origin === "typed" ? (
-      <PencilIcon className={className} aria-hidden="true" />
-    ) : (
-      <FileTextIcon className={className} aria-hidden="true" />
-    );
-
-  return (
-    <span
-      className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"
-      aria-hidden="true"
-    >
-      {icon}
-    </span>
-  );
-}
-
-function documentNameOf(job: Job, docId: string): string {
-  return (
-    job.status.documents.find((document) => document.docId === docId)?.name ?? "document"
-  );
-}
-
-/**
- * The report is the main thing the product produces in this section: a person
- * takes it into their own editor and fixes the manuscript there (M1.10.2).
- */
-function DownloadReportButton({ job }: { readonly job: Job }) {
-  const t = useTranslations("results");
-  const report = useTranslations("report");
-  const checkName = useTranslations("capabilities");
-  const phrase = useTranslations();
-  const format = useFormatter();
-  const fixed = useJobStore((state) => state.fixed);
-
-  const build = () => {
-    downloadJobReport({
-      job,
-      fixed: new Set(fixed),
-      fileName: report("fileName"),
-      title: report("title"),
-      generatedAt: report("generatedAt", { date: format.dateTime(new Date()) }),
-      phrase: (key, params) => phrase(key, params),
-      labels: {
-        severity: {
-          critical: report("severity.critical"),
-          warning: report("severity.warning"),
-          info: report("severity.info"),
-        },
-        module: (module) => checkName(module),
-        line: report("line"),
-        page: report("page"),
-        quote: report("quote"),
-        fixed: report("fixed"),
-        counts: (counts: Counts) =>
-          report("counts", { critical: counts.critical, warning: counts.warning }),
-        nothing: report("nothing"),
-      },
-    });
-  };
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="w-full justify-start"
-      onClick={build}
-      data-testid="download-report"
-    >
-      {t("downloadReport")}
-    </Button>
-  );
 }

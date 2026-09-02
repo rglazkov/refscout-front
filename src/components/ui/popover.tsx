@@ -28,8 +28,8 @@ function PopoverContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          // The panel under a button: opacity, 4px of travel and a scale of
-          // .97 from the corner it hangs off, on the short token (§14).
+          // The panel under a button: opacity, 4px of travel and a scale of.97
+          // from the corner it hangs off, on the short token.
           "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border bg-popover p-4 text-popover-foreground shadow-lg outline-hidden duration-[var(--motion-fast)] ease-[var(--ease-out)] data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:duration-[var(--motion-exit)] data-[state=closed]:ease-[var(--ease-in)] data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.97] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97]",
           className,
         )}

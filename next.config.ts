@@ -28,7 +28,28 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   reactStrictMode: true,
   poweredByHeader: false,
+  turbopack: {
+    /*
+     * The application is this folder, and it is said outright rather than
+     * inferred. Turbopack looks upwards for a lock file to decide where the
+     * project begins; there is a stray `package-lock.json` one level up, beside
+     * no `package.json` at all, and finding it there Turbopack warns and guesses.
+     * The root decides what is resolved and what is watched, so it is not a
+     * thing to leave to a guess.
+     */
+    root: __dirname,
+  },
   experimental: {
+    /*
+     * Turbopack's dev cache writes a snapshot to disk and then drops the
+     * in-memory copy of what it wrote. On this project that loses cells the
+     * next hot update still needs, and the update dies with an internal error:
+     * the dev server tears its subscription down, resubscribes and reloads the
+     * whole page, so every edit costs a full reload instead of a patch. Holding
+     * the data in memory for the life of the process costs memory and nothing
+     * else - the cache on disk still does its work across restarts.
+     */
+    turbopackMemoryEviction: false,
     // radix-ui is a barrel of every primitive: without this the bundle pulls in
     // all of them instead of the six we generated.
     optimizePackageImports: ["radix-ui", "lucide-react"],

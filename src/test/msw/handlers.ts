@@ -3,10 +3,10 @@ import { http, HttpResponse, type DefaultBodyType, type StrictRequest } from "ms
 import { scenarios } from "./handlers.gen";
 
 /**
- * The second data source (M1.7.6). Not a development-only version: it is a
- * source that stays in the project for good, and the fast tests and offline
- * work run on it. The application does not know which of the two answered -
- * both go through the same client.
+ * The second data source. Not a development-only version: it is a source that
+ * stays in the project for good, and the fast tests and offline work run on it.
+ * The application does not know which of the two answered - both go through the
+ * same client.
  *
  * Every body here comes from `handlers.gen.ts`, which is generated from the
  * contract, so a mock cannot drift away from what was agreed. What this file
@@ -52,8 +52,18 @@ const POLLS_BEFORE_DONE = 1;
 
 const FINISHED = scenarios.getJob.finished.body;
 const PARTIAL = scenarios.getJob.partial.body;
-const RESULT_BIBCHECK = scenarios.getModuleResult.bibcheck.body;
-const RESULT_CITE = scenarios.getModuleResult.cite.body;
+/**
+ * One body per module, each the contract's own. Lending one module's body to
+ * another is how a mock starts telling a lie the product then wears: PreSubmit
+ * borrowing BibCheck's body borrowed its artifact too, and a checklist was
+ * offered - and saved - as a `.bib`.
+ */
+const RESULTS = {
+  bibcheck: scenarios.getModuleResult.bibcheck.body,
+  presubmit: scenarios.getModuleResult.presubmit.body,
+  glossary: scenarios.getModuleResult.glossary.body,
+  cite: scenarios.getModuleResult.cite.body,
+} as const;
 
 type ModuleStatus = Record<string, unknown>;
 
@@ -136,7 +146,7 @@ function statusBody(job: SubmittedJob, running: boolean) {
 
 /** The result body of the contract, re-pointed at the document it is about. */
 function resultBody(docId: string, module: string) {
-  const template = module === "cite" ? RESULT_CITE : RESULT_BIBCHECK;
+  const template = RESULTS[module as keyof typeof RESULTS] ?? RESULTS.bibcheck;
   return {
     ...template,
     module,
@@ -165,19 +175,40 @@ function tokenOf(request: StrictRequest<DefaultBodyType>): string {
   return request.headers.get("X-Job-Token") ?? "";
 }
 
+/**
+ * The body of a submission, inflated when it arrived compressed. A real
+ * submission is tens of megabytes of text and the client gzips it, so a mock
+ * that only knew how to read plain JSON would be a second source that answers
+ * everything except the request the product actually makes - and it would fail
+ * on exactly the documents worth testing with.
+ */
+async function submittedBody(
+  request: StrictRequest<DefaultBodyType>,
+): Promise<{ documents: WireDocument[] }> {
+  if (request.headers.get("Content-Encoding") !== "gzip") {
+    return (await request.json()) as { documents: WireDocument[] };
+  }
+
+  const inflated = new Response(request.body).body?.pipeThrough(
+    new DecompressionStream("gzip"),
+  );
+  const text = await new Response(inflated).text();
+  return JSON.parse(text) as { documents: WireDocument[] };
+}
+
 export const handlers = [
   http.post("*/jobs", async ({ request }) => {
     const key = request.headers.get("Idempotency-Key") ?? "";
-    const body = (await request.json()) as { documents: WireDocument[] };
+    const body = await submittedBody(request);
     const payload = JSON.stringify(body);
 
     const known = byKey.get(key);
     if (known !== undefined) {
       const job = jobs.get(known);
       // The same key with a different body is not a scenario but a broken
-      // invariant, and it is answered loudly rather than with the old job
-      // (§17). A client that quietly got the old job back would be showing an
-      // analysis of a version of the manuscript the person no longer has.
+      // invariant, and it is answered loudly rather than with the old job. A
+      // client that quietly got the old job back would be showing an analysis
+      // of a version of the manuscript the person no longer has.
       if (job !== undefined && job.payload !== payload) {
         return refusal(422, scenarios.submitJob.keyReuse.body);
       }
@@ -221,7 +252,7 @@ export const handlers = [
   http.get("*/jobs/:jobId", ({ params, request }) => {
     const job = jobs.get(String(params.jobId));
     // An unknown job, an erased job and a valid job read without its token are
-    // one and the same answer (§4.3 of the contract).
+    // one and the same answer.
     if (job === undefined || tokenOf(request) !== job.jobToken) {
       return refusal(404, scenarios.getJob.jobNotFound.body);
     }
@@ -264,8 +295,6 @@ export const handlers = [
     }
     return HttpResponse.json(statusBody(job, true), { status: 202 });
   }),
-
-  http.get("*/venues", () => HttpResponse.json(scenarios.listVenues.presets.body)),
 
   http.post("*/venues/fetch", () =>
     HttpResponse.json(scenarios.fetchVenueRequirements.ready.body),

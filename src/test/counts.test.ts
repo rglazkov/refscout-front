@@ -15,9 +15,9 @@ import {
 import { scenarios } from "./msw/handlers.gen";
 
 /**
- * The arithmetic of the results screen (§9). The document row equals the sum of
- * its cards and the top row equals the sum of the document rows, and both rest
- * on one rule: exactly two categories are added up. `info` takes part nowhere -
+ * The arithmetic of the results screen. The document row equals the sum of its
+ * cards and the top row equals the sum of the document rows, and both rest on
+ * one rule: exactly two categories are added up. `info` takes part nowhere -
  * Cite's claims arrive as `info`, its card says "12 claims", and its severity
  * counters stay at zero.
  *
@@ -90,7 +90,7 @@ describe("the counters add up", () => {
   });
 });
 
-describe("the body and the counters have to agree (§18)", () => {
+describe("the body and the counters have to agree", () => {
   const result = toModuleResult(
     zModuleResult.parse(scenarios.getModuleResult.bibcheck.body),
   );

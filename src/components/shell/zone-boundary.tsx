@@ -13,10 +13,9 @@ type ZoneBoundaryProps = {
 };
 
 /**
- * An error boundary around one zone of the screen (M0.6.4). A crashed list of
- * findings must not take down the buffer holding the text the user was
- * editing, so the boundaries are put in place before the zones fill up with
- * content.
+ * An error boundary around one zone of the screen. A crashed list of findings
+ * must not take down the buffer holding the text the user was editing, so the
+ * boundaries are put in place before the zones fill up with content.
  */
 export function ZoneBoundary({ zone, children }: ZoneBoundaryProps) {
   const t = useTranslations("error");
