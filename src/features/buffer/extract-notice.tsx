@@ -252,6 +252,15 @@ function Password({ item, onUnlock }: Pick<ExtractNoticeProps, "item" | "onUnloc
           type="password"
           value={password}
           data-testid="pdf-password"
+          /*
+           * Not a credential, and the browser has to be told so. A password
+           * field inside a form with a submit button is what a password manager
+           * watches for, and it would offer to save the key to somebody's own
+           * document as a login for this site - which is the one place this
+           * value must never end up, because the parse happens here and there
+           * is nowhere for it to be sent.
+           */
+          autoComplete="off"
           aria-label={t("password.label", { name: item.name })}
           className="min-w-0 flex-1 bg-transparent text-sm outline-none"
           onChange={(event) => setPassword(event.target.value)}

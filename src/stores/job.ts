@@ -29,6 +29,13 @@ export type JobState = {
    */
   readonly fixed: Marks;
   /**
+   * Findings the person has turned down, keyed the same way. It is the other
+   * half of a pair: "fixed" says "I have dealt with this", "ignored" says "the
+   * check is right and I do not want it". Two different sentences, so two
+   * marks - and they exclude each other, because a finding cannot be both.
+   */
+  readonly ignored: Marks;
+  /**
    * The sources accepted for a claim, keyed by document, finding and candidate.
    * It is the same kind of mark as `fixed`: a note the person makes while
    * reading, kept in the browser, and it never travels to the server. What it
@@ -41,6 +48,7 @@ export type JobState = {
   readonly setJob: (job: JobHandle) => void;
   readonly clearJob: () => void;
   readonly toggleFixed: (docId: string, module: ModuleId, issueId: string) => void;
+  readonly toggleIgnored: (docId: string, module: ModuleId, issueId: string) => void;
   readonly toggleAccepted: (docId: string, issueId: string, candidateId: string) => void;
   readonly reset: () => void;
 };
@@ -74,6 +82,7 @@ export const useJobStore = create<JobState>()(
     intent: null,
     job: null,
     fixed: {},
+    ignored: {},
     accepted: {},
 
     /**
@@ -119,7 +128,18 @@ export const useJobStore = create<JobState>()(
 
     toggleFixed: (docId, module, issueId) =>
       set((state) => {
-        toggle(state.fixed, fixedKey(docId, module, issueId));
+        const key = fixedKey(docId, module, issueId);
+        toggle(state.fixed, key);
+        // The other mark goes: a finding is either dealt with or turned down,
+        // and a row wearing both marks says nothing.
+        delete state.ignored[key];
+      }),
+
+    toggleIgnored: (docId, module, issueId) =>
+      set((state) => {
+        const key = fixedKey(docId, module, issueId);
+        toggle(state.ignored, key);
+        delete state.fixed[key];
       }),
 
     toggleAccepted: (docId, issueId, candidateId) =>
@@ -132,6 +152,7 @@ export const useJobStore = create<JobState>()(
         state.intent = null;
         state.job = null;
         state.fixed = {};
+        state.ignored = {};
         state.accepted = {};
       }),
   })),

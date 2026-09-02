@@ -1,6 +1,8 @@
 import { type ExtractedText } from "@/lib/docs/canonical";
 import { type DocMeta, type PageSpan, type SourceFormat } from "@/lib/domain";
 
+import { type Measured } from "./quality";
+
 /**
  * What a parser hands back. It is the same shape for every format, because the
  * card, the buffer and the request are written once and not per extension: a
@@ -24,6 +26,18 @@ export type Parsed = {
   readonly pagesParsed?: number;
   /** Which pages were skipped, so the card can list them rather than count them. */
   readonly missingPages?: readonly number[];
+  /**
+   * Every number about the text, taken where the text was produced. The
+   * characters, the words, the share of printable characters, the replacements
+   * and the hash all come out of one walk over the document here, in the thread
+   * that has nothing else to do, rather than out of six walks on the thread
+   * that is drawing the screen.
+   *
+   * It is optional because a text a person typed never passes through a parser
+   * at all; that path measures what it has, which is a paragraph rather than a
+   * dissertation.
+   */
+  readonly measured?: Measured;
 };
 
 /**

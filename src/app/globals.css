@@ -7,6 +7,59 @@
 @import "./fonts.css";
 @import "./tokens.css";
 
+/* The two panes of a comparison. The merge editor lays itself out inside the
+   box it is given, so what belongs here is the box: a full-height pair with a
+   rule between them.
+
+   On a narrow screen they stand one above the other. Side by side they would be
+   two columns of about twenty characters each, which is not a version of
+   anything; stacked, each pane is a full line long and the two stay aligned
+   line for line, so the same block is opposite the same block. */
+[data-diff-panes] .cm-mergeView {
+  max-height: min(70vh, 42rem);
+  /* The two panes scroll as one, so the edges that fade are this element's and
+     not each editor's. The distances are written here by the panes themselves,
+     and an edge with nothing behind it is left at zero: a mask dims everything
+     under it, the caret included. */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black var(--cm-fade-top, 0px),
+    black calc(100% - var(--cm-fade-bottom, 0px)),
+    transparent 100%
+  );
+}
+
+[data-diff-panes] .cm-mergeViewEditor + .cm-mergeViewEditor {
+  border-inline-start: 1px solid var(--border);
+}
+
+@media (max-width: 45rem) {
+  [data-diff-panes] .cm-mergeViewEditors {
+    flex-direction: column;
+  }
+
+  [data-diff-panes] .cm-mergeViewEditor {
+    flex-basis: auto;
+  }
+
+  [data-diff-panes] .cm-mergeViewEditor + .cm-mergeViewEditor {
+    border-inline-start: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* The switch over the comparison marks. Turning the highlighting off is a
+   change of colour and nothing else: the two panes keep their lines, their
+   numbers and their alignment, so the eye stays where it was and only the
+   marking goes. */
+[data-diff-highlight="off"] .cm-changedLine,
+[data-diff-highlight="off"] .cm-changedText,
+[data-diff-highlight="off"] .cm-changedLineGutter,
+[data-diff-highlight="off"] .cm-deletedChunk {
+  background: transparent !important;
+}
+
 /* The hero and the static feature index belong to the empty workspace. They
    stay in the generated HTML for search engines, then fold away with the same
    state change that compacts the drop zone after the first document. */

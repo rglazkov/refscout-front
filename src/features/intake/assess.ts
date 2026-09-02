@@ -4,7 +4,7 @@ import {
   type ExtractFailureParams,
   type ExtractState,
 } from "@/lib/domain";
-import { assess } from "@/workers";
+import { type Quality } from "@/workers";
 
 /**
  * What state a document that parsed without complaint is really in. A parser
@@ -26,10 +26,14 @@ export type Assessment = {
 
 export function assessText(
   extracted: ExtractedText,
+  /**
+   * The counters, taken where the text was produced. They are passed in rather
+   * than computed here so that a three-million-character document is walked
+   * once, in the worker, instead of again on the thread drawing its card.
+   */
+  quality: Quality,
   missingPages?: readonly number[],
 ): Assessment {
-  const quality = assess(extracted.text);
-
   if (quality.empty) {
     return { state: "empty", code: "TEXT_EMPTY", printableRatio: 0 };
   }

@@ -1,5 +1,6 @@
 import { type DocContent } from "@/lib/domain";
 
+import { clearSnapshots, forgetSnapshot } from "./snapshot";
 import { releaseAllSourceFiles, releaseSourceFile } from "./sources";
 
 /**
@@ -72,6 +73,9 @@ export function replaceText(docId: string, text: string): DocContent | undefined
 export function clearAllDocuments(): void {
   adapter.clear();
   releaseAllSourceFiles();
+  // What was sent goes with what was kept: a snapshot outliving its document
+  // describes a text nothing on screen can reach any more.
+  clearSnapshots();
 }
 
 /**
@@ -84,4 +88,5 @@ export function forgetDocument(docId: string): void {
   // The handle to the file on disk goes with the text. Kept, it would be a
   // reference to somebody's manuscript that no card can reach any more.
   releaseSourceFile(docId);
+  forgetSnapshot(docId);
 }

@@ -46,13 +46,16 @@ export default defineConfig({
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
       /*
-       * One test, and it is the one about the engine: does a worker start here
-       * and read every kind of document. What the rest of the suite asks -
-       * layout, contrast, wording, the shape of the flow - does not turn on the
+       * Two files, and both are about the engine. The first asks whether a
+       * worker starts here and reads every kind of document. The second asks
+       * whether the two panes of a comparison stay level, which rests on how
+       * the browser measures text - the one part of the layout that is a
+       * different answer in a different engine. What the rest of the suite
+       * asks - contrast, wording, the shape of the flow - does not turn on the
        * engine, and running it twice would buy re-tuned assertions rather than
        * confidence.
        */
-      testMatch: /worker-start.spec.ts/,
+      testMatch: /(worker-start|diff-alignment)\.spec\.ts/,
     },
     {
       name: "mobile",

@@ -3,15 +3,14 @@
 import * as React from "react";
 import {
   CheckIcon,
-  ChevronDownIcon,
   ChevronRightIcon,
   CopyIcon,
-  ExternalLinkIcon,
   PencilIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { BiblioRecordCard } from "@/features/records/record-card";
 import { Collapse } from "@/components/motion/collapse";
 import { Button } from "@/components/ui/button";
 import {
@@ -298,8 +297,12 @@ function Group({
 }
 
 /**
- * One source, as the databases returned it. Every string here is third-party
- * text and reaches the DOM as a text node.
+ * One source, as the databases returned it, with what a person does with it
+ * here: accept it into the export, copy it, or go and read it.
+ *
+ * The record itself is drawn by the card the search screen uses - the same
+ * component, because it is the same record - and only the buttons belong to
+ * this screen.
  */
 function Candidate({
   docId,
@@ -311,119 +314,45 @@ function Candidate({
   readonly candidate: CiteCandidate;
 }) {
   const t = useTranslations("results.cite");
-  const format = useFormatter();
   const accepted = useJobStore(
     (state) =>
       state.accepted[acceptedKey(docId, issueId, candidate.candidateId)] === true,
   );
   const toggleAccepted = useJobStore((state) => state.toggleAccepted);
-  const [showAbstract, setShowAbstract] = React.useState(false);
 
   return (
-    <article
-      className={cn(
-        "space-y-1.5 rounded-lg border bg-control-card p-3",
-        accepted && "border-primary/40 bg-primary-soft",
-      )}
-      data-testid="cite-candidate"
+    <BiblioRecordCard
+      record={candidate}
+      relevance={candidate.relevance}
+      highlighted={accepted}
+      testId="cite-candidate"
       data-accepted={accepted}
-    >
-      <h4 className="text-sm font-semibold">{candidate.title}</h4>
-      {candidate.authors.length === 0 ? null : (
-        <p className="text-xs text-muted-foreground">{candidate.authors.join("; ")}</p>
-      )}
-      <p className="text-xs text-muted-foreground">
-        {[
-          candidate.year === undefined ? null : String(candidate.year),
-          candidate.venue,
-          candidate.citedBy === undefined
-            ? null
-            : t("citedBy", { count: format.number(candidate.citedBy) }),
-          t("relevance", { score: Math.round(candidate.relevance * 100) }),
-        ]
-          .filter((part) => part !== null && part !== undefined)
-          .join(" · ")}
-      </p>
-
-      <div className="flex flex-wrap gap-1.5">
-        {candidate.sources.map((source) => (
-          <span
-            key={source}
-            className="rounded-sm border bg-muted px-1.5 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground"
-          >
-            {source}
-          </span>
-        ))}
-        {candidate.openAccess ? (
-          <span className="rounded-sm border border-ok-border bg-ok-soft px-1.5 py-0.5 text-[0.6875rem] font-semibold text-ok">
-            {t("openAccess")}
-          </span>
-        ) : null}
-      </div>
-
-      {candidate.abstract === undefined ? null : (
-        <div>
+      actions={
+        <>
+          {/* On a control fill, so it takes the other surface. */}
           <Button
             type="button"
-            variant="ghost"
             size="xs"
-            className="-ms-2"
-            aria-expanded={showAbstract}
-            onClick={() => setShowAbstract(!showAbstract)}
+            variant={accepted ? "default" : "outline"}
+            aria-pressed={accepted}
+            data-testid="cite-use"
+            onClick={() => toggleAccepted(docId, issueId, candidate.candidateId)}
           >
-            <ChevronDownIcon
-              className={cn(
-                "transition-transform duration-[var(--motion-fast)] ease-[var(--ease-out)]",
-                !showAbstract && "-rotate-90",
-              )}
-              aria-hidden="true"
-            />
-            {t("abstract")}
+            <CheckIcon aria-hidden="true" />
+            {accepted ? t("accepted") : t("use")}
           </Button>
-          <Collapse open={showAbstract}>
-            <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
-              {candidate.abstract}
-            </p>
-          </Collapse>
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2 pt-0.5">
-        {/* On a control fill, so it takes the other surface. */}
-        <Button
-          type="button"
-          size="xs"
-          variant={accepted ? "default" : "outline"}
-          aria-pressed={accepted}
-          data-testid="cite-use"
-          onClick={() => toggleAccepted(docId, issueId, candidate.candidateId)}
-        >
-          <CheckIcon aria-hidden="true" />
-          {accepted ? t("accepted") : t("use")}
-        </Button>
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          onClick={() => void navigator.clipboard.writeText(toBibtex([candidate]))}
-        >
-          <CopyIcon aria-hidden="true" />
-          {t("copyBibtex")}
-        </Button>
-        {candidate.url === undefined && candidate.doi === undefined ? null : (
-          <Button type="button" size="xs" variant="outline" asChild>
-            <a
-              href={candidate.url ?? `https://doi.org/${candidate.doi ?? ""}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLinkIcon aria-hidden="true" />
-              {t("openSource")}
-            </a>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            onClick={() => void navigator.clipboard.writeText(toBibtex([candidate]))}
+          >
+            <CopyIcon aria-hidden="true" />
+            {t("copyBibtex")}
           </Button>
-        )}
-      </div>
-    </article>
+        </>
+      }
+    />
   );
 }
 

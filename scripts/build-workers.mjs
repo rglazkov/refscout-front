@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 /**
- * The two workers, built as files of our own.
+ * The workers, built as files of our own.
  *
  * They are deliberately not left to the application bundler. Its way of
  * shipping `new Worker(new URL(…))` is a bootstrap script that receives the
@@ -34,6 +34,7 @@ const result = await build({
   entryPoints: [
     join(root, "src", "workers", "parse.worker.ts"),
     join(root, "src", "workers", "gzip.worker.ts"),
+    join(root, "src", "workers", "diff.worker.ts"),
   ],
   outdir,
   bundle: true,
@@ -59,7 +60,7 @@ const result = await build({
 });
 
 /**
- * The same two workers again, as classic scripts with nothing to import.
+ * The same workers again, as classic scripts with nothing to import.
  *
  * Module workers are the ordinary case and the one that keeps pdf.js away from
  * a person who brought a. But a browser that will not start one gives no useful
@@ -73,6 +74,7 @@ const fallback = await build({
   entryPoints: [
     join(root, "src", "workers", "parse.worker.ts"),
     join(root, "src", "workers", "gzip.worker.ts"),
+    join(root, "src", "workers", "diff.worker.ts"),
   ],
   outdir: join(outdir, "classic"),
   bundle: true,

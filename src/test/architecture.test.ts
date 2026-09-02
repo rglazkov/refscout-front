@@ -82,6 +82,34 @@ describe("layer boundaries", () => {
   });
 });
 
+describe("connecting a module is its codes and one renderer", () => {
+  /**
+   * The claim the whole results screen rests on: four modules answer in four
+   * shapes and the interface works with one. A module that had to be named in
+   * the shared code would mean the next one has to be named there too, and the
+   * screen would slowly become four screens sharing a file.
+   *
+   * The place a module may be named is its own renderer of details, and the
+   * card's decision to open Cite over the page instead of in the grid - which
+   * is not about the shape of Cite's findings but about the shape of its
+   * screen, a claim with its candidates being a screenful.
+   */
+  it("no module is named in the code shared by all of them", () => {
+    const shared = files.filter(
+      (file) =>
+        (file.path.startsWith("src/features/results/") ||
+          file.path.startsWith("src/lib/normalize/")) &&
+        !file.path.startsWith("src/features/results/details/") &&
+        !file.path.startsWith("src/features/results/cite-overlay"),
+    );
+    const named = /"(bibcheck|glossary|presubmit)"/;
+    const offenders = shared
+      .filter((file) => named.test(file.text))
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("dynamic loading of features", () => {
   const outsideFeatures = files.filter((file) => !file.path.startsWith("src/features/"));
 
@@ -203,5 +231,75 @@ describe("static export", () => {
       .filter((file) => !file.text.includes("setRequestLocale("))
       .map((file) => file.path);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("the two modes of the working screen", () => {
+  /**
+   * A search result and a Cite candidate are the same record - the contract
+   * defines it once and both answers carry it - so there is one card, and both
+   * screens reach for it. Two cards would differ by the second edit, and a
+   * record would then be read one way beside a claim and another way in a list.
+   */
+  it("one card draws a bibliographic record on both screens", () => {
+    const card = "src/features/records/record-card";
+    for (const screen of [
+      "src/features/results/cite-overlay.tsx",
+      "src/features/scout/scout-screen.tsx",
+    ]) {
+      const file = files.find((candidate) => candidate.path === screen);
+      expect(file).toBeDefined();
+      const reached = (file?.imports ?? []).map(
+        (specifier) => resolveSpecifier(screen, specifier) ?? specifier,
+      );
+      expect(reached).toContain(card);
+    }
+  });
+
+  /**
+   * Cite shows the result of a check. A field for a domain, a "find citations"
+   * or a "search anyway" in it would make it the beginning of a piece of work
+   * instead - and there is a screen for beginning that work.
+   */
+  it("nothing in the Cite overlay starts a search", () => {
+    const overlay = files.find(
+      (file) => file.path === "src/features/results/cite-overlay.tsx",
+    );
+    expect(overlay).toBeDefined();
+    expect(overlay?.text).not.toMatch(/scoutSearch|scout-screen/);
+  });
+
+  /**
+   * There is one way into each mode, and it is the pair of buttons beside
+   * "paste text" while the buffer is empty. A second entry from a card, a
+   * plan, a stage of the progress or a finding is what turns two tools into
+   * two more things to notice on every screen.
+   */
+  it("the modes are entered from one place", () => {
+    const offenders = files
+      .filter((file) => file.path.startsWith("src/features/"))
+      .filter((file) => !file.path.startsWith("src/features/buffer/workspace"))
+      .filter((file) => /setMode\(/.test(file.text))
+      // A mode's own way back out of itself is that one call, and it is the
+      // way back rather than a way in.
+      .filter(
+        (file) =>
+          !file.path.startsWith("src/features/scout/") &&
+          !file.path.startsWith("src/features/diff/"),
+      )
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The comparison has nothing to send, so it cannot reach what sends. What it
+   * does reach is the intake every text in the product goes through, and with
+   * it the counters a bad parse reports - which carry numbers and never a
+   * character of anybody's text.
+   */
+  it("comparing two versions cannot reach the API layer", () => {
+    const reachable = reachableFrom(graph, "src/features/diff/");
+    const leaks = [...reachable].filter((module) => module.startsWith("src/lib/api"));
+    expect(leaks).toEqual([]);
   });
 });

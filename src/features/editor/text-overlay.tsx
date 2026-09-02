@@ -84,6 +84,52 @@ function OverlayBody({
   const initial = content?.text ?? "";
   const [chars, setChars] = React.useState(() => countCodePoints(initial));
   const pending = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The text the counters have not caught up with yet, or nothing owed. */
+  const owed = React.useRef<string | null>(null);
+  const sourceFormat = item?.sourceFormat;
+
+  /**
+   * Everything the card shows about this text, recomputed from it. Every line
+   * here walks the whole document, so it happens once the typing stops rather
+   * than on each keystroke: on a dissertation the character count alone is
+   * about a frame's worth of work, and paying it per keypress is a field that
+   * lags behind the person using it.
+   */
+  const settle = React.useCallback(() => {
+    const next = owed.current;
+    if (pending.current !== null) {
+      clearTimeout(pending.current);
+      pending.current = null;
+    }
+    if (next === null) return;
+    owed.current = null;
+
+    const stored = docRegistry.get(docId);
+    if (stored === undefined) return;
+
+    const counted = countCodePoints(next);
+    setChars(counted);
+    void sha256Hex(next).then((sha256) => {
+      patchExtract(docId, {
+        chars: counted,
+        words: countWords(next),
+        /*
+         * Against the hash taken when the text was read, not against what
+         * the field held a moment ago: the registry is written on every
+         * keystroke, so anything derived from its current contents compares
+         * this keystroke with the last one and says "edited" for a document
+         * that has been typed into and put back exactly as it was. Undo
+         * gives back the same bytes and therefore the same hash.
+         */
+        edited: sha256 !== stored.originalSha256,
+        sha256,
+        state: next.trim() === "" ? "empty" : "ready",
+      });
+    });
+    if (sourceFormat !== undefined) {
+      propose(docId, proposeChecks(next, sourceFormat));
+    }
+  }, [docId, patchExtract, propose, sourceFormat]);
 
   /**
    * The edit is applied to the buffer itself, not to a copy made for viewing:
@@ -93,45 +139,28 @@ function OverlayBody({
    */
   const onChange = React.useCallback(
     (next: string) => {
-      const stored = replaceText(docId, next);
-      if (stored === undefined) return;
-      setChars(countCodePoints(next));
-
-      // The proposal, the volume and the plan summary are recomputed after the
-      // typing stops rather than on every keystroke.
+      if (replaceText(docId, next) === undefined) return;
+      owed.current = next;
       if (pending.current !== null) clearTimeout(pending.current);
-      pending.current = setTimeout(() => {
-        void sha256Hex(next).then((sha256) => {
-          patchExtract(docId, {
-            chars: countCodePoints(next),
-            words: countWords(next),
-            /*
-             * Against the hash taken when the text was read, not against what
-             * the field held a moment ago: the registry is written on every
-             * keystroke, so anything derived from its current contents compares
-             * this keystroke with the last one and says "edited" for a document
-             * that has been typed into and put back exactly as it was. Undo
-             * gives back the same bytes and therefore the same hash.
-             */
-            edited: sha256 !== stored.originalSha256,
-            sha256,
-            state: next.trim() === "" ? "empty" : "ready",
-          });
-        });
-        if (item !== undefined) {
-          propose(docId, proposeChecks(next, item.sourceFormat));
-        }
-      }, RECOMPUTE_DELAY_MS);
+      pending.current = setTimeout(() => settle(), RECOMPUTE_DELAY_MS);
     },
-    [docId, item, patchExtract, propose],
+    [docId, settle],
   );
 
-  React.useEffect(
-    () => () => {
-      if (pending.current !== null) clearTimeout(pending.current);
-    },
-    [],
-  );
+  /*
+   * Closing within the delay above must not throw the last keystrokes' figures
+   * away. The text itself is safe - the registry is written on every keystroke -
+   * but the hash is what the results screen compares to say "this text has
+   * changed since the check ran", so a dropped recount is that warning silently
+   * failing to appear for exactly the edits made last. The cleanup finishes the
+   * work rather than cancelling it, and reads the current one out of a ref so
+   * that it runs on unmount alone.
+   */
+  const settleRef = React.useRef(settle);
+  React.useEffect(() => {
+    settleRef.current = settle;
+  }, [settle]);
+  React.useEffect(() => () => settleRef.current(), []);
 
   if (item === undefined) return null;
 

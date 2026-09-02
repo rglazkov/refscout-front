@@ -36,5 +36,14 @@ export {
 } from "./limits";
 export { downloadExtensionOf, downloadName, sanitizeDocumentName } from "./names";
 export { roleFromChecks, selfKind, type SelfKind } from "./role";
+export { placesOf, type PlaceSummary } from "./places";
+export { bibSpanOf, lineAt, lineOf, lineStarts, pageOf } from "./spans";
+export {
+  clearSnapshots,
+  forgetSnapshot,
+  recordSnapshot,
+  snapshotOf,
+  type TextSnapshot,
+} from "./snapshot";
 export { buildSubmission, withCompanions, type Submission } from "./submission";
 export { countCodePoints, countWords, sha256Hex } from "./units";

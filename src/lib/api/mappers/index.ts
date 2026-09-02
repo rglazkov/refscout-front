@@ -1,7 +1,9 @@
+export { toScoutAnswer } from "./scout";
 export {
   toAction,
   toAnchor,
   toArtifact,
+  toBiblioRecord,
   toEvidence,
   toIssue,
   toModuleResult,

@@ -8,3 +8,4 @@ export * from "./document";
 export * from "./issue";
 export * from "./options";
 export * from "./job";
+export * from "./scout";

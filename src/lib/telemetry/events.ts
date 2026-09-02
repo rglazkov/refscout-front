@@ -39,6 +39,27 @@ export type EventName = (typeof eventNames)[number];
 
 export const eventCodes = [
   "SCHEMA_MISMATCH",
+  /**
+   * The body was counted over a text that is not the one we sent, or in a unit
+   * the contract does not allow. Its findings are still shown; what they lose
+   * is their places, so this is the number that says how often the product is
+   * giving out lists instead of locations.
+   */
+  "TEXT_MISMATCH",
+  "OFFSET_UNIT_UNSUPPORTED",
+  /**
+   * A quote that is not as long as the range it describes: truncated, or
+   * measured in another unit. The lengths travel with it, never the quote.
+   */
+  "QUOTE_LENGTH_MISMATCH",
+  /** The same finding identifier twice in one body; both findings are kept. */
+  "DUPLICATE_ISSUE_ID",
+  /**
+   * One code of a module answered under two dictionary keys, or one key under
+   * two codes. The pairing is what makes a finding readable in a language other
+   * than the module's own, and a drift in it is only visible from here.
+   */
+  "TITLE_KEY_DRIFT",
   "PARSE_EMPTY",
   "PARSE_FAILED",
   "RENDER_FAILED",

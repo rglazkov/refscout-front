@@ -28,7 +28,8 @@
     "signIn": "Sign in",
     "menu": "Menu",
     "home": "{brandName} home",
-    "privacy": "Privacy"
+    "privacy": "Privacy",
+    "skipToContent": "Skip to the content"
   },
   "theme": {
     "label": "Theme",
@@ -61,6 +62,10 @@
       "title": "What {brandName} checks",
       "footnote": "Full Check runs every applicable check in one pass.",
       "seeAll": "See all features"
+    },
+    "modes": {
+      "scout": "Scout",
+      "diff": "DiffChecker"
     }
   },
   "intake": {
@@ -309,6 +314,8 @@
     "editedAfterRun": "This text has been edited since the check ran. The lines, pages and quotes below point at the text as it was sent, so they may no longer match. Download gives back the text as it stands now.",
     "downloadReport": "Download report (.md)",
     "openArtifact": "Open the .{extension} this check made",
+    "notAnchoredText": "This check read a different version of the text, so the findings below are listed without places. Request:",
+    "notAnchoredUnit": "This check measured its places in a unit we do not accept, so the findings below are listed without them. Request:",
     "cite": {
       "title": "Cite · {name}",
       "lead": "The claims that need a source, each with real candidates to review.",
@@ -325,14 +332,9 @@
       "searched": "Searched",
       "alreadyCited": "Already cited ({count})",
       "lowRelevance": "Potentially low relevance ({count})",
-      "citedBy": "Citations {count}",
-      "relevance": "Relevance {score}/100",
-      "openAccess": "Open access",
-      "abstract": "Show abstract",
       "use": "Use this",
       "accepted": "Accepted",
       "copyBibtex": "Copy BibTeX",
-      "openSource": "Open the source",
       "exportLabel": "The sources you accepted are assembled into a .bib you can read and save in the editor.",
       "exportAction": "{count, plural, =0 {Accept a source first} one {Open # accepted source} other {Open # accepted sources}}"
     },
@@ -350,6 +352,7 @@
     "checkNoScore": "This check reports findings without assigning a score.",
     "moduleFailed": "This check failed: {code}",
     "fixed": "Fixed",
+    "ignore": "Ignore",
     "copy": "Copy",
     "openSource": "Open the source",
     "severityName": {
@@ -374,7 +377,105 @@
       "failed": "Failed"
     },
     "retryModule": "Re-run only this check",
-    "scoreOutOf": "Score: {score} out of 100"
+    "scoreOutOf": "Score: {score} out of 100",
+    "place": {
+      "pages": "{count, plural, one {p. {pages}} other {pp. {pages}}}",
+      "occurrences": "{count, plural, other {# places}}"
+    }
+  },
+  "record": {
+    "citedBy": "Citations {count}",
+    "relevance": "Relevance {score}/100",
+    "doiVerified": "DOI resolves",
+    "openAccess": "Open access",
+    "abstract": "Show abstract"
+  },
+  "sources": {
+    "crossref": "Crossref",
+    "openalex": "OpenAlex",
+    "semanticscholar": "Semantic Scholar",
+    "pubmed": "PubMed",
+    "arxiv": "arXiv",
+    "doaj": "DOAJ",
+    "core": "CORE",
+    "datacite": "DataCite",
+    "unpaywall": "Unpaywall",
+    "europepmc": "Europe PMC"
+  },
+  "scout": {
+    "title": "Scout",
+    "lead": "One topic or set of keywords — real papers from ten live databases.",
+    "back": "Back",
+    "queryLabel": "Research topic or keywords",
+    "queryPlaceholder": "transformer models for summarisation",
+    "run": "Find sources",
+    "cancel": "Stop",
+    "searching": "Searching the databases…",
+    "limitLabel": "Results per search",
+    "found": "{count, plural, one {source} other {sources}}",
+    "hidden": "{count, plural, one {# hidden by your filters} other {# hidden by your filters}}",
+    "answered": "Answered: {sources}",
+    "degraded": "did not answer in time: {sources}",
+    "filters": "Filters",
+    "sortLabel": "Sort",
+    "sort": {
+      "relevance": "Relevance",
+      "year": "Newest first",
+      "citations": "Most cited"
+    },
+    "yearFrom": "Year from",
+    "yearTo": "Year to",
+    "minCitations": "Minimum citations",
+    "author": "Author contains",
+    "venue": "Venue contains",
+    "openAccessOnly": "Open access only",
+    "nothingFound": "Nothing came back for that. Try other words, or fewer of them.",
+    "nothingLeft": "Every source found is hidden by the filters above.",
+    "offline": "The search did not reach the server. Check the connection and try again.",
+    "pick": "Keep",
+    "picked": "Kept",
+    "copyBibtex": "Copy BibTeX",
+    "goodMatch": "Good match",
+    "badMatch": "Not relevant",
+    "export": "{count, plural, =0 {Keep a source first} one {Export # source} other {Export # sources}}",
+    "exportName": "sources",
+    "citationsPlaceholder": "0",
+    "fewer": "One fewer",
+    "more": "One more",
+    "authorPlaceholder": "Author name",
+    "venuePlaceholder": "Venue name",
+    "withDoiOnly": "Verified DOI only"
+  },
+  "diff": {
+    "title": "DiffChecker",
+    "lead": "Two versions, and what changed between them. The comparison runs in this tab and nothing is sent anywhere.",
+    "back": "Back",
+    "original": "Original",
+    "modified": "Modified",
+    "nothingHere": "nothing here yet",
+    "reading": "reading…",
+    "lines": "{name} · {lines} lines",
+    "dropHere": "Drop a file here",
+    "chooseFile": "Choose a file",
+    "pasteText": "Paste text",
+    "clearBoth": "Clear both",
+    "bringBoth": "Put a text in both panes — a file or pasted text — and the comparison starts on its own.",
+    "comparing": "Comparing the two versions…",
+    "cancelCompare": "Stop",
+    "stopped": "The comparison was stopped. The two texts are here and can still be read and edited.",
+    "compareAgain": "Compare again",
+    "changes": "{count, plural, =0 {The two texts are identical} one {change} other {changes}}",
+    "position": "Change {current} of {total}",
+    "previousChange": "Previous change",
+    "nextChange": "Next change",
+    "highlight": "Highlight changes",
+    "overLimit": "These panes hold {left} and {right} lines, and comparison works up to {limit} lines a pane. Nothing has been cut — compare the parts you need instead.",
+    "copyModified": "Copy the modified text",
+    "formatLabel": "Download as",
+    "formatAuto": "Auto (.{extension})",
+    "formatNamed": ".{extension}",
+    "export": "Download .{extension}",
+    "panesNote": "Both panes take the formats the buffer takes, and the modified one comes back in the format it arrived in. Panes hold up to {limit} lines each."
   },
   "access": {
     "pro": "Pro",
@@ -403,6 +504,9 @@
     "page": "page",
     "quote": "quote",
     "fixed": "marked fixed",
+    "ignored": "ignored",
+    "replacement": "Proposed replacement:",
+    "unanchored": "This check read a different version of the document, so its findings are listed without line and page numbers.",
     "severity": {
       "critical": "Critical",
       "warning": "Warning",

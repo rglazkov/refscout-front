@@ -17,6 +17,7 @@ import {
   selfKind,
 } from "@/lib/docs";
 import { type ModuleId, moduleIds } from "@/lib/domain";
+import { measure } from "@/workers";
 
 /**
  * The functions the buffer is built on. Each of them decides something a screen
@@ -163,6 +164,31 @@ describe("text is measured in code points", () => {
     expect(countWords("  one   two\nthree ")).toBe(3);
     expect(countWords("   ")).toBe(0);
   });
+
+  /**
+   * The counters are taken in one walk where the text is produced, and singly
+   * where a person is typing. Two ways of counting the same thing is two
+   * numbers: the card would print one and the limit would refuse by the other,
+   * and which of them a document was turned away by would depend on how it
+   * arrived.
+   */
+  it("counting everything at once agrees with counting one thing at a time", () => {
+    const samples = [
+      "",
+      "   \n\t ",
+      "a𝄞b",
+      "  one   two\nthree ",
+      "line\u{a0}with\u{2009}unusual\u{3000}spaces",
+      "an emoji 👩‍🔬 and a formula ∫₀¹ x²dx",
+      "hyphen-joined words, and a run of\n\n\nblank lines",
+    ];
+    for (const sample of samples) {
+      const stats = measure(sample);
+      expect(stats.chars).toBe(countCodePoints(sample));
+      expect(stats.words).toBe(countWords(sample));
+      expect(stats.empty).toBe(sample.trim() === "");
+    }
+  });
 });
 
 describe("the limits refuse with numbers", () => {
@@ -182,9 +208,9 @@ describe("the limits refuse with numbers", () => {
     // own limit plus everything hanging off it is what one check reads, and
     // that is what the ceiling is over.
     const room = limits.maxCheckChars - limits.attachment.bibcheck.maxChars;
-    expect(refuseAttachmentByVolume("bibcheck", "x", room)).toBeNull();
+    expect(refuseAttachmentByVolume("bibcheck", 1, room)).toBeNull();
     expect(
-      refuseAttachmentByVolume("bibcheck", "x".repeat(1000), limits.maxCheckChars),
+      refuseAttachmentByVolume("bibcheck", 1000, limits.maxCheckChars),
     ).toMatchObject({ code: "CHECK_TOO_LARGE", limit: limits.maxCheckChars });
   });
 
@@ -195,12 +221,12 @@ describe("the limits refuse with numbers", () => {
     for (const slot of ["bibcheck", "glossary", "venue"] as const) {
       const limit = limits.attachment[slot].maxChars;
       expect(limit).toBeLessThan(limits.maxDocChars);
-      expect(refuseAttachmentByVolume(slot, "x".repeat(limit + 1))).toMatchObject({
+      expect(refuseAttachmentByVolume(slot, limit + 1)).toMatchObject({
         code: "ATTACHMENT_TOO_LARGE",
         slot,
         limit,
       });
-      expect(refuseAttachmentByVolume(slot, "x".repeat(limit))).toBeNull();
+      expect(refuseAttachmentByVolume(slot, limit)).toBeNull();
       expect(
         refuseAttachmentBySize(slot, limits.attachment[slot].maxFileBytes + 1)?.code,
       ).toBe("FILE_TOO_LARGE");
@@ -208,10 +234,7 @@ describe("the limits refuse with numbers", () => {
   });
 
   it("one document over its own limit, and a buffer over the whole-buffer limit", () => {
-    const huge = "x".repeat(limits.maxDocChars + 1);
-    expect(refuseByVolume(huge, 0)?.code).toBe("DOC_TOO_LARGE");
-    expect(refuseByVolume("x".repeat(10), limits.maxBufferChars)?.code).toBe(
-      "JOB_TOO_LARGE",
-    );
+    expect(refuseByVolume(limits.maxDocChars + 1, 0)?.code).toBe("DOC_TOO_LARGE");
+    expect(refuseByVolume(10, limits.maxBufferChars)?.code).toBe("JOB_TOO_LARGE");
   });
 });

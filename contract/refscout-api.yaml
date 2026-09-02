@@ -204,7 +204,7 @@ paths:
                 cite: { $ref: '#/components/examples/ResultCite' }
                 unknownKinds: { $ref: '#/components/examples/ResultUnknownKinds' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409': { $ref: '#/components/responses/ResultNotReady' }
         '410': { $ref: '#/components/responses/Gone' }
 
         '429': { $ref: '#/components/responses/TooManyRequests' }
@@ -872,6 +872,13 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
           examples:
             notRetryable: { $ref: '#/components/examples/ErrorNotRetryable' }
+    ResultNotReady:
+      description: The `resultRef` was fetched before the module reached a terminal state.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            resultNotReady: { $ref: '#/components/examples/ErrorResultNotReady' }
     Gone:
       description: The result of an attempt that a retry has replaced.
       content:
@@ -1671,6 +1678,12 @@ components:
         venue: { type: string }
         citedBy: { type: integer, minimum: 0 }
         doi: { type: string }
+        doiVerified:
+          type: boolean
+          description: |
+            The DOI was resolved while the answer was assembled. The client shows a badge and
+            offers a filter on it, so it is a statement about a check that happened rather than
+            about the field being present.
         url: { $ref: '#/components/schemas/HttpUrl' }
         openAccess: { type: boolean }
         sources:
@@ -2533,7 +2546,7 @@ components:
               - kind: range
                 docId: 0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31
                 from: 31980
-                to: 32017
+                to: 32021
                 quote: https://github.com/jsmith/dense-retrieval
         artifacts:
           - kind: md
@@ -2681,6 +2694,7 @@ components:
             venue: NeurIPS
             citedBy: 112340
             doi: 10.48550/arXiv.1706.03762
+            doiVerified: true
             url: https://arxiv.org/abs/1706.03762
             openAccess: true
             sources: [arxiv, semanticscholar]
@@ -2803,6 +2817,15 @@ components:
       value:
         error:
           code: MODULE_NOT_RETRYABLE
+          requestId: req_01J8Z3K4M5
+
+    ErrorResultNotReady:
+      summary: |
+        The `resultRef` was fetched while the module was still queued or running. The client
+        goes back to polling and fetches the body from the terminal state that follows.
+      value:
+        error:
+          code: RESULT_NOT_READY
           requestId: req_01J8Z3K4M5
 
     ErrorResultSuperseded:

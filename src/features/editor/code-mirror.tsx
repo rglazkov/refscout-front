@@ -7,11 +7,13 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import {
   EditorView,
+  ViewPlugin,
   drawSelection,
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
   lineNumbers,
+  type ViewUpdate,
 } from "@codemirror/view";
 
 /**
@@ -145,6 +147,14 @@ const highlightStyle = HighlightStyle.define([
 const tabMovesFocus = keymap.of([{ key: "Tab", run: () => false, shift: () => false }]);
 
 /**
+ * The default, as one value rather than a fresh array per render. A new empty
+ * array each time is a new identity each time, and the effect that hands the
+ * set to the editor would then dispatch a reconfiguration on every render of
+ * every editor in the product for no change at all.
+ */
+const NO_EXTENSIONS: readonly Extension[] = [];
+
+/**
  * CodeMirror works through `contenteditable`, so a paste carries whatever the
  * clipboard holds. Only `text/plain` is taken: copying out of Word or a web
  * page also puts `text/html` on the clipboard, with markup and external links
@@ -161,12 +171,90 @@ const plainTextPaste = EditorView.domEventHandlers({
   },
 });
 
-const baseTheme = EditorView.theme({
+/** How far the text dissolves at an edge that has more text behind it. */
+const FADE_PX = 20;
+
+/**
+ * Fades an edge of the scrolled text only while that edge is hiding something.
+ *
+ * A mask dims every pixel under it, and the caret is one of them: with a fade
+ * standing permanently at the top, a caret placed on the first line - which is
+ * where it starts every time a document is opened - was drawn at a fraction of
+ * its colour and read as a pale smear on a light background, then turned solid
+ * as soon as a click moved it further down the page. The fade is there to say
+ * "there is more above", so at the top of a document it says nothing and is
+ * switched off; the same holds at the bottom.
+ *
+ * The distances are written to the scroller as custom properties, so the mask
+ * itself stays one declaration in the theme.
+ */
+const edgeFade = ViewPlugin.fromClass(
+  class {
+    private readonly onScroll = () => this.sync();
+
+    constructor(private readonly view: EditorView) {
+      view.scrollDOM.addEventListener("scroll", this.onScroll, { passive: true });
+      this.sync();
+    }
+
+    /*
+     * A document that grew, shrank or was laid out again changes which edges
+     * have something behind them without anybody scrolling. Reading the layout
+     * from inside an update would force it to be recomputed mid-cycle, so the
+     * question is asked in the measure phase, which is where the editor is
+     * willing to be asked about its geometry.
+     */
+    update(update: ViewUpdate) {
+      if (update.geometryChanged || update.docChanged) {
+        this.view.requestMeasure({
+          read: () => this.hidden(),
+          write: (at) => this.write(at),
+        });
+      }
+    }
+
+    destroy() {
+      this.view.scrollDOM.removeEventListener("scroll", this.onScroll);
+    }
+
+    /** Which edges have text behind them, and so have something to fade. */
+    private hidden() {
+      const el = this.view.scrollDOM;
+      // A pixel of slack: a fractional scroll offset or content height would
+      // otherwise leave a fade standing at an edge that is already flush.
+      return {
+        top: el.scrollTop > 1,
+        bottom: el.scrollTop + el.clientHeight < el.scrollHeight - 1,
+      };
+    }
+
+    private write(at: { readonly top: boolean; readonly bottom: boolean }) {
+      const el = this.view.scrollDOM;
+      el.style.setProperty("--cm-fade-top", at.top ? `${FADE_PX}px` : "0px");
+      el.style.setProperty("--cm-fade-bottom", at.bottom ? `${FADE_PX}px` : "0px");
+    }
+
+    private sync() {
+      this.write(this.hidden());
+    }
+  },
+);
+
+/**
+ * The surface every editor in the product is drawn on: the face, the gutter,
+ * the selection, the caret and the two fading edges. It is exported because the
+ * comparison panes are the same editor in another arrangement, and a second
+ * theme beside this one is how the two start drifting apart a colour at a time.
+ *
+ * The height is not here. This editor fills its overlay, while the panes of a
+ * comparison are laid out by the merge view inside one scroller, so each says
+ * how tall it is where it is used.
+ */
+export const editorSurface = EditorView.theme({
   "&": {
     // Not smaller than 16px: iOS zooms the page when a field with a smaller one
     // takes focus, and the person then edits a document at 1.3x.
     fontSize: "16px",
-    height: "100%",
     backgroundColor: "var(--card)",
     color: "var(--foreground)",
   },
@@ -176,17 +264,22 @@ const baseTheme = EditorView.theme({
    * line. The mask is on the scroller, so the gutter fades with the text and
    * the two stay one surface; 20px is about one line, which is enough to read
    * as "there is more above" without hiding a line that is still being read.
+   *
+   * Each distance is a property rather than a constant, because the mask dims
+   * everything that lies under it - the caret and the selection as much as the
+   * letters - and an edge with nothing behind it would dim them for no reason.
+   * A distance of zero puts the two gradient stops in the same place and leaves
+   * that edge fully opaque.
    */
   ".cm-scroller": {
     maskImage:
-      "linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%)",
+      "linear-gradient(to bottom, transparent 0, black var(--cm-fade-top, 0px), black calc(100% - var(--cm-fade-bottom, 0px)), transparent 100%)",
   },
   /*
-   * The gutter is a column of cells rather than a column of numbers, as the
-   * prototype draws it: a surface a step off the text, a rule between the two,
-   * and each number right-aligned in its own cell. It gives the eye an edge to
-   * run down, which is the whole use of a line number in a hundred-page
-   * document.
+   * The gutter is a column of cells rather than a column of numbers: a surface
+   * a step off the text, a rule between the two, and each number right-aligned
+   * in its own cell. It gives the eye an edge to run down, which is the whole
+   * use of a line number in a hundred-page document.
    */
   ".cm-gutters": {
     backgroundColor: "color-mix(in srgb, var(--muted) 45%, var(--card))",
@@ -241,19 +334,28 @@ const baseTheme = EditorView.theme({
   "&.cm-focused": { outline: "none" },
 });
 
+/** This editor fills the overlay it is opened in. */
+const fillsItsBox = EditorView.theme({ "&": { height: "100%" } });
+
+/** The palette, as an extension, so both arrangements colour alike. */
+export const editorHighlighting = syntaxHighlighting(highlightStyle);
+
+export { edgeFade, plainTextPaste, tabMovesFocus };
+
 export function CodeMirror({
   value,
   readOnly = false,
   onChange,
   ariaLabel,
   language = null,
-  extensions = [],
+  extensions = NO_EXTENSIONS,
   className,
 }: CodeMirrorProps) {
   const host = React.useRef<HTMLDivElement | null>(null);
   const view = React.useRef<EditorView | null>(null);
   const notify = React.useRef(onChange);
   const languageSlot = React.useRef(new Compartment());
+  const extensionSlot = React.useRef(new Compartment());
   React.useEffect(() => {
     notify.current = onChange;
   }, [onChange]);
@@ -270,10 +372,11 @@ export function CodeMirror({
         drawSelection(),
         highlightActiveLine(),
         highlightActiveLineGutter(),
+        edgeFade,
         tabMovesFocus,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         languageSlot.current.of(language ?? []),
-        syntaxHighlighting(highlightStyle),
+        editorHighlighting,
         plainTextPaste,
         EditorView.lineWrapping,
         EditorState.readOnly.of(readOnly),
@@ -292,11 +395,12 @@ export function CodeMirror({
            */
           tabindex: "0",
         }),
-        baseTheme,
+        editorSurface,
+        fillsItsBox,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) notify.current?.(update.state.doc.toString());
         }),
-        ...extensions,
+        extensionSlot.current.of([...extensions]),
       ],
     });
 
@@ -325,6 +429,22 @@ export function CodeMirror({
       effects: languageSlot.current.reconfigure(language ?? []),
     });
   }, [language]);
+
+  /*
+   * What a mode adds gets the same treatment, and for a stronger reason: the
+   * highlights over the findings are exactly the thing that has to change while
+   * a person is reading, as a finding is marked or a card is opened. Handed to
+   * the editor once at creation, a later set would simply never arrive - and it
+   * would fail silently, because a missing decoration looks like a document
+   * with nothing to decorate.
+   */
+  React.useEffect(() => {
+    const created = view.current;
+    if (created === null) return;
+    created.dispatch({
+      effects: extensionSlot.current.reconfigure([...extensions]),
+    });
+  }, [extensions]);
 
   return <div ref={host} className={className} data-testid="editor" />;
 }

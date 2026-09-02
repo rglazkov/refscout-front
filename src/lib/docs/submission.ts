@@ -5,6 +5,7 @@ import {
 } from "@/lib/domain";
 
 import { docRegistry } from "./registry";
+import { recordSnapshot } from "./snapshot";
 import { countCodePoints, sha256Hex } from "./units";
 
 /**
@@ -51,6 +52,16 @@ export async function buildSubmission(
       ),
     ];
 
+    const textSha256 = await sha256Hex(content.text);
+    const cpLength = countCodePoints(content.text);
+    /*
+     * Kept before the request is built, and kept for every document that goes
+     * out. When the answer comes back declaring what the server counted over,
+     * this is the only thing left to compare it with: the text itself may have
+     * been corrected since, and its hash then answers a different question.
+     */
+    recordSnapshot(item.id, { textSha256, cpLength });
+
     documents.push({
       docId: item.id,
       // The raw name: sanitisation is a rule about how a name is shown.
@@ -61,8 +72,8 @@ export async function buildSubmission(
       ...(uses.length === 0 ? {} : { uses }),
       options: item.options,
       text: content.text,
-      textSha256: await sha256Hex(content.text),
-      cpLength: countCodePoints(content.text),
+      textSha256,
+      cpLength,
       // A venue whose requirements never arrived is not a venue for the check:
       // what PreSubmit reads is the text, and there is none.
       ...(item.venue?.docId === undefined ? {} : { venue: item.venue }),

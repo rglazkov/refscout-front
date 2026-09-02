@@ -2,14 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { toModuleResult } from "@/lib/api/mappers";
 import { zModuleResult } from "@/lib/api/wire/zod.gen";
-import {
-  buildIssueReport,
-  lineAt,
-  lineOf,
-  lineStarts,
-  pageOf,
-  type ReportLabels,
-} from "@/lib/export";
+import { lineAt, lineOf, lineStarts, pageOf } from "@/lib/docs";
+import { buildIssueReport, type ReportLabels } from "@/lib/export";
 import { issuesOf } from "@/lib/normalize";
 
 import { scenarios } from "./msw/handlers.gen";
@@ -26,6 +20,9 @@ const labels: ReportLabels = {
   page: "page",
   quote: "quote",
   fixed: "marked fixed",
+  ignored: "turned down",
+  replacement: "Proposed replacement:",
+  unanchored: "This check read a different version.",
   counts: (counts) => `${counts.critical} critical, ${counts.warning} warnings`,
   nothing: "Nothing was found.",
 };
@@ -35,7 +32,13 @@ const result = toModuleResult(
 );
 const text = `line one\nline two\n${"x".repeat(12_100)}`;
 
-function report(fixed: ReadonlySet<string> = new Set()): string {
+function report(
+  marks: {
+    readonly fixed?: ReadonlySet<string>;
+    readonly ignored?: ReadonlySet<string>;
+    readonly unanchored?: ReadonlySet<string>;
+  } = {},
+): string {
   return buildIssueReport({
     title: "Findings",
     generatedAt: "Produced today",
@@ -49,7 +52,9 @@ function report(fixed: ReadonlySet<string> = new Set()): string {
         text,
         pages: [{ page: 7, from: 12_000, to: 13_000 }],
         issues: issuesOf(result),
-        fixed,
+        fixed: marks.fixed ?? new Set(),
+        ignored: marks.ignored ?? new Set(),
+        ...(marks.unanchored === undefined ? {} : { unanchored: marks.unanchored }),
       },
     ],
   });
@@ -64,7 +69,9 @@ describe("the report says where each finding is", () => {
   });
 
   it("carries the wording key through the dictionary rather than a phrase of its own", () => {
-    expect(report()).toContain("bibcheck.retracted_entry");
+    // Escaped, because the file is Markdown and an underscore in the middle of
+    // a word opens emphasis in it.
+    expect(report()).toContain(String.raw`bibcheck.retracted\_entry`);
   });
 
   it("gives the line and the page of a finding with coordinates", () => {
@@ -74,14 +81,28 @@ describe("the report says where each finding is", () => {
     expect(markdown).toMatch(/line \d+ · page 7/);
   });
 
-  it("quotes the place verbatim", () => {
-    expect(report()).toContain("> Smith et al. [22]");
+  it("quotes the place verbatim, with the markup characters in it made literal", () => {
+    // The brackets of a citation are what Markdown makes a link out of, so they
+    // are escaped: what the reader opens is the sentence as it stands in the
+    // manuscript rather than a link built out of it.
+    expect(report()).toContain(String.raw`> Smith et al. \[22\]`);
   });
 
   it("carries the marks the person made, since they leave with the job", () => {
     const key = `${result.docId}:bibcheck:iss_1`;
-    expect(report(new Set([key]))).toContain("_(marked fixed)_");
+    expect(report({ fixed: new Set([key]) })).toContain("_(marked fixed)_");
+    expect(report({ ignored: new Set([key]) })).toContain("_(turned down)_");
     expect(report()).not.toContain("_(marked fixed)_");
+  });
+
+  it("a check that read another version of the text loses its numbers, not its findings", () => {
+    // The findings are what the person paid for and they all stay; what goes
+    // is the line and the page, because those were worked out from coordinates
+    // counted over a text that is not the one in the browser.
+    const markdown = report({ unanchored: new Set(["bibcheck"]) });
+    expect(markdown).toContain(String.raw`bibcheck.retracted\_entry`);
+    expect(markdown).toContain("This check read a different version.");
+    expect(markdown).not.toMatch(/line \d+ · page 7/);
   });
 
   it("a document with nothing found says so rather than being left blank", () => {
@@ -97,6 +118,7 @@ describe("the report says where each finding is", () => {
           counts: { critical: 0, warning: 0, info: 0 },
           issues: [],
           fixed: new Set(),
+          ignored: new Set(),
         },
       ],
     });

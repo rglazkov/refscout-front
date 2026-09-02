@@ -10,8 +10,6 @@ import {
   defaultOptions,
 } from "@/lib/domain";
 import {
-  countCodePoints,
-  countWords,
   detectKind,
   extensionOf,
   formatOf,
@@ -34,6 +32,8 @@ import {
   ParseFailure,
   extract,
   isParseFailure,
+  measure,
+  type Measured,
   type Parsed,
   type RunOptions,
 } from "@/workers";
@@ -145,7 +145,8 @@ export async function acceptFile(
     };
   }
 
-  const tooLong = refuseByVolume(parsed.value.extracted.text, context.bufferChars);
+  const measured = await measurementsOf(parsed.value);
+  const tooLong = refuseByVolume(measured.chars, context.bufferChars);
   if (tooLong !== null) return { ok: false, refusal: tooLong, name };
 
   const built = await build({
@@ -155,7 +156,7 @@ export async function acceptFile(
     name,
     sourceSize: file.size,
     format,
-    parsed: parsed.value,
+    parsed: { ...parsed.value, measured },
   });
 
   /*
@@ -182,8 +183,11 @@ export async function acceptText(
 ): Promise<IntakeResult> {
   const name = sanitizeDocumentName(displayName);
   const extracted = fromString(raw, format);
+  // Measured once and carried into `build`, so the refusal below and the card
+  // afterwards are answered by the same walk over the text.
+  const measured = await measurementsOf({ extracted });
 
-  const tooLong = refuseByVolume(extracted.text, context.bufferChars);
+  const tooLong = refuseByVolume(measured.chars, context.bufferChars);
   if (tooLong !== null) return { ok: false, refusal: tooLong, name };
 
   return build({
@@ -192,7 +196,7 @@ export async function acceptText(
     name,
     sourceSize: new TextEncoder().encode(extracted.text).length,
     format,
-    parsed: { extracted },
+    parsed: { extracted, measured },
   });
 }
 
@@ -232,7 +236,8 @@ export async function acceptAttachmentFile(
     };
   }
 
-  const tooLong = refuseAttachmentByVolume(slot, parsed.value.extracted.text, checkChars);
+  const measured = await measurementsOf(parsed.value);
+  const tooLong = refuseAttachmentByVolume(slot, measured.chars, checkChars);
   if (tooLong !== null) return { ok: false, refusal: tooLong, name };
 
   return build({
@@ -241,7 +246,7 @@ export async function acceptAttachmentFile(
     name,
     sourceSize: file.size,
     format,
-    parsed: parsed.value,
+    parsed: { ...parsed.value, measured },
     slot,
   });
 }
@@ -256,8 +261,9 @@ export async function acceptAttachmentText(
 ): Promise<IntakeResult> {
   const name = sanitizeDocumentName(displayName);
   const extracted = fromString(raw, format);
+  const measured = await measurementsOf({ extracted });
 
-  const tooLong = refuseAttachmentByVolume(slot, extracted.text, checkChars);
+  const tooLong = refuseAttachmentByVolume(slot, measured.chars, checkChars);
   if (tooLong !== null) return { ok: false, refusal: tooLong, name };
 
   return build({
@@ -266,7 +272,7 @@ export async function acceptAttachmentText(
     name,
     sourceSize: new TextEncoder().encode(extracted.text).length,
     format,
-    parsed: { extracted },
+    parsed: { extracted, measured },
     slot,
   });
 }
@@ -397,6 +403,18 @@ function emptyContent(): DocContent {
   };
 }
 
+/**
+ * The counters and the hash of a text. A parsed document brings them with it -
+ * they were taken in the worker, in the same walk that produced the text - and
+ * only a text somebody typed or pasted is measured here, where the whole of it
+ * is a paragraph rather than a book.
+ */
+async function measurementsOf(parsed: Parsed): Promise<Measured> {
+  if (parsed.measured !== undefined) return parsed.measured;
+  const { text } = parsed.extracted;
+  return { ...measure(text), sha256: await sha256Hex(text) };
+}
+
 async function build(input: {
   readonly id?: string;
   readonly origin: BufferItem["origin"];
@@ -414,13 +432,14 @@ async function build(input: {
   // off, so it carries no ticks itself and nothing is proposed on it.
   const checks = input.slot === undefined ? proposeChecks(text, input.format) : [];
   const detected = detectKind(text, input.format);
-  const originalSha256 = await sha256Hex(text);
-  const quality = assessText(extracted, missingPages);
+  const stats = await measurementsOf(input.parsed);
+  const originalSha256 = stats.sha256;
+  const quality = assessText(extracted, stats, missingPages);
 
   const extract: ExtractInfo = {
     state: quality.state,
-    chars: countCodePoints(text),
-    words: countWords(text),
+    chars: stats.chars,
+    words: stats.words,
     edited: false,
     // The hash of the text as it stands. It answers two questions with one
     // number: whether the document has been edited since it was read, and

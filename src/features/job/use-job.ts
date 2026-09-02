@@ -1,9 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getJob, getModuleResult, isTerminal, nextPollDelayMs } from "@/lib/api";
+import {
+  ApiError,
+  getJob,
+  getModuleResult,
+  isTerminal,
+  nextPollDelayMs,
+} from "@/lib/api";
 import {
   type Job,
   type JobStatus,
@@ -12,7 +18,7 @@ import {
   moduleIds,
   resultKey,
 } from "@/lib/domain";
-import { verifyCounts } from "@/lib/normalize";
+import { reportAnchoring, verifyCounts, verifyWording } from "@/lib/normalize";
 import { type JobHandle } from "@/stores";
 
 /**
@@ -46,12 +52,20 @@ function terminalRefs(status: JobStatus | undefined): readonly Terminal[] {
   return refs;
 }
 
+/**
+ * How many times a body is asked for again after the address said the module
+ * had not finished. The poll is what actually moves the module on, and this is
+ * the wait beside it; past this the body simply arrives with the next terminal
+ * state, which brings its own address.
+ */
+const NOT_READY_RETRIES = 3;
+
 export function useJob(handle: JobHandle | null): {
   readonly job: Job | null;
   readonly pending: boolean;
   readonly error: unknown;
 } {
-  const attempt = React.useRef(0);
+  const queryClient = useQueryClient();
 
   const status = useQuery({
     queryKey: ["job", handle?.jobId],
@@ -60,8 +74,16 @@ export function useJob(handle: JobHandle | null): {
     refetchInterval: (query) => {
       const state = query.state.data?.state;
       if (state === undefined || isTerminal(state)) return false;
-      attempt.current += 1;
-      return nextPollDelayMs(attempt.current, {
+      /*
+       * How many answers this job has given, counted by the cache rather than
+       * by us. The backoff belongs to the job and not to the tab: a counter of
+       * our own would carry on from the previous check, so a second run in the
+       * same session would open at the ceiling instead of at a second, and its
+       * first result would sit on the server four times longer than the pacing
+       * was written for. The job's identifier is part of the key, so a new job
+       * is a new count without anything having to reset one.
+       */
+      return nextPollDelayMs(query.state.dataUpdateCount, {
         hidden: typeof document !== "undefined" && document.visibilityState === "hidden",
         ...(query.state.data?.pollAfterMs === undefined
           ? {}
@@ -75,10 +97,47 @@ export function useJob(handle: JobHandle | null): {
 
   const refs = terminalRefs(status.data);
 
+  /**
+   * Two answers a result address gives that are not failures of the screen, and
+   * both are answered by going back to the poll rather than by showing anything.
+   *
+   * `RESULT_NOT_READY` is the address fetched a moment too early: the module has
+   * not finished, so there is nothing to hold yet and the next poll will say so.
+   * `RESULT_SUPERSEDED` is the address of an attempt a retry has replaced: what
+   * was fetched under it is a previous attempt's findings, and keeping them
+   * would leave the screen showing an analysis the server has already thrown
+   * away. Both refresh the job state, which is where a usable address comes
+   * from; the second gives back nothing at all, so the card waits for the new
+   * body instead of drawing the old one.
+   */
+  const fetchBody = React.useCallback(
+    async (ref: string, token: string) => {
+      try {
+        return await getModuleResult(ref, token);
+      } catch (error) {
+        if (error instanceof ApiError) {
+          const { code } = error.failure;
+          if (code === "RESULT_NOT_READY" || code === "RESULT_SUPERSEDED") {
+            void queryClient.invalidateQueries({ queryKey: ["job", handle?.jobId] });
+            if (code === "RESULT_SUPERSEDED") return null;
+          }
+        }
+        throw error;
+      }
+    },
+    [handle?.jobId, queryClient],
+  );
+
   const bodies = useQueries({
     queries: refs.map((entry) => ({
       queryKey: ["job-result", handle?.jobId, entry.docId, entry.module, entry.ref],
-      queryFn: () => getModuleResult(entry.ref, handle?.jobToken ?? ""),
+      queryFn: () => fetchBody(entry.ref, handle?.jobToken ?? ""),
+      // Only the one case where waiting is the answer. Everything else is a
+      // refusal the screen has to show rather than sit on.
+      retry: (failures: number, error: unknown) =>
+        failures < NOT_READY_RETRIES &&
+        error instanceof ApiError &&
+        error.failure.code === "RESULT_NOT_READY",
       // Fetched once per attempt: a retry brings a new ref, and that is a new
       // key, so the previous body is not reused.
       staleTime: Infinity,
@@ -111,7 +170,9 @@ export function useJob(handle: JobHandle | null): {
     const results: Record<string, ModuleResult> = {};
     refs.forEach((entry, index) => {
       const body = bodies[index]?.data;
-      if (body === undefined) return;
+      // `null` is the superseded address: the body it named belonged to an
+      // attempt that no longer exists, and the card waits for the new one.
+      if (body === undefined || body === null) return;
       results[resultKey(entry.docId, entry.module)] = body;
     });
 
@@ -147,6 +208,12 @@ export function useJob(handle: JobHandle | null): {
         if (checked.current.has(seen)) continue;
         checked.current.add(seen);
         verifyCounts(declared, body);
+        // Whether the offsets in this body were counted over our text, and
+        // whether the module's codes and its wording still agree. Both are
+        // invisible on the screen and both are reported from here, where a body
+        // has just arrived.
+        reportAnchoring(body);
+        verifyWording(moduleId, body);
       }
     }
   }, [job]);

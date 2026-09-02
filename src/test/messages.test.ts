@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { shellNamespaces } from "../lib/i18n/messages";
 import { locales } from "../lib/i18n/routing";
 import { readSources } from "./utils/source-graph";
 
@@ -86,6 +87,10 @@ const dynamicKeys: readonly RegExp[] = [
   /^intake\.paste\.syntax\./,
   /^job\.state\./,
   /^results\.severity\./,
+  // The badge on a bibliographic record, named by the database it came from,
+  // and the order a list of search results is put in.
+  /^sources\./,
+  /^scout\.sort\./,
   // A refusal from the server, looked up by its code, and the general refusal
   // an unfamiliar code falls back to.
   /^errors\.(codes\.|unknown$)/,
@@ -149,5 +154,55 @@ describe("dictionaries", () => {
     // Otherwise the list only ever grows, and stops describing anything.
     const referenced = new Set(referencedKeys());
     expect(plannedKeys.filter((key) => referenced.has(key))).toEqual([]);
+  });
+});
+
+/**
+ * The dictionary is split in two, and the split is what keeps the wording of
+ * the working screen out of the HTML of every other page. The shell's share
+ * travels with each page; the rest arrives with the screen that says it.
+ *
+ * A namespace read by the shell and left out of that share is a page that
+ * renders its own missing-message placeholder, and only in the browser, so the
+ * boundary is checked here rather than found there.
+ */
+describe("the shell's share of the dictionary", () => {
+  it("holds every namespace the site's own pages read", () => {
+    const shell = new Set<string>(shellNamespaces);
+    const missing = new Set<string>();
+
+    for (const file of readSources()) {
+      // The pages of the site and the shell around them. Everything under
+      // `features/` and `stores/` belongs to the working screen, which is
+      // handed the whole dictionary; `lib/seo` reads its words on the server at
+      // build time and never in a browser; `lib/i18n` looks up the keys the
+      // modules name, which is the working screen's own vocabulary.
+      const own =
+        file.path.startsWith("src/components/") || file.path.startsWith("src/app/");
+      if (!own) continue;
+      for (const binding of file.text.matchAll(BINDING)) {
+        const namespace = (binding[2] ?? binding[3] ?? "").split(".")[0] ?? "";
+        if (namespace !== "" && !shell.has(namespace)) missing.add(namespace);
+      }
+    }
+
+    expect([...missing]).toEqual([]);
+  });
+
+  it("carries nothing the site's own pages do not read", () => {
+    // The other direction: a namespace left on the list after the screen that
+    // read it moved is the whole point of the split quietly undone.
+    const read = new Set<string>();
+    for (const file of readSources()) {
+      const own =
+        file.path.startsWith("src/components/") || file.path.startsWith("src/app/");
+      if (!own) continue;
+      for (const binding of file.text.matchAll(BINDING)) {
+        const namespace = (binding[2] ?? binding[3] ?? "").split(".")[0] ?? "";
+        if (namespace !== "") read.add(namespace);
+      }
+    }
+
+    expect(shellNamespaces.filter((namespace) => !read.has(namespace))).toEqual([]);
   });
 });

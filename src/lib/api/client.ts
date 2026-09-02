@@ -5,6 +5,9 @@ import {
   type JobStatus,
   type ModuleId,
   type ModuleResult,
+  type ScoutAnswer,
+  type ScoutVote,
+  type SearchLimit,
   type SubmitJobRequest,
   type SubmitJobResult,
   type VenueRequirements,
@@ -18,6 +21,7 @@ import {
   toEntitlements,
   toJobStatus,
   toModuleResult,
+  toScoutAnswer,
   toSubmitJobResult,
   toVenueRequirements,
 } from "./mappers";
@@ -26,6 +30,7 @@ import {
   zEntitlements,
   zJobStatus,
   zModuleResult,
+  zScoutResponse,
   zSubmitJobResponse,
   zVenueFetchResponse,
 } from "./schemas";
@@ -233,7 +238,18 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-async function call<W>(requested: Requested, schema: ZodType<W>, at: string): Promise<W> {
+/**
+ * A parsed answer together with the identifier of the request that brought it.
+ * Almost nothing needs the second half - it is what a person quotes to support -
+ * so it is handed out where it goes on screen and dropped everywhere else.
+ */
+type Answered<W> = { readonly body: W; readonly requestId: string };
+
+async function callWithId<W>(
+  requested: Requested,
+  schema: ZodType<W>,
+  at: string,
+): Promise<Answered<W>> {
   const response = await send(requested);
   const requestId = response.headers.get("X-Request-Id") ?? "";
   const body = await readJson(response);
@@ -262,7 +278,11 @@ async function call<W>(requested: Requested, schema: ZodType<W>, at: string): Pr
     );
   }
 
-  return parse(schema, body, requestId, at);
+  return { body: parse(schema, body, requestId, at), requestId };
+}
+
+async function call<W>(requested: Requested, schema: ZodType<W>, at: string): Promise<W> {
+  return (await callWithId(requested, schema, at)).body;
 }
 
 export async function submitJob(
@@ -350,7 +370,7 @@ export async function getModuleResult(
     });
   }
 
-  const wire = await call(
+  const answered = await callWithId(
     {
       path: resultRef,
       method: "GET",
@@ -360,7 +380,7 @@ export async function getModuleResult(
     zModuleResult,
     "getModuleResult",
   );
-  return toModuleResult(wire);
+  return toModuleResult(answered.body, answered.requestId);
 }
 
 /**
@@ -407,6 +427,43 @@ export async function fetchVenueRequirements(
     "fetchVenueRequirements",
   );
   return toVenueRequirements(wire);
+}
+
+/**
+ * A search. The query string is the whole of what leaves the browser, and it
+ * leaves on a press rather than on a keystroke: sorting and filtering are done
+ * here over the answer, so `limit` is the request's one option.
+ */
+export async function scoutSearch(
+  query: string,
+  limit: SearchLimit,
+  locale: string,
+  options: Options = {},
+): Promise<ScoutAnswer> {
+  const wire = await call(
+    {
+      path: "/scout/search",
+      method: "POST",
+      body: { query, limit, locale },
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    },
+    zScoutResponse,
+    "scoutSearch",
+  );
+  return toScoutAnswer(wire);
+}
+
+/**
+ * The thumb on one result. It carries the identifier of the record and the
+ * vote, and nothing else: what the person typed is theirs, and it is not sent
+ * back to us as an opinion about the search.
+ */
+export async function scoutFeedback(resultId: string, vote: ScoutVote): Promise<void> {
+  await send({
+    path: "/scout/feedback",
+    method: "POST",
+    body: { resultId, vote },
+  });
 }
 
 export async function getEntitlements(options: Options = {}): Promise<Entitlements> {

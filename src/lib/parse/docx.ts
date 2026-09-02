@@ -6,7 +6,7 @@ import TurndownService from "turndown";
 import { canonicalise } from "@/lib/docs/canonical";
 
 import { ParseFailure } from "./failure";
-import { assess } from "./quality";
+import { isBlank } from "./quality";
 import { aborted, type ParseOptions, type Parsed } from "./types";
 import { openContainer } from "./zip";
 
@@ -78,7 +78,7 @@ export async function parseDocx(
   const extracted = canonicalise(markdown, { format: "docx" });
   options.onProgress?.({ done: 3, total: 3 });
 
-  if (assess(extracted.text).empty) {
+  if (isBlank(extracted.text)) {
     // A container that opened and held nothing. It is the same outcome as a
     // scan - there is no text to check - and it gets the same way out.
     throw new ParseFailure("DOCX_EMPTY");

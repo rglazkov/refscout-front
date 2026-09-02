@@ -1,11 +1,23 @@
+import { type DiffResult } from "@/lib/diff/text";
 import { type ParseRequest, type Parsed, type PdfResources } from "@/lib/parse/types";
 import { publicPath } from "@/lib/public-path";
 
 import { createWorkerClient, type RunOptions } from "./client";
+import { type DiffRequest } from "./diff.worker";
 import { type CompressRequest, type CompressResult } from "./gzip";
-import { compressCall, parseCall } from "./protocol";
+import { compressCall, diffCall, parseCall } from "./protocol";
 
 export { COMPRESS_ABOVE_BYTES, type CompressResult } from "./gzip";
+/*
+ * The door into the comparison, on the same terms as the parsers: what a screen
+ * needs from there is the limits it has to name and the shape of the answer.
+ */
+export {
+  countLines,
+  diffLimits,
+  type DiffChange,
+  type DiffResult,
+} from "@/lib/diff/text";
 export { type RunOptions, type WorkerClient } from "./client";
 /*
  * The door into the parsers, and the only one. `lib/parse` is reachable from
@@ -15,7 +27,13 @@ export { type RunOptions, type WorkerClient } from "./client";
  * come back out through here.
  */
 export { ParseFailure, isParseFailure, type ParseFailureData } from "@/lib/parse/failure";
-export { assess, type Quality } from "@/lib/parse/quality";
+export {
+  assess,
+  measure,
+  type Measured,
+  type Quality,
+  type TextStats,
+} from "@/lib/parse/quality";
 export { type ParseProgress, type Parsed } from "@/lib/parse/types";
 
 /**
@@ -32,6 +50,8 @@ const PARSE_WORKER = publicPath("/workers/parse.worker.js");
 
 const GZIP_WORKER = publicPath("/workers/gzip.worker.js");
 
+const DIFF_WORKER = publicPath("/workers/diff.worker.js");
+
 /**
  * The same two, built as classic scripts with nothing to import. They are only
  * reached when the module worker above will not start: everything is in the one
@@ -43,8 +63,10 @@ const CLASSIC_PARSE_WORKER = publicPath("/workers/classic/parse.worker.js");
 
 const CLASSIC_GZIP_WORKER = publicPath("/workers/classic/gzip.worker.js");
 
+const CLASSIC_DIFF_WORKER = publicPath("/workers/classic/diff.worker.js");
+
 /**
- * The two workers of the product and the only way in to either. Callers see
+ * The workers of the product and the only way in to any of them. Callers see
  * functions that take data and give data back; the workers, the envelopes and
  * the listeners stay inside this folder.
  *
@@ -67,6 +89,14 @@ const compressor = createWorkerClient<CompressRequest, CompressResult>(
     () => new Worker(CLASSIC_GZIP_WORKER),
   ],
   compressCall,
+);
+
+const comparator = createWorkerClient<DiffRequest, DiffResult>(
+  [
+    () => new Worker(DIFF_WORKER, { type: "module" }),
+    () => new Worker(CLASSIC_DIFF_WORKER),
+  ],
+  diffCall,
 );
 
 /**
@@ -106,6 +136,21 @@ export function extract(
     request.format === "pdf" ? { ...request, resources: pdfResources() } : request,
     options,
   );
+}
+
+/**
+ * Compares two texts in a worker. The whole of the comparison happens there:
+ * what comes back is the finished set of changed ranges, and the page never
+ * runs the pass over both texts itself.
+ *
+ * Cancelling ends the worker, which is the only way to stop work that is
+ * already inside a synchronous pass - the same rule the parsers follow.
+ */
+export function compareTexts(
+  request: DiffRequest,
+  options: RunOptions = {},
+): Promise<DiffResult> {
+  return comparator.run(request, options);
 }
 
 /**

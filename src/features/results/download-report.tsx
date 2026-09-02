@@ -37,11 +37,13 @@ export function DownloadReportButton({
   const phrase = useWording();
   const format = useFormatter();
   const fixed = useJobStore((state) => state.fixed);
+  const ignored = useJobStore((state) => state.ignored);
 
   const build = () => {
     downloadJobReport({
       job,
       fixed: new Set(Object.keys(fixed)),
+      ignored: new Set(Object.keys(ignored)),
       fileName: report("fileName"),
       title: report("title"),
       generatedAt: report("generatedAt", { date: format.dateTime(new Date()) }),
@@ -57,6 +59,9 @@ export function DownloadReportButton({
         page: report("page"),
         quote: report("quote"),
         fixed: report("fixed"),
+        ignored: report("ignored"),
+        replacement: report("replacement"),
+        unanchored: report("unanchored"),
         counts: (counts: Counts) =>
           report("counts", { critical: counts.critical, warning: counts.warning }),
         nothing: report("nothing"),

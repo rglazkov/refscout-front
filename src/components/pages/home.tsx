@@ -35,7 +35,10 @@ export function HomePage({ locale }: { readonly locale: Locale }) {
         </div>
       </div>
 
-      <ZoneBoundary zone="buffer">
+      {/* The outermost net. The zones inside the workspace carry their own, so
+          what reaches this one is a failure of the screen itself rather than of
+          any part of it. */}
+      <ZoneBoundary zone="workspace">
         <WorkspaceMount />
       </ZoneBoundary>
 

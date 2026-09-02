@@ -16,6 +16,7 @@ import { Collapse } from "@/components/motion/collapse";
 import { motionTransition } from "@/components/motion/transitions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ZoneBoundary } from "@/components/shell/zone-boundary";
 import { cn } from "@/lib/cn";
 import { type BufferItem, moduleIds } from "@/lib/domain";
 import { useIntakeApi } from "@/features/intake/intake-context";
@@ -134,9 +135,21 @@ export function DocumentCard({
           </span>
 
           {/* All four are available on every document without exception: the
-              automation decides what to suggest and never what to allow. */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="me-0.5 text-[0.6875rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+              automation decides what to suggest and never what to allow.
+
+              The caption names the row rather than standing beside it: four
+              toggles in a row are one question with four answers, and a reader
+              who arrives at the third of them by keyboard is told which
+              question it belongs to. */}
+          <div
+            role="group"
+            aria-labelledby={`checks-${item.id}`}
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            <span
+              id={`checks-${item.id}`}
+              className="me-0.5 text-[0.6875rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
+            >
               {t("checkFor")}
             </span>
             {moduleIds.map((module) => {
@@ -250,8 +263,18 @@ export function DocumentCard({
 
           {/* The plan of this document, under its own ticks and its own
               settings: what will run on it, what the checks will read alongside
-              it, and why it will take no part when it will not. */}
-          {unreadable ? null : <DocumentPlan item={item} />}
+              it, and why it will take no part when it will not.
+
+              It carries a boundary of its own because it is the one part of the
+              card that is computed rather than shown: what it says is derived
+              from the ticks, the attachments and what access is open, and a
+              failure in that arithmetic must not take away the name of the
+              document or the way into its text. */}
+          {unreadable ? null : (
+            <ZoneBoundary zone="plan">
+              <DocumentPlan item={item} />
+            </ZoneBoundary>
+          )}
         </div>
       </div>
 

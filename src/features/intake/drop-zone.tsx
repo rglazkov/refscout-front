@@ -13,9 +13,17 @@ import { RefusalLine } from "./refusal-line";
 import { type RefusalNotice } from "./use-intake";
 
 /**
- * The drop zone. Inside it is a real `<input type="file" multiple>` rather than
- * a div with handlers, so Tab, Enter and the system dialogue all work;
+ * The drop zone. Inside it is a real `<input type="file" multiple>`, so the
+ * system's own file dialogue is what opens and nothing is reimplemented;
  * react-dropzone supplies the drag handling around it.
+ *
+ * The field itself is not a control anybody reaches. It is rendered at zero
+ * size and outside the tab order - that is what `getInputProps` produces, and
+ * it is the right shape: the visible "Choose files" button is the control, it
+ * is labelled, and it opens the dialogue by calling `open()`. So the field is
+ * hidden from a screen reader as well, rather than sitting in the tree under
+ * the label its library gives it, which is an English string in a product whose
+ * every other word comes from the dictionary.
  *
  * On a narrow screen the zone becomes two large buttons, because drag and drop
  * does not exist on a phone.
@@ -62,7 +70,13 @@ export function DropZone({
           isDragActive && "border-primary before:opacity-100",
         )}
       >
-        <input {...getInputProps()} accept={ACCEPTED} data-testid="file-input" />
+        <input
+          {...getInputProps()}
+          accept={ACCEPTED}
+          aria-hidden="true"
+          aria-label={undefined}
+          data-testid="file-input"
+        />
 
         <span
           className={cn(
@@ -79,6 +93,9 @@ export function DropZone({
           <Button type="button" className="w-full nav:w-auto" onClick={open}>
             {busy ? t("reading") : t("choose")}
           </Button>
+          {/* Inside the zone, beside "choose files": bringing a file, dropping
+              one and typing the text in are three ways of doing the same thing,
+              and the zone is where the screen says so. */}
           <Button
             type="button"
             variant="outlineOnCard"

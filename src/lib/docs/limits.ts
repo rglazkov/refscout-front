@@ -1,7 +1,5 @@
 import { type FilledSlot } from "@/lib/domain";
 
-import { countCodePoints } from "./units";
-
 /**
  * The intake limits. Text volume is the real limit: all four places where the
  * interface says "characters" count in the same unit, and the server counts in
@@ -112,9 +110,13 @@ export function refuseByCount(existing: number, incoming: number): IntakeRefusal
     : null;
 }
 
-/** Checked after extraction, because until then the number of characters is unknown. */
-export function refuseByVolume(text: string, bufferChars: number): IntakeRefusal | null {
-  const chars = countCodePoints(text);
+/**
+ * Checked after extraction, because until then the number of characters is
+ * unknown. It takes the count rather than the text: the count was made where
+ * the text was, in one walk, and asking for it again here would be a second
+ * walk over three million characters to learn a number we already have.
+ */
+export function refuseByVolume(chars: number, bufferChars: number): IntakeRefusal | null {
   if (chars > limits.maxDocChars) {
     return { code: "DOC_TOO_LARGE", chars, limit: limits.maxDocChars };
   }
@@ -139,7 +141,7 @@ export function refuseAttachmentBySize(
 
 export function refuseAttachmentByVolume(
   slot: FilledSlot,
-  text: string,
+  chars: number,
   /**
    * What the check already reads: the document this hangs off, and whatever
    * else is hanging off it. Without it the slot ceilings alone would let a
@@ -148,7 +150,6 @@ export function refuseAttachmentByVolume(
   checkChars = 0,
 ): IntakeRefusal | null {
   const limit = limits.attachment[slot].maxChars;
-  const chars = countCodePoints(text);
   if (chars > limit) return { code: "ATTACHMENT_TOO_LARGE", slot, chars, limit };
   const total = checkChars + chars;
   return total > limits.maxCheckChars

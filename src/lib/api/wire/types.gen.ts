@@ -693,6 +693,13 @@ export type BiblioRecord = {
     venue?: string;
     citedBy?: number;
     doi?: string;
+    /**
+     * The DOI was resolved while the answer was assembled. The client shows a badge and
+     * offers a filter on it, so it is a statement about a check that happened rather than
+     * about the field being present.
+     *
+     */
+    doiVerified?: boolean;
     url?: HttpUrl;
     openAccess: boolean;
     sources: Array<SourceId>;
@@ -1171,7 +1178,7 @@ export type GetModuleResultErrors = {
      */
     404: ApiError;
     /**
-     * The resource is not in a state that allows this operation.
+     * The `resultRef` was fetched before the module reached a terminal state.
      */
     409: ApiError;
     /**

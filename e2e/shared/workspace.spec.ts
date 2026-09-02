@@ -145,10 +145,27 @@ test.describe("from a file to a downloaded report", () => {
     // A finding is opened, and marked as dealt with. The mark never leaves the
     // browser.
     const finding = page.getByRole("button", { name: /retracted/i }).first();
+    // Before it is opened the row already says where it is, in the words
+    // available without a highlight: the entry of the bibliography it names,
+    // and how many places it has.
+    await expect(page.getByTestId("issue-bibkey").first()).toHaveText(
+      "smith2019attention",
+    );
+    await expect(page.getByTestId("issue-occurrences").first()).toContainText("3");
     await finding.click();
+    // And the third way of naming a place: the sentence the module was reading.
+    await expect(page.getByTestId("issue-quote").first()).toHaveText("Smith et al. [22]");
+
     const fixed = page.getByRole("button", { name: "Fixed" }).first();
     await fixed.click();
     await expect(fixed).toHaveAttribute("aria-pressed", "true");
+
+    // The other mark says something else - "the check is right and I do not
+    // want it" - so pressing it clears the first rather than adding to it.
+    const ignore = page.getByTestId("ignore-issue").first();
+    await ignore.click();
+    await expect(ignore).toHaveAttribute("aria-pressed", "true");
+    await expect(fixed).toHaveAttribute("aria-pressed", "false");
 
     // The file a check wrote is another text again, so it opens in an editor of
     // its own rather than being handed over as a download from the card.

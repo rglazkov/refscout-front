@@ -830,7 +830,7 @@ export const scenarios = {
                 "kind": "range",
                 "docId": "0f2c1d64-9b3a-4a7e-8f11-2d9c5b0a7e31",
                 "from": 31980,
-                "to": 32017,
+                "to": 32021,
                 "quote": "https://github.com/jsmith/dense-retrieval"
               }
             ]
@@ -1063,11 +1063,11 @@ export const scenarios = {
         }
       },
     },
-    notRetryable: {
+    resultNotReady: {
       status: 409,
       body: {
         "error": {
-          "code": "MODULE_NOT_RETRYABLE",
+          "code": "RESULT_NOT_READY",
           "requestId": "req_01J8Z3K4M5"
         }
       },
@@ -1369,6 +1369,7 @@ export const scenarios = {
             "venue": "NeurIPS",
             "citedBy": 112340,
             "doi": "10.48550/arXiv.1706.03762",
+            "doiVerified": true,
             "url": "https://arxiv.org/abs/1706.03762",
             "openAccess": true,
             "sources": [

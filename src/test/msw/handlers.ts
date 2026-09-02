@@ -144,9 +144,20 @@ function statusBody(job: SubmittedJob, running: boolean) {
   };
 }
 
-/** The result body of the contract, re-pointed at the document it is about. */
-function resultBody(docId: string, module: string) {
+/**
+ * The result body of the contract, re-pointed at the document it is about.
+ *
+ * `texts` is the part that cannot be borrowed from an example. It is the
+ * server's own recount of the text it received, and the client compares it with
+ * what it sent to decide whether the offsets in the body describe the document
+ * on screen at all. An example's hash belongs to the example's manuscript, so a
+ * mock that served it would tell every client in every session that its
+ * findings were counted over somebody else's text - and the product would
+ * always be in the state it is supposed to reach only when something is wrong.
+ */
+function resultBody(job: SubmittedJob, docId: string, module: string) {
   const template = RESULTS[module as keyof typeof RESULTS] ?? RESULTS.bibcheck;
+  const sent = job.documents.find((document) => document.docId === docId);
   return {
     ...template,
     module,
@@ -154,8 +165,8 @@ function resultBody(docId: string, module: string) {
     texts: [
       {
         docId,
-        textSha256: template.texts[0]?.textSha256,
-        cpLength: template.texts[0]?.cpLength,
+        textSha256: sent?.textSha256 ?? template.texts[0]?.textSha256,
+        cpLength: sent?.cpLength ?? template.texts[0]?.cpLength,
       },
     ],
     issues: template.issues.map((issue) => ({
@@ -280,9 +291,12 @@ export const handlers = [
         return refusal(404, scenarios.getJob.jobNotFound.body);
       }
       return HttpResponse.json(
-        resultBody(String(params.docId), String(params.moduleId)),
+        resultBody(job, String(params.docId), String(params.moduleId)),
         {
-          headers: { "X-Request-Id": "req_mock" },
+          // The body is fetched once per attempt and held by the client; the
+          // header is the contract's, and it is here because a mock that
+          // answers differently from the stand is a mock that hides a bug.
+          headers: { "X-Request-Id": "req_mock", "Cache-Control": "no-store" },
         },
       );
     },
@@ -295,6 +309,36 @@ export const handlers = [
     }
     return HttpResponse.json(statusBody(job, true), { status: 202 });
   }),
+
+  /*
+   * A search. The records are the contract's own, and what this adds is the one
+   * thing an example cannot express: an answer that depends on the question.
+   * A query none of the records match comes back empty, so "nothing found" is a
+   * state the product can be walked into rather than one only a test has seen.
+   */
+  http.post("*/scout/search", async ({ request }) => {
+    const body = (await request.json()) as { query?: string };
+    const answer = scenarios.scoutSearch.results.body;
+    const words = (body.query ?? "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 2);
+    const results = answer.results.filter((record) => {
+      const haystack = [record.title, record.venue ?? "", ...record.authors]
+        .join(" ")
+        .toLowerCase();
+      return words.length === 0 || words.some((word) => haystack.includes(word));
+    });
+    return HttpResponse.json(
+      { ...answer, results },
+      { headers: { "X-Request-Id": "req_mock" } },
+    );
+  }),
+
+  // The thumb. It is answered and nothing is kept: the vote is the server's
+  // business, and the mock exists to prove the call is made and carries a
+  // result identifier rather than a query.
+  http.post("*/scout/feedback", () => new HttpResponse(null, { status: 204 })),
 
   http.post("*/venues/fetch", () =>
     HttpResponse.json(scenarios.fetchVenueRequirements.ready.body),

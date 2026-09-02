@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDownIcon, ChevronRightIcon, PencilIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { flushSync } from "react-dom";
@@ -21,6 +26,7 @@ import {
 } from "@/lib/domain";
 import { useIntake } from "@/features/intake/use-intake";
 import { useWording } from "@/lib/i18n";
+import { anchoringOf } from "@/lib/normalize";
 import { useUiStore } from "@/stores";
 
 import { CiteOverlay } from "./cite-overlay";
@@ -66,6 +72,14 @@ export function CheckCard({
   );
 
   const issues = result?.issues ?? [];
+  /*
+   * Whether the offsets in this body were counted over the text we sent. The
+   * findings are shown either way - a finding withheld is a check the person
+   * paid for and did not receive - but when the answer is no, they are shown
+   * without places, and the card says so rather than letting a list of
+   * findings with no pages beside them look like findings that have none.
+   */
+  const anchoring = result === undefined ? { anchored: true } : anchoringOf(result);
   /*
    * Cite opens over the page instead of unfolding in the grid. It reports
    * nothing wrong: it proposes sources, and reading one is a title, its
@@ -216,6 +230,32 @@ export function CheckCard({
         </Button>
       ) : null}
 
+      {/* The body describes a different text than the one on screen, so every
+          place in it points into a document that does not exist here. The
+          identifier of the request that brought it is on the card, because it
+          is the one thing a person can put in a message to us that names what
+          they actually received. */}
+      {!anchoring.anchored ? (
+        <p
+          role="status"
+          data-testid="not-anchored"
+          className="flex items-start gap-2 rounded-lg border border-warning-border bg-warning-soft p-2.5 text-[0.8125rem] text-warning"
+        >
+          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>
+            {anchoring.reason === "offsetUnit"
+              ? t("notAnchoredUnit")
+              : t("notAnchoredText")}
+            {result?.requestId === undefined ? null : (
+              <>
+                {" "}
+                <span className="font-mono break-all">{result.requestId}</span>
+              </>
+            )}
+          </span>
+        </p>
+      ) : null}
+
       {/* A file this check produced - a corrected bibliography, a generated
           glossary - is a text of its own and not the manuscript, so it opens in
           the editor of its own. Reading it, correcting it and saving it all
@@ -262,7 +302,13 @@ export function CheckCard({
          */
         <ul className="border-t [&>li]:[contain-intrinsic-size:auto_2.25rem] [&>li]:[content-visibility:auto]">
           {issues.map((issue) => (
-            <IssueRow key={issue.issueId} docId={docId} module={module} issue={issue} />
+            <IssueRow
+              key={issue.issueId}
+              docId={docId}
+              module={module}
+              issue={issue}
+              anchored={anchoring.anchored}
+            />
           ))}
         </ul>
       ) : null}
@@ -298,6 +344,7 @@ function OpenArtifactButton({
   readonly artifact: Artifact;
 }) {
   const t = useTranslations("results");
+  const phrase = useWording();
   const { adoptArtifact } = useIntake();
   const openOverlay = useUiStore((state) => state.openOverlay);
 
@@ -319,7 +366,17 @@ function OpenArtifactButton({
       }}
     >
       <PencilIcon aria-hidden="true" />
-      {t("openArtifact", { extension: artifact.kind })}
+      {/* The module says what the file is by a dictionary key - "the corrected
+          bibliography", "the generated glossary" - and the button says that.
+          A key this release has no wording for falls back to naming the format,
+          which is the least a person needs to know before opening it. */}
+      {phrase(
+        artifact.labelKey,
+        undefined,
+        t("openArtifact", {
+          extension: artifact.kind,
+        }),
+      )}
     </Button>
   );
 }

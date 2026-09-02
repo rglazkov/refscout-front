@@ -145,3 +145,26 @@ test("theme toggle: two positions, starting from the environment theme", async (
     "false",
   );
 });
+
+/**
+ * The way past the header, for anybody moving through the page by keyboard.
+ *
+ * Six controls stand between the top of every page and its content, and they
+ * are the same six each time. What is checked is the whole of what makes the
+ * shortcut work: that it is the first thing Tab reaches, that it becomes
+ * visible when it has the focus rather than staying where nobody can read it,
+ * and that following it puts the focus in the content instead of only moving
+ * the scroll position.
+ */
+test("the first stop is the way past the header, and it works", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+
+  const skip = page.getByRole("link", { name: "Skip to the content" });
+  await expect(skip).toBeFocused();
+  // Off the top of the viewport until it is focused; in view once it is.
+  await expect(skip).toBeInViewport();
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+});

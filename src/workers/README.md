@@ -1,7 +1,9 @@
-The two workers and the typed client in front of them. `parse.worker.ts` reads
+The workers and the typed client in front of them. `parse.worker.ts` reads
 every document — pdf.js, mammoth and turndown arrive inside it through
-`import()`, with the document that needs them — and `gzip.worker.ts` compresses
-the one request that carries text.
+`import()`, with the document that needs them — `gzip.worker.ts` compresses the
+one request that carries text, and `diff.worker.ts` compares two versions,
+which is one pass over both of them in full and so belongs nowhere near the
+thread the panes are drawn on.
 
 **They are built by us**, by `scripts/build-workers.mjs` into `public/workers`,
 and not by the application bundler: its way of shipping `new Worker(new URL(…))`

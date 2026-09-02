@@ -7,7 +7,18 @@ import { type ModuleId, type Severity } from "./ids";
  * offered actions, and whether an edit has left it behind.
  */
 export type Issue = {
+  /**
+   * The identifier everything else hangs on: the marks a person puts on a
+   * finding, the open row on the screen, the line in the report. It is the
+   * server's `issueId` unless that arrived twice inside one body, in which case
+   * the second finding is given a suffix rather than being folded into the
+   * first - two findings that share an identifier are still two findings, and
+   * one of them silently disappearing is a check the person paid for and did
+   * not get.
+   */
   readonly issueId: string;
+  /** As the module sent it, before any suffix. */
+  readonly serverId: string;
   readonly code: string;
   readonly severity: Severity;
   /** A key into the dictionary, never a ready-made phrase. */
@@ -43,6 +54,13 @@ export type Anchor =
       readonly quote: string;
       readonly prefix?: string;
       readonly suffix?: string;
+      /**
+       * The quote is not as long as the range it describes, so one of the two
+       * was counted in another unit or the quote was cut short. The place is
+       * unusable and the finding keeps it rather than losing the finding; what
+       * it costs is the page number beside it and, later, the highlight.
+       */
+      readonly quoteMismatch?: true;
     }
   | {
       readonly kind: "quote";
@@ -97,6 +115,8 @@ export type BiblioRecord = {
   readonly venue?: string;
   readonly citedBy?: number;
   readonly doi?: string;
+  /** The search resolved this DOI while the answer was being assembled. */
+  readonly doiVerified?: boolean;
   readonly url?: string;
   readonly openAccess: boolean;
   readonly sources: readonly string[];
@@ -135,6 +155,22 @@ export type ModuleResult = {
   readonly module: ModuleId;
   readonly docId: string;
   readonly attempt: number;
+  /**
+   * The unit the offsets in this body are counted in, as the body declares it.
+   * It is read rather than assumed, and it is held as a plain string rather
+   * than as the one value the contract allows: a body that declares another
+   * unit is the case the client has to survive, and the findings in it are
+   * still findings - they are shown without places instead of being thrown
+   * away.
+   */
+  readonly offsetUnit: string;
+  /**
+   * The identifier of the request that brought this body, from `X-Request-Id`.
+   * It is on the type because it goes on the screen when the body cannot be
+   * trusted: a person writing to support with it is quoting the one line in
+   * our logs that describes what they actually received.
+   */
+  readonly requestId?: string;
   readonly issues: readonly Issue[];
   readonly artifacts: readonly Artifact[];
   /** Every document whose coordinates appear in this body. */

@@ -1,6 +1,6 @@
 import { docRegistry } from "@/lib/docs";
 import { type Job, moduleIds, resultKey } from "@/lib/domain";
-import { documentCounts, issuesOf } from "@/lib/normalize";
+import { anchoringOf, documentCounts, issuesOf } from "@/lib/normalize";
 
 import { downloadText } from "./download";
 import { buildIssueReport, type ReportInput, type ReportLabels } from "./report";
@@ -15,6 +15,7 @@ import { buildIssueReport, type ReportInput, type ReportLabels } from "./report"
 export function buildJobReport(input: {
   readonly job: Job;
   readonly fixed: ReadonlySet<string>;
+  readonly ignored: ReadonlySet<string>;
   readonly title: string;
   readonly generatedAt: string;
   readonly phrase: ReportInput["phrase"];
@@ -27,6 +28,15 @@ export function buildJobReport(input: {
     labels: input.labels,
     documents: input.job.status.documents.map((document) => {
       const content = docRegistry.get(document.docId);
+      // Which of this document's checks read a text that is not the one we
+      // hold. Their findings go in without line and page numbers, and the
+      // report says why in one line.
+      const unanchored = new Set(
+        moduleIds.filter((module) => {
+          const result = input.job.results[resultKey(document.docId, module)];
+          return result !== undefined && !anchoringOf(result).anchored;
+        }),
+      );
       return {
         docId: document.docId,
         name: document.name,
@@ -38,6 +48,8 @@ export function buildJobReport(input: {
           return result === undefined ? [] : issuesOf(result);
         }),
         fixed: input.fixed,
+        ignored: input.ignored,
+        unanchored,
       };
     }),
   });

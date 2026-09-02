@@ -10,6 +10,8 @@ export {
   getJob,
   getModuleResult,
   retryModule,
+  scoutFeedback,
+  scoutSearch,
   setCsrfToken,
   submitJob,
 } from "./client";

@@ -10,6 +10,14 @@ import {
 } from "@/lib/domain";
 import { track } from "@/lib/telemetry";
 
+export {
+  anchoringOf,
+  forgetWording,
+  reportAnchoring,
+  verifyWording,
+  type Anchoring,
+} from "./trust";
+
 /**
  * Four modules answer in four shapes, and the whole interface works with one.
  * Because of that the list inside a card is the same component for every

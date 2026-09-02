@@ -99,6 +99,131 @@ test.describe("the text overlay", () => {
   });
 });
 
+/**
+ * The text dissolves at an edge that hides more text. The rule the tests below
+ * hold is that it dissolves nowhere else, because the mask dims the caret as
+ * readily as it dims the letters - and the caret starts life on the first line,
+ * which is the one edge that never hides anything.
+ */
+test.describe("the fade at the edges of the text", () => {
+  /** Long enough that the field scrolls and the bottom edge does hide text. */
+  const LONG = [
+    "\\documentclass{article}",
+    "\\begin{document}",
+    ...Array.from(
+      { length: 200 },
+      (_, line) => `Line ${line + 1} of a manuscript long enough to scroll.`,
+    ),
+    "\\end{document}",
+    "",
+  ].join("\n");
+
+  async function openLongManuscript(page: Page): Promise<void> {
+    await page.goto("/");
+    await page.getByTestId("file-input").setInputFiles({
+      name: "long.tex",
+      mimeType: "text/plain",
+      buffer: Buffer.from(LONG, "utf8"),
+    });
+    await expect(page.getByTestId("document-card")).toContainText("characters");
+    await page.getByRole("button", { name: "long.tex", exact: true }).click();
+    await expect(page.getByTestId("editor")).toBeVisible();
+  }
+
+  /** The two distances the mask is drawn from, as the scroller carries them. */
+  async function fade(page: Page): Promise<{ top: string; bottom: string }> {
+    return await page.locator(".cm-scroller").evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        top: style.getPropertyValue("--cm-fade-top").trim(),
+        bottom: style.getPropertyValue("--cm-fade-bottom").trim(),
+      };
+    });
+  }
+
+  test("only the edge that hides text is faded", async ({ page }) => {
+    await openLongManuscript(page);
+
+    // Nothing is above the first line, so the top edge has nothing to say.
+    expect(await fade(page)).toEqual({ top: "0px", bottom: "20px" });
+
+    await page.locator(".cm-scroller").evaluate((node) => {
+      node.scrollTop = Math.round(node.scrollHeight / 2);
+    });
+    await expect
+      .poll(async () => await fade(page))
+      .toEqual({ top: "20px", bottom: "20px" });
+
+    await page.locator(".cm-scroller").evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    await expect
+      .poll(async () => await fade(page))
+      .toEqual({ top: "20px", bottom: "0px" });
+  });
+
+  test("the caret on the first line is drawn at its full colour", async ({ page }) => {
+    await openLongManuscript(page);
+    // The caret blinks, and a photograph of it is a coin toss unless the blink
+    // is stopped first: what is being asked is the colour it is drawn in, not
+    // which half of the blink the screenshot landed on.
+    await page.addStyleTag({
+      content: ".cm-cursorLayer { animation: none !important; opacity: 1 !important; }",
+    });
+    const caret = page.locator(".cm-cursor").first();
+    await expect(caret).toBeVisible();
+
+    /*
+     * Read off the screen rather than off the stylesheet: the defect this
+     * guards against was a caret whose colour was correct in every computed
+     * style and pale in every pixel, because a mask above it took the colour
+     * away after the fact.
+     */
+    const box = await caret.boundingBox();
+    if (box === null) throw new Error("the caret is on screen but has no box");
+    const clip = {
+      x: Math.floor(box.x) - 2,
+      y: Math.floor(box.y),
+      width: 6,
+      height: Math.round(box.height),
+    };
+    const shot = (await page.screenshot({ animations: "disabled", clip })).toString(
+      "base64",
+    );
+    const rows = await page.evaluate(async (data) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${data}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d");
+      if (context === null) return [];
+      context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, image.width, image.height).data;
+      const darkest: number[] = [];
+      for (let y = 0; y < image.height; y += 1) {
+        let value = 255;
+        for (let x = 0; x < image.width; x += 1) {
+          const at = (y * image.width + x) << 2;
+          const red = pixels[at] ?? 255;
+          const green = pixels[at + 1] ?? 255;
+          const blue = pixels[at + 2] ?? 255;
+          value = Math.min(value, (red + green + blue) / 3);
+        }
+        darkest.push(value);
+      }
+      return darkest;
+    }, shot);
+
+    // The row below the top of the caret against a row in its middle: a fade
+    // 20px deep would leave the first several times lighter than the second.
+    const near = rows[1] ?? 255;
+    const middle = rows[Math.floor(rows.length / 2)] ?? 0;
+    expect(near).toBeLessThan(middle + 12);
+  });
+});
+
 test.describe("editing after the check has run", () => {
   test("the document says its findings now point at a text that moved", async ({
     page,

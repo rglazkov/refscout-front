@@ -1,3 +1,4 @@
+import { countCodePoints } from "@/lib/docs";
 import {
   type Anchor,
   type Artifact,
@@ -18,8 +19,9 @@ import {
   type Evidence as WireEvidence,
   type Issue as WireIssue,
   type IssueAction as WireIssueAction,
-  type ModuleResult as WireModuleResult,
 } from "@/lib/api/wire";
+import { type IncomingModuleResult } from "@/lib/api/schemas";
+import { track } from "@/lib/telemetry";
 // Before the schemas themselves: the flag it sets is read as they are built.
 import "@/lib/api/schemas/jitless";
 import {
@@ -49,9 +51,10 @@ import {
  * TypeScript nothing - and an unfamiliar kind has to survive, costing the
  * finding its jump target rather than costing the whole response.
  */
-export function toIssue(w: WireIssue): Issue {
+export function toIssue(w: WireIssue, issueId: string = w.issueId): Issue {
   return {
-    issueId: w.issueId,
+    issueId,
+    serverId: w.issueId,
     code: w.code,
     severity: w.severity,
     titleKey: w.titleKey,
@@ -72,6 +75,28 @@ export function toAnchor(w: WireAnchor): Anchor {
   switch (w.kind) {
     case "range": {
       const a = zAnchorRange.parse(w);
+      /*
+       * The quote is the safety net under the coordinates, and it is only a net
+       * if it is the whole of what the range covers: the contract has it equal
+       * to the text between the two offsets, character for character, and its
+       * length in code points equal to the distance between them. A quote that
+       * is shorter was truncated or was measured in another unit, and either
+       * way the offsets beside it describe a different text.
+       *
+       * It is checked here rather than where the highlight is drawn, because
+       * this is where the answer first exists - and it costs the place, never
+       * the finding: the row stays in the list without a page beside it.
+       */
+      const expected = a.to - a.from;
+      const actual = countCodePoints(a.quote);
+      if (actual !== expected) {
+        // Lengths, never the quote: a telemetry event carries numbers, and the
+        // quote is a sentence of somebody's manuscript.
+        track("schema_error", {
+          code: "QUOTE_LENGTH_MISMATCH:anchor.quote",
+          context: { expected, actual },
+        });
+      }
       return {
         kind: "range",
         ...(a.docId === undefined ? {} : { docId: a.docId }),
@@ -80,6 +105,7 @@ export function toAnchor(w: WireAnchor): Anchor {
         quote: a.quote,
         ...(a.prefix === undefined ? {} : { prefix: a.prefix }),
         ...(a.suffix === undefined ? {} : { suffix: a.suffix }),
+        ...(actual === expected ? {} : { quoteMismatch: true as const }),
       };
     }
     case "quote": {
@@ -201,12 +227,17 @@ export function toArtifact(w: WireArtifact): Artifact {
   return { kind: w.kind, labelKey: w.labelKey, content: w.content };
 }
 
-export function toModuleResult(w: WireModuleResult): ModuleResult {
+export function toModuleResult(
+  w: IncomingModuleResult,
+  requestId?: string,
+): ModuleResult {
   return {
     module: w.module,
     docId: w.docId,
     attempt: w.attempt,
-    issues: w.issues.map(toIssue),
+    offsetUnit: w.offsetUnit,
+    ...(requestId === undefined || requestId === "" ? {} : { requestId }),
+    issues: withEffectiveIds(w.issues, w.module),
     artifacts: (w.artifacts ?? []).map(toArtifact),
     texts: w.texts.map((text) => ({
       docId: text.docId,
@@ -216,7 +247,44 @@ export function toModuleResult(w: WireModuleResult): ModuleResult {
   };
 }
 
-function toBiblioRecord(w: WireBiblioRecord): BiblioRecord {
+/**
+ * The identifiers the rest of the product uses, assigned here, once, at the
+ * boundary. The module's own `issueId` wins and is normally the whole story:
+ * the contract has it unique within a document and a module, and stable across
+ * polls and across a retry, which is what keeps a person's marks on the finding
+ * they marked.
+ *
+ * When the same one arrives twice inside one body, both findings are kept and
+ * the second is given a suffix. Folding them together would lose a finding, and
+ * a lost finding is a check the person paid for and did not receive; letting
+ * them share an identifier would put one person's mark on two rows. The
+ * duplication is reported, because it is the module's defect and it is
+ * invisible from the outside.
+ */
+function withEffectiveIds(
+  issues: IncomingModuleResult["issues"],
+  module: string,
+): readonly Issue[] {
+  const seen = new Map<string, number>();
+  return issues.map((issue) => {
+    const repeats = seen.get(issue.issueId) ?? 0;
+    seen.set(issue.issueId, repeats + 1);
+    if (repeats === 0) return toIssue(issue);
+
+    track("schema_error", {
+      code: `DUPLICATE_ISSUE_ID:${module}`,
+      context: { repeat: repeats },
+    });
+    return toIssue(issue, `${issue.issueId}#${repeats}`);
+  });
+}
+
+/**
+ * A work as the databases returned it. Exported because a search returns the
+ * same record as a Cite candidate does, and mapping it twice is how two screens
+ * end up disagreeing about what a record is.
+ */
+export function toBiblioRecord(w: WireBiblioRecord): BiblioRecord {
   return {
     title: w.title,
     authors: w.authors,
@@ -224,6 +292,7 @@ function toBiblioRecord(w: WireBiblioRecord): BiblioRecord {
     ...(w.venue === undefined ? {} : { venue: w.venue }),
     ...(w.citedBy === undefined ? {} : { citedBy: w.citedBy }),
     ...(w.doi === undefined ? {} : { doi: w.doi }),
+    ...(w.doiVerified === undefined ? {} : { doiVerified: w.doiVerified }),
     ...(w.url === undefined ? {} : { url: w.url }),
     openAccess: w.openAccess,
     sources: w.sources,

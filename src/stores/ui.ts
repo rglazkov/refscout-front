@@ -7,6 +7,15 @@ import { type ModuleId } from "@/lib/domain";
 
 import { type Marks } from "./job";
 
+/**
+ * What the working area is showing. Two of the tools do not start from a
+ * document in the buffer - one takes a query, the other a pair of versions - so
+ * each is a mode of this one screen rather than a page of its own. The buffer is
+ * untouched by the switch: a mode changes what the area holds and never what is
+ * in it.
+ */
+export type WorkspaceMode = "buffer" | "scout" | "diff";
+
 /** Which text the overlay is showing, and whether it can be edited. */
 export type OverlayTarget = {
   readonly docId: string;
@@ -18,6 +27,7 @@ export type OverlayTarget = {
  * server, so it lives in Zustand and not in Query.
  */
 export type UiState = {
+  readonly mode: WorkspaceMode;
   readonly overlay: OverlayTarget | null;
   /** Last target stays mounted while Radix plays the overlay's exit motion. */
   readonly retainedOverlay: OverlayTarget | null;
@@ -31,6 +41,7 @@ export type UiState = {
    */
   readonly openCards: Marks;
   readonly openIssues: Marks;
+  readonly setMode: (mode: WorkspaceMode) => void;
   readonly openOverlay: (target: OverlayTarget) => void;
   readonly closeOverlay: () => void;
   readonly openPaywall: (module: ModuleId) => void;
@@ -42,6 +53,7 @@ export type UiState = {
 
 export const useUiStore = create<UiState>()(
   immer((set) => ({
+    mode: "buffer",
     overlay: null,
     retainedOverlay: null,
     paywallModule: null,
@@ -49,6 +61,10 @@ export const useUiStore = create<UiState>()(
     openCards: {},
     openIssues: {},
 
+    setMode: (mode) =>
+      set((state) => {
+        state.mode = mode;
+      }),
     openOverlay: (target) =>
       set((state) => {
         state.overlay = target;

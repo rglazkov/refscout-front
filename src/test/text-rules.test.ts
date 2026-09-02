@@ -77,6 +77,35 @@ describe("grep rules over the source", () => {
     expect(JSON.parse(dictionary)).toHaveProperty("wording.unknown");
   });
 
+  /**
+   * Every text in this repository explains itself. The planning documents live
+   * outside it, they are edited without anyone here noticing, and their
+   * numbering moves - so a comment that sends the reader to a section, or a
+   * paragraph that dates a capability by a stage code, is a sentence that
+   * quietly becomes wrong and cannot be checked from inside the code. It also
+   * fails the reader who has the file open and not the document.
+   *
+   * Where a reference was carrying the explanation, the replacement is to say
+   * the thing itself: not "the storage arrives at such a stage" but "storage
+   * that survives a reload is not built yet".
+   *
+   * The scan is over what a developer reads while working here. The two scripts
+   * that lift the contract out of the agreed API document are outside it and
+   * name that document by path on purpose: reading it is what they are for.
+   */
+  it("nothing sends the reader to a document outside the repository", () => {
+    const pointer =
+      /§|\brefscout_[a-z_]+\.(?:md|html)\b|\bthe (?:specification|workplan|work plan|prototype)\b|\bsee the spec\b|\bmilestone\b|\bsection \d+ of\b/i;
+    const prose = [
+      ...sources.filter((file) => !file.path.endsWith(".gen.ts")),
+      { path: "README.md", text: readFileSync("README.md", "utf8") },
+    ];
+    const offenders = prose
+      .filter((file) => pointer.test(file.text))
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+
   it("colours appear nowhere outside the tokens file", () => {
     // The dark theme drifts away from the light one one hard-coded colour at a time.
     const color = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(/;

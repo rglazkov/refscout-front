@@ -4,11 +4,24 @@ A statically built front end: `next build` produces an `out/` folder, and there
 is no Node in production. The product name, the domain and the palette live in
 `brand.config.ts` and in `src/messages/` - they do not appear in the code.
 
-Milestone M2 of the build plan: manuscripts in the formats they really exist
-in. A person drops a PDF, a `.docx`, a `.txt`, `.md`, `.bib`, `.tex` or `.gls`,
-sees a card with the checks it proposes, opens the text and corrects it, reads
-the plan, runs the check, watches it stage by stage, gets the findings grouped
-by document, marks one as dealt with and downloads the report and the text.
+**What works today: the findings come back as findings.** A person drops a PDF,
+a `.docx`, a `.txt`, `.md`, `.bib`, `.tex` or `.gls`, sees a card with the
+checks it proposes, opens the text and corrects it, reads the plan, runs the
+check, watches it stage by stage, and gets the findings grouped by document -
+each one saying where it is in words, a page, an entry of a bibliography, the
+sentence the module was reading. They mark one as dealt with or turn it down,
+and take the report and the text away as files.
+
+**Two more tools sit beside the checks, and neither starts from a document in
+the buffer.** A search takes a topic and gives back real papers from ten
+bibliographic databases: the query string is the whole of what leaves the tab,
+and the order of the answer, every filter over it and the `.bib` of what was
+kept are worked out here. A comparison takes two versions - a `.docx` against
+the PDF it was printed to, a thesis against last week's thesis - marks what
+changed in both panes, and reaches no server at all. Each is a mode of the
+working screen with one way in, the pair of buttons that stand beside "paste
+text" while the buffer is empty, and one way out, "Back"; entering either and
+coming back leaves the buffer exactly as it was.
 
 **The file never leaves the browser.** Every format is read in a worker - pdf.js
 for PDF, mammoth and turndown for Word, our own code for the rest - and only the
@@ -17,18 +30,47 @@ visible: a document that would not read keeps its card, says why in numbers and
 offers a way out that can be taken there - a password, another attempt, another
 file, or the text typed in by hand.
 
-Two things it does not do yet, and both are later milestones rather than gaps.
-A Word file is downloaded as `.md` until the `.docx` builder arrives in M9, and
-the button says so. And the buffer lives as long as the tab does: the extracted
-text is held in memory, storage that survives a reload is M4, and until it
-exists the screen says so in as many words.
+Two things it does not do yet, and both are scheduled work rather than gaps. A
+Word file is downloaded as `.md` until the browser can build a `.docx` again,
+and the button says so. And the buffer lives as long as the tab does: the
+extracted text is held in memory, storage that survives a reload is not built
+yet, and until it exists the screen says so in as many words.
 
-**One part of M2 is closed on mocks and has to be returned to.** M2.8 asks for a
-body of real size to be put through a stand in the same week the parsing works -
-the compression, the timeouts and the refusals of a fifty-document submission
-are answered by a real proxy and a real server or by nobody. The backend is not
-built yet, so the client half is here and tested against the mock, and the
-measurement is owed the moment a stand exists.
+**The backend does not exist yet, and three things are owed the moment it does.**
+A body of real size has to go through a stand in the same week the parsing
+works: the compression, the timeouts and the refusals of a fifty-document
+submission are answered by a real proxy and a real server or by nobody. The seam
+with a live module is what the current work is for - everything on this side of
+it is built and tested against the contract's own examples, but the question it
+answers is the first reply from a real check. All four checks are wired the same
+way and drawn by the same screen, and the two with a language model in them are
+the slowest to arrive, so they are the ones most likely to answer `skipped` for
+a while: that is a state the interface already draws, and the day the server
+starts answering with findings instead, nothing here changes. And a search is
+the third: the databases behind it are the server's, so what the list actually
+looks like - how many answer, how often two of them time out - is a question
+only a stand answers. Until then no claim here rests on a module or a database
+having actually run.
+
+**A finding's place is worked out here and is given up rather than guessed.**
+The module sends offsets counted over the text it was given, and every body says
+which text that was: the hash and the length the server recomputed. Against them
+stands what we kept when we sent it (`src/lib/docs/snapshot.ts`), and the two
+have to agree before a single number in that body is used. When they do not -
+or when the body declares an offset unit the contract does not define - the
+findings are all still shown, and shown without places, with the identifier of
+the request on the card. The reason is that a highlight standing on coordinates
+from another version of the text looks exactly like a correct one, so a finding
+about page 4 quietly appears on page 5 and is read as our work rather than as a
+defect. A list without places is a useful result; a place that is wrong costs
+the trust in every place beside it.
+
+**Connecting a module is its codes in the dictionary and one renderer of its
+details** (`src/features/results/details/`), and that is enforced rather than
+asserted: a test fails on the name of a module appearing in the code the four of
+them share. Cite is the one exception the test allows, and not about the shape
+of its findings - it proposes sources rather than reporting problems, and a
+claim with its candidates is a screenful, so its card opens over the page.
 
 ## Commands
 
@@ -53,7 +95,7 @@ and the browser lane - what to run before opening a pull request.
 | `npm run fonts`         | Re-vendors the fonts from upstream; never runs during a build                             |
 | `npm run brand:assets`  | Redraws the tab icon and the social image from `brand.config.ts`                          |
 | `npm run pdfjs:assets`  | Copies pdf.js character maps, standard fonts and wasm into `public/pdfjs`                 |
-| `npm run workers:build` | Builds the two workers from `src/workers` into `public/workers`                           |
+| `npm run workers:build` | Builds the workers from `src/workers` into `public/workers`                               |
 | `npm run probe:workers` | Serves a page that starts a worker, to check a browser the lane cannot                    |
 
 `typecheck`, `lint`, `test`, `playwright test`, `size` and `contract` are the
@@ -73,11 +115,13 @@ default language copied to the root, the headers and the budgets. The fast CI
 lane is that one command and nothing else, which is what keeps CI and a
 developer's machine from slowly disagreeing about what "green" means.
 
-**Three browser projects, and the third runs one test.** `desktop` and `mobile`
+**Three browser projects, and the third runs two files.** `desktop` and `mobile`
 are Chromium and run the suite; `firefox` runs `e2e/shared/worker-start.spec.ts`
-and nothing else. What a second engine answers is whether a worker starts and
-reads a document here - the rest of the suite is layout, contrast and wording,
-which do not turn on the engine. Playwright's Firefox is a patched build that
+and `e2e/desktop/diff-alignment.spec.ts`. What a second engine answers is
+whether a worker starts and reads a document here, and whether the two panes of
+a comparison stay level - which rests on how the browser measures text, the one
+part of the layout that is a different answer in a different engine. The rest of
+the suite is contrast and wording, which do not turn on the engine. Playwright's Firefox is a patched build that
 quietly ignores `type: "module"`, so what that project exercises is the classic
 fallback, which is exactly the path a browser like that takes in the product.
 
@@ -138,11 +182,36 @@ re-export; both are needed.
   that one folder, and no code a worker runs touches the DOM or the network -
   the class of risk that comes with reading strangers' binary formats has moved
   from the server into the tab, and the worker is the box it is kept in.
+- Comparing two versions cannot reach the layer that sends: the mode has
+  nothing to send, and the architecture test says so rather than the prose. The
+  comparison itself runs in its own worker, because it is one pass over both
+  texts in full - a thesis against a thesis is six million characters, and on
+  the thread the panes are drawn on that is seconds of a frozen tab with the
+  caret in it.
+- A bibliographic record is drawn by one component, wherever it appears. A
+  search result and a candidate proposed for a claim are the same record in the
+  contract, and two cards for it would differ by the second edit.
 - There is one markdown parser in the project, and it is markdown-it. It arrives
-  with the `.docx` export path in M9; until then the rule is enforced against
-  every other one.
+  with the `.docx` export path; until then the rule is enforced against every
+  other one.
 - No text lives in component code - only dictionary keys; no colours live in the
   code - only `src/app/tokens.css`; the product name does not appear in `src/`.
+- The dictionary is split where the product is. The provider at the root carries
+  the namespaces the site's own pages read (`shellNamespaces` in
+  `src/lib/i18n/messages.ts`); everything the working screen says - the cards,
+  the states of an extraction, the findings, every refusal the server can give -
+  is most of the dictionary and arrives in the chunk that screen arrives in, for
+  the one language being read. Handed whole to the root, all of it is written
+  into the HTML of every address, and the page of the privacy policy is served
+  with the wording of a password prompt. A test holds the boundary in both
+  directions, because a namespace read by a page and missing from the shell is a
+  placeholder that appears only in a browser.
+- Every text a developer reads here explains itself. No pointers into the
+  planning documents - no section marks, no stage codes - because they are
+  edited outside this repository and their numbering moves, so such a sentence
+  becomes wrong without anything here noticing. Where a reference was carrying
+  the explanation, the replacement is to say the thing itself. A test greps for
+  them.
 - One module writes to `localStorage`: `src/lib/theme`.
 
 ## How to add and how to remove a check
@@ -186,7 +255,7 @@ the links in the header and footer read the same list, so they start describing
 the new language the moment it exists - and cannot describe one that does not.
 
 **The third thing is the switcher**, and it is the only part not already built.
-It belongs in the header beside the theme (§15) and is left out while there is
+It belongs in the header beside the theme toggle and is left out while there is
 one language, because a menu with a single row asks a question with one answer.
 Its pieces are in place: `unlocalizedPath` in `src/lib/seo` turns the address
 being read into the same page in another language - switching has to leave the
@@ -268,32 +337,32 @@ than become layout.
 
 ## The API contract
 
-The contract is one OpenAPI document, and it is written in the API
-specification - the document the backend developer reads and agrees to. Nothing
-in this repository is the place to edit it:
+The contract is one OpenAPI document, and it is written and agreed with the
+backend developer outside this repository. Nothing here is the place to edit
+it:
 
 ```text
-refscout_api_spec.md  (section 16)     the document; edited here
-  -> npm run contract:extract          lifts the OpenAPI block out of it
-       contract/refscout-api.yaml      committed, because CI has no access
-                                       to the specification
-  -> npm run contract                  regenerates everything below
-       src/lib/api/wire/               the types and the zod schemas
-       src/test/msw/handlers.gen.ts    the mocks
+the agreed API document           edited there, not here
+  -> npm run contract:extract     lifts the OpenAPI block out of it
+       contract/refscout-api.yaml committed, because CI cannot reach
+                                  the document it came from
+  -> npm run contract             regenerates everything below
+       src/lib/api/wire/          the types and the zod schemas
+       src/test/msw/handlers.gen.ts   the mocks
 ```
 
-The extraction is deliberately not part of `npm run contract`: the
-specification lives outside this repository, so a checkout in CI does not have
-it, and the committed YAML is what every other step reads. CI re-runs
-`npm run contract` and fails if the generated files have drifted from it.
+The extraction is deliberately not part of `npm run contract`: the document it
+reads lives outside this repository, so a checkout in CI does not have it, and
+the committed YAML is what every other step reads. CI re-runs `npm run contract`
+and fails if the generated files have drifted from it.
 
 **The mocks are the contract's own `examples`.** A response with no example
 serves nothing, and that shows up as a missing handler rather than as a
 fabricated body: there is no body to invent that would still be the contract.
-Which cases have to exist is section 15 of the specification - a clean finish, a
-partial failure, a whole job failed, a skipped module, a finding pointing across
-documents, a Cite result with both groups, and anchors of a kind this version of
-the schema does not define. Adding a case means adding an example there.
+The cases that have to exist are a clean finish, a partial failure, a whole job
+failed, a skipped module, a finding pointing across documents, a Cite result
+with both groups, and anchors of a kind this version of the schema does not
+define. Adding a case means adding an example to the contract.
 
 Nothing in the contract has been confirmed by the other side yet, so expect it
 to move. It costs little when it does: no application code names a wire type -

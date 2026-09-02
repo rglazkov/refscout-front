@@ -12,7 +12,7 @@ import { countCodePoints } from "@/lib/docs/units";
 import { type DocMeta, type PageSpan } from "@/lib/domain";
 
 import { ParseFailure } from "./failure";
-import { assess } from "./quality";
+import { isBlank } from "./quality";
 import { aborted, type Parsed, type PdfOptions, type PdfResources } from "./types";
 
 /**
@@ -159,7 +159,7 @@ async function readPages(pdf: PDFDocumentProxy, options: PdfOptions): Promise<Pa
   }
 
   const text = parts.join(PAGE_SEPARATOR);
-  if (assess(text).empty) {
+  if (isBlank(text)) {
     // A PDF whose pages are pictures. It is not an error of ours and not a
     // damaged file: it is a document with nothing in it to check, and the way
     // out is to bring the text in another way. OCR is not done here.

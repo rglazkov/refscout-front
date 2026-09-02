@@ -42,3 +42,6 @@ export const readyReply: WorkerReply<never> = { id: "", type: "ready" };
 export const parseCall = "parse" as const;
 
 export const compressCall = "compress" as const;
+
+/** The name of the call the comparison worker answers. */
+export const diffCall = "diff" as const;

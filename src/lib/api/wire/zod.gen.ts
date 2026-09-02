@@ -519,6 +519,7 @@ export const zBiblioRecord = z.object({
     venue: z.string().optional(),
     citedBy: z.int().gte(0).optional(),
     doi: z.string().optional(),
+    doiVerified: z.boolean().optional(),
     url: zHttpUrl.optional(),
     openAccess: z.boolean(),
     sources: z.array(zSourceId).min(1),

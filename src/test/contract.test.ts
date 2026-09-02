@@ -170,8 +170,15 @@ describe("entitlements", () => {
 describe("a module result body", () => {
   const bibcheck = zModuleResult.parse(scenarios.getModuleResult.bibcheck.body);
 
-  it("states the unit its offsets are measured in", () => {
-    expect(bibcheck.offsetUnit).toBe("codepoints");
+  it("every body states the unit its offsets are measured in", () => {
+    // One unit is defined and no other is accepted, so a body that is silent
+    // about it is as unusable as one that names a different one: the client
+    // reads the field before it treats a single coordinate as its own.
+    for (const [name, example] of Object.entries(scenarios.getModuleResult)) {
+      if (example.status !== 200) continue;
+      const body = zModuleResult.parse(example.body);
+      expect([name, body.offsetUnit]).toEqual([name, "codepoints"]);
+    }
   });
 
   it("a finding carries a wording key rather than a ready-made phrase", () => {
@@ -192,16 +199,30 @@ describe("a module result body", () => {
     expect(pointedAt.filter((docId) => !declared.has(docId))).toEqual([]);
   });
 
-  it("a range anchor's quote is as long as the offsets say", () => {
-    // Parsed against the branch rather than narrowed by `kind`: the open branch
-    // of the union accepts any kind at all, so a check on the tag alone tells
-    // TypeScript nothing.
-    const found = bibcheck.issues
-      .flatMap((issue) => issue.anchors)
-      .find((anchor) => anchor.kind === "range");
-    const range = zAnchorRange.parse(found);
-
-    expect([...range.quote].length).toBe(range.to - range.from);
+  it("every range anchor of every body carries a quote as long as its offsets", () => {
+    /*
+     * The quote is the safety net under the coordinates, and it is only a net
+     * if it is the whole of what the range covers. Checked over every example
+     * rather than over one, because this is the invariant the stand is held to:
+     * a body that breaks it has either truncated the quote or counted in
+     * another unit, and both are found here or not at all.
+     *
+     * Parsed against the branch rather than narrowed by `kind`: the open branch
+     * of the union accepts any kind at all, so a check on the tag alone tells
+     * TypeScript nothing.
+     */
+    let checked = 0;
+    for (const example of Object.values(scenarios.getModuleResult)) {
+      if (example.status !== 200) continue;
+      const body = zModuleResult.parse(example.body);
+      for (const anchor of body.issues.flatMap((issue) => issue.anchors)) {
+        if (anchor.kind !== "range") continue;
+        const range = zAnchorRange.parse(anchor);
+        expect([...range.quote].length).toBe(range.to - range.from);
+        checked += 1;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it("an artifact arrives as text rather than as a link", () => {

@@ -4,9 +4,10 @@ import { getMessages } from "next-intl/server";
 
 import { SiteFooter } from "@/components/shell/site-footer";
 import { SiteHeader } from "@/components/shell/site-header";
+import { MAIN_ID, SkipLink } from "@/components/shell/skip-link";
 import { ZoneBoundary } from "@/components/shell/zone-boundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { type Locale } from "@/lib/i18n";
+import { shellMessages, type Locale } from "@/lib/i18n";
 import { publicPath } from "@/lib/public-path";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
@@ -62,13 +63,23 @@ export async function SiteDocument({ locale, children }: SiteDocumentProps) {
         <script>{THEME_INIT_SCRIPT}</script>
       </head>
       <body className="min-h-svh">
-        <NextIntlClientProvider messages={messages}>
+        {/* The shell's own words and no more. What the working screen says -
+            the cards, the findings, every refusal the server can give - is
+            most of the dictionary and none of this page, so it arrives with
+            that screen instead of being written into the HTML of every
+            address here. */}
+        <NextIntlClientProvider messages={shellMessages(messages)}>
           <TooltipProvider>
             <div className="flex min-h-svh flex-col">
+              <SkipLink />
               <ZoneBoundary zone="shell">
                 <SiteHeader locale={locale} />
               </ZoneBoundary>
-              <main className="flex-1">{children}</main>
+              {/* Focusable, so that following the link above actually moves
+                  the focus rather than only the scroll position. */}
+              <main id={MAIN_ID} tabIndex={-1} className="flex-1 outline-none">
+                {children}
+              </main>
               <SiteFooter locale={locale} />
             </div>
           </TooltipProvider>
