@@ -18,5 +18,5 @@ export default async function Page({ params }: PageProps) {
   if (!isLocale(locale)) notFound();
 
   setRequestLocale(locale);
-  return <PricingPage locale={locale} />;
+  return <PricingPage />;
 }

@@ -80,7 +80,6 @@ export function CiteOverlay({
       }}
     >
       <DialogContent
-        showCloseButton={false}
         data-testid="cite-overlay"
         style={{ "--overlay-height": height } as React.CSSProperties}
         className="flex h-[var(--overlay-height)] max-w-none flex-col gap-0 rounded-none p-0 sm:h-[calc(var(--overlay-height)-1rem)] sm:max-w-5xl sm:rounded-lg"

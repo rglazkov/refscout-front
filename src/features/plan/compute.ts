@@ -1,5 +1,10 @@
 import { withCompanions } from "@/lib/docs";
-import { type BufferItem, type Entitlements } from "@/lib/domain";
+import {
+  type BufferItem,
+  type Entitlements,
+  type LockReason,
+  type ModuleId,
+} from "@/lib/domain";
 
 /**
  * What a document's card says about the run it is about to take part in. Every
@@ -13,6 +18,21 @@ import { type BufferItem, type Entitlements } from "@/lib/domain";
  */
 
 /**
+ * Why a check cannot be ticked, straight from the server's answer. The lock on
+ * a check is drawn from `modules[m].allowed` and from nothing else: whether
+ * paid access is open is a different question with a different answer, and an
+ * account holding an unspent trial run of Cite carries `allowed: true`
+ * together with `access: false`.
+ */
+export function lockOf(
+  entitlements: Entitlements | null,
+  module: ModuleId,
+): { readonly locked: boolean; readonly reason: LockReason | undefined } {
+  const entry = entitlements?.modules[module];
+  return { locked: entry?.allowed === false, reason: entry?.lockReason };
+}
+
+/**
  * The exact documents handed to submission. A stale lock in the interface is
  * not protection (the server remains authoritative), but a lock we already
  * know about must not be sent as though the plan had promised it would run.
@@ -23,9 +43,7 @@ export function runnableItems(
 ): readonly BufferItem[] {
   return items.flatMap((item) => {
     if (item.attachedTo !== undefined || !hasText(item)) return [];
-    const checks = item.checks.filter(
-      (module) => entitlements?.modules[module].allowed !== false,
-    );
+    const checks = item.checks.filter((module) => !lockOf(entitlements, module).locked);
     return checks.length === 0 ? [] : [{ ...item, checks }];
   });
 }

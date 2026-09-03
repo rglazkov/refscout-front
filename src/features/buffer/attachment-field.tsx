@@ -401,7 +401,7 @@ function VenueLink({
         if (!next) onClose();
       }}
     >
-      <DialogContent showCloseButton={false} className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base">{t("venue.linkTitle")}</DialogTitle>
         </DialogHeader>

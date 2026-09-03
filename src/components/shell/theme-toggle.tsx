@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
-import { track } from "@/lib/telemetry";
 import { chooseTheme, resolveTheme, subscribeToTheme, type Theme } from "@/lib/theme";
 
 /**
@@ -58,11 +57,6 @@ export function ThemeToggle() {
   const t = useTranslations("theme");
   const theme = useSyncExternalStore(subscribeToTheme, resolveTheme, serverTheme);
 
-  function change(next: Theme): void {
-    chooseTheme(next);
-    track("theme_changed", { context: { dark: next === "dark" } });
-  }
-
   return (
     <div
       role="group"
@@ -76,7 +70,7 @@ export function ThemeToggle() {
               type="button"
               aria-pressed={theme === value}
               onClick={() => {
-                change(value);
+                chooseTheme(value);
               }}
               className={cn(
                 "grid size-6 place-items-center rounded-sm text-muted-foreground transition-colors nav:size-7",

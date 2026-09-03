@@ -9,6 +9,13 @@ export type SourceFile = {
   readonly text: string;
   /** Static imports and re-exports. */
   readonly imports: readonly string[];
+  /**
+   * The subset of those that survive compilation. `import type` and a brace
+   * list whose every name is prefixed with `type` are erased, so they say
+   * nothing about what a person downloads - and a graph that counts them
+   * reports a chunk that is not there.
+   */
+  readonly valueImports: readonly string[];
   /** Dynamic import(...) calls. */
   readonly dynamicImports: readonly string[];
 };
@@ -31,7 +38,7 @@ function toPosix(absolute: string): string {
     .join(posix.sep);
 }
 
-const STATIC_IMPORT = /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s*["']([^"']+)["']/g;
+const STATIC_IMPORT = /(?:^|\n)\s*(?:import|export)([\s\S]*?)from\s*["']([^"']+)["']/g;
 const BARE_IMPORT = /(?:^|\n)\s*import\s*["']([^"']+)["']/g;
 const DYNAMIC_IMPORT = /\bimport\(\s*["']([^"']+)["']\s*\)/g;
 
@@ -39,13 +46,37 @@ function matchAll(text: string, pattern: RegExp): string[] {
   return [...text.matchAll(pattern)].map((match) => match[1] ?? "");
 }
 
+/** Whether what stands between `import` and `from` names types and nothing else. */
+function typeOnly(clause: string): boolean {
+  if (/^\s*type\s/.test(clause)) return true;
+  const braces = /\{([\s\S]*)\}/.exec(clause);
+  if (braces === null) return false;
+  // A default or namespace binding beside the braces is a value in itself.
+  if (clause.slice(0, braces.index).replace(/[\s,]/g, "") !== "") return false;
+  const names = (braces[1] ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name !== "");
+  return names.length > 0 && names.every((name) => /^type\s/.test(name));
+}
+
 export function readSources(): readonly SourceFile[] {
   return walk(SRC, []).map((absolute) => {
     const text = readFileSync(absolute, "utf8");
+    const statics = [...text.matchAll(STATIC_IMPORT)].map((match) => ({
+      specifier: match[2] ?? "",
+      erased: typeOnly(match[1] ?? ""),
+    }));
+    const bare = matchAll(text, BARE_IMPORT);
+
     return {
       path: toPosix(absolute),
       text,
-      imports: [...matchAll(text, STATIC_IMPORT), ...matchAll(text, BARE_IMPORT)],
+      imports: [...statics.map((entry) => entry.specifier), ...bare],
+      valueImports: [
+        ...statics.filter((entry) => !entry.erased).map((entry) => entry.specifier),
+        ...bare,
+      ],
       dynamicImports: matchAll(text, DYNAMIC_IMPORT),
     };
   });
@@ -98,4 +129,49 @@ export function reachableFrom(graph: Map<string, string[]>, prefix: string): Set
     }
   }
   return seen;
+}
+
+/**
+ * The packages a set of entry files pays for up front: everything reached by
+ * following static imports only, with `import()` treated as a wall.
+ *
+ * That wall is the point. A dynamically imported module is a chunk of its own
+ * and arrives when somebody does the thing that needs it, so the question "what
+ * does opening this page cost" is exactly the question "what is reachable
+ * without crossing an import()".
+ *
+ * The answer maps each external package to the chain that pulled it in, because
+ * the useful half of such a failure is not which package arrived but which
+ * import brought it.
+ */
+export function packagesUpFront(
+  files: readonly SourceFile[],
+  entries: readonly string[],
+): Map<string, string> {
+  const byPath = new Map(files.map((file) => [file.path.replace(CODE, ""), file]));
+  const found = new Map<string, string>();
+  const seen = new Set<string>();
+  const queue = entries.map((entry) => ({ path: entry, chain: entry }));
+
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (current === undefined) continue;
+    const key = current.path.replace(CODE, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const file = byPath.get(key) ?? byPath.get(`${key}/index`);
+    if (file === undefined) continue;
+
+    for (const specifier of file.valueImports) {
+      const internal = resolveSpecifier(file.path, specifier);
+      const chain = `${current.chain} -> ${specifier}`;
+      if (internal === null) {
+        if (!found.has(specifier)) found.set(specifier, chain);
+      } else {
+        queue.push({ path: internal, chain });
+      }
+    }
+  }
+  return found;
 }

@@ -19,5 +19,16 @@ nothing to import, used when the first does not answer within three seconds.
 Whoever lands on the second downloads both parsers instead of one, which is the
 right price for the product working at all there.
 
+**Parsing runs on a small pool, not on one worker.** Cancelling means
+terminating - a parser inside a synchronous conversion cannot be asked politely
+to stop - and with a single worker the only honest way to keep that from
+cancelling somebody else's document was to serialise every call, so a document
+stopped on its card waited for the queue in front of it. A call now holds its
+own instance: ending it ends that instance and nothing else. The size follows
+the machine, one fewer than the cores it reports and never more than three,
+because a hundred megabytes of PDF being inflated is hundreds of megabytes in
+the tab and four of those at once is a tab the browser ends. Compression and
+comparison keep one worker each, being asked for one at a time.
+
 Nothing here touches the DOM or the network, and `src/lib/parse` is reachable
 from this folder alone: both are held by `src/test/workers.test.ts`.

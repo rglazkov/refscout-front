@@ -169,7 +169,6 @@ function OverlayBody({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        showCloseButton={false}
         /*
          * On a phone the overlay is the whole screen, with a way back, and its
          * height comes from the visual viewport rather than from the window:

@@ -46,16 +46,20 @@ export default defineConfig({
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
       /*
-       * Two files, and both are about the engine. The first asks whether a
-       * worker starts here and reads every kind of document. The second asks
+       * Three files, and all three are about the engine. The first asks whether
+       * a worker starts here and reads every kind of document. The second asks
        * whether the two panes of a comparison stay level, which rests on how
        * the browser measures text - the one part of the layout that is a
-       * different answer in a different engine. What the rest of the suite
-       * asks - contrast, wording, the shape of the flow - does not turn on the
-       * engine, and running it twice would buy re-tuned assertions rather than
-       * confidence.
+       * different answer in a different engine. The third is the reporting of
+       * problems, and it belongs here for the same reason as the first: what it
+       * rests on - a batch delivered while the tab is closing, a queue in
+       * IndexedDB, a key combination read by its code - differs between engines,
+       * and every one of its failures is silent by design. What the rest of the
+       * suite asks - contrast, wording, the shape of the flow - does not turn on
+       * the engine, and running it twice would buy re-tuned assertions rather
+       * than confidence.
        */
-      testMatch: /(worker-start|diff-alignment)\.spec\.ts/,
+      testMatch: /(worker-start|diff-alignment|report)\.spec\.ts/,
     },
     {
       name: "mobile",

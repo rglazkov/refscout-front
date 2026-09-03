@@ -14,31 +14,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { lockActionFor } from "@/lib/entitlements";
 import { type Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/seo";
-import { useUiStore } from "@/stores";
+import { useEntitlementsStore, useUiStore } from "@/stores";
 
-/** A lock explains the paid check before the person starts filling anything in. */
+/**
+ * A lock explains the paid check before the person starts filling anything in.
+ *
+ * What it offers depends on why the check is locked. Signing in and buying
+ * access are different errands, and the four reasons the server can give are
+ * two of each: an anonymous visitor is offered the way in, and everyone whose
+ * trial is spent or whose period has ended is offered the way to renew it. A
+ * refusal that names no reason still gets a sentence and a way forward - an
+ * empty window reads as a broken interface, and a person who cannot tell what
+ * happened cannot resolve it either.
+ */
 export function AccessDialog() {
   const t = useTranslations("access");
   const checkName = useTranslations("capabilities");
   const locale = useLocale() as Locale;
   const moduleId = useUiStore((state) => state.paywallModule);
   const close = useUiStore((state) => state.closePaywall);
+  const entitlements = useEntitlementsStore((state) => state.entitlements);
 
   if (moduleId === null) return null;
-  const description =
-    moduleId === "bibcheck"
-      ? t("description.bibcheck")
-      : moduleId === "glossary"
-        ? t("description.glossary")
-        : moduleId === "presubmit"
-          ? t("description.presubmit")
-          : t("description.cite");
+  const reason = entitlements?.modules[moduleId].lockReason;
+  const action = lockActionFor(reason);
+  const target = action === "sign-in" ? "/account/" : "/pricing/";
 
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="sm:max-w-lg" showCloseButton={false}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-sm border border-primary/35 bg-primary-soft px-2 py-1 text-xs font-semibold text-primary">
             <LockIcon className="size-3" aria-hidden="true" />
@@ -46,9 +53,16 @@ export function AccessDialog() {
           </span>
           <DialogTitle>{t("title", { module: checkName(moduleId) })}</DialogTitle>
           <DialogDescription className="text-base leading-relaxed">
-            {description}
+            {t(`description.${moduleId}`)}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Why this check is locked for this person, in its own words. The four
+            cases are different situations with different ways out, and one
+            sentence covering all of them would be true of none of them. */}
+        <p className="text-sm font-medium" data-testid="lock-reason" data-reason={reason}>
+          {t(`reason.${reason ?? "unknown"}`)}
+        </p>
 
         <ul className="space-y-2 text-sm">
           {[t("benefit.before"), t("benefit.visible"), t("benefit.export")].map(
@@ -70,9 +84,9 @@ export function AccessDialog() {
               {t("notNow")}
             </Button>
           </DialogClose>
-          <Button asChild>
-            <Link href={localizedPath("/pricing/", locale)} onClick={close}>
-              {t("upgrade")}
+          <Button asChild data-testid="lock-action" data-action={action}>
+            <Link href={localizedPath(target, locale)} onClick={close}>
+              {action === "sign-in" ? t("signIn") : t("upgrade")}
             </Link>
           </Button>
         </DialogFooter>

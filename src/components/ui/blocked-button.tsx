@@ -55,7 +55,7 @@ export function BlockedButton({
           // still not act on the press.
           event.preventDefault();
           setExplained(true);
-          track("blocked_click", { code: `ACTION_BLOCKED:${action}` });
+          track("blocked_action", { code: `ACTION_BLOCKED:${action}` });
         }}
       >
         {children}

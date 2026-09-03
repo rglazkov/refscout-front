@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { FeedbackMount } from "@/components/shell/feedback-mount";
 import { site } from "@/lib/brand";
 import { type Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/seo";
@@ -25,6 +26,11 @@ export function SiteFooter({ locale }: { readonly locale: Locale }) {
         <a className="hover:text-foreground" href={`mailto:${site.supportEmail}`}>
           {t("support")}
         </a>
+        {/* Reporting a problem, and the switch that stops the automatic
+            reports. Both stand on every page: an error state is not the only
+            place somebody notices that something is wrong, and a switch that
+            has to be hunted for is not one a person can be said to have. */}
+        <FeedbackMount />
       </div>
     </footer>
   );

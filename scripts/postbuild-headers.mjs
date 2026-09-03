@@ -17,7 +17,24 @@ import {
  * reference the smoke test compares a deployed environment against.
  */
 const OUT = "out";
-const INLINE_SCRIPT = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+const INLINE_SCRIPT = /<script((?![^>]*\bsrc=)[^>]*)>([\s\S]*?)<\/script>/g;
+
+/**
+ * A script element whose type is not a JavaScript one is a block of data: the
+ * browser reads it and executes nothing, and the policy on script sources has
+ * no opinion about it. The structured data on the marketing pages is exactly
+ * that, and hashing it would put the sha256 of a JSON document into script-src
+ * - a value that changes with every edit to the page's own text and permits
+ * nothing.
+ */
+const SCRIPT_TYPE = /\btype\s*=\s*["']([^"']+)["']/i;
+const JAVASCRIPT_TYPES = new Set([
+  "text/javascript",
+  "application/javascript",
+  "module",
+  "importmap",
+  "speculationrules",
+]);
 
 function htmlFiles(dir, acc = []) {
   for (const entry of readdirSync(dir)) {
@@ -42,7 +59,9 @@ function routeOf(file) {
 function hashesOf(html) {
   const hashes = new Set();
   for (const match of html.matchAll(INLINE_SCRIPT)) {
-    const body = match[1] ?? "";
+    const type = SCRIPT_TYPE.exec(match[1] ?? "")?.[1]?.toLowerCase();
+    if (type !== undefined && !JAVASCRIPT_TYPES.has(type)) continue;
+    const body = match[2] ?? "";
     if (body.trim() === "") continue;
     hashes.add(`sha256-${createHash("sha256").update(body, "utf8").digest("base64")}`);
   }

@@ -38,6 +38,26 @@ describe("grep rules over the source", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("the secure-context-only cryptography is reached through one module", () => {
+    /*
+     * `crypto.randomUUID` and `crypto.subtle` exist only in a secure context -
+     * https and localhost, and not a build opened over plain http from another
+     * machine, which is a case the project invites by name. Called directly,
+     * each of them takes out something the product cannot work without: the
+     * identifier every document is given, the key that makes a submission
+     * repeatable, the hash the place of every finding is checked against. They
+     * are reached through `lib/webcrypto`, which has a way through for both.
+     */
+    const offenders = sources
+      .filter((file) => !file.path.endsWith("/lib/webcrypto.ts"))
+      .filter(
+        (file) =>
+          file.text.includes("crypto.randomUUID") || file.text.includes("crypto.subtle"),
+      )
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+
   it("dangerouslySetInnerHTML appears nowhere", () => {
     // Markdown from someone else's document must not become an XSS vector.
     const offenders = sources

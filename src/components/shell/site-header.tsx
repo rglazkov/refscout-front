@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { AccountLinkMount } from "@/components/shell/account-link-mount";
 import { SiteNavLinks, SiteNavMenu } from "@/components/shell/site-nav";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
-import { Button } from "@/components/ui/button";
 import { Logo, site } from "@/lib/brand";
 import { type Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/seo";
@@ -52,9 +52,16 @@ export function SiteHeader({ locale }: { readonly locale: Locale }) {
         <div className="ms-auto flex items-center gap-1.5 nav:gap-2">
           <SiteNavMenu />
           <ThemeToggle />
-          <Button asChild variant="outline" size="sm" className="h-8 nav:h-9">
-            <Link href={localizedPath("/account/", locale)}>{t("signIn")}</Link>
-          </Button>
+          {/* The one control in the header whose word depends on the server's
+              answer. It is served as the way in and says so; once the session
+              is known, somebody who is already signed in reads the name of the
+              place it leads to instead of an offer they have already taken. */}
+          <AccountLinkMount
+            href={localizedPath("/account/", locale)}
+            signedOut={t("signIn")}
+            signedIn={t("account")}
+            className="h-8 nav:h-9"
+          />
         </div>
       </div>
     </header>

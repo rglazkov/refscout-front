@@ -5,14 +5,21 @@
  */
 export {
   cancelJob,
+  deleteAccount,
+  exportAccountData,
   fetchVenueRequirements,
   getEntitlements,
   getJob,
   getModuleResult,
+  getSession,
+  oauthStartUrl,
+  openBillingPortal,
   retryModule,
   scoutFeedback,
   scoutSearch,
   setCsrfToken,
+  signOut,
+  startCheckout,
   submitJob,
 } from "./client";
 export {

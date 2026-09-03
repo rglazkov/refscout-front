@@ -51,10 +51,18 @@ export function anchoringOf(result: ModuleResult): Anchoring {
  */
 export function reportAnchoring(result: ModuleResult): Anchoring {
   const verdict = anchoringOf(result);
+  /*
+   * Reported as a rejected anchoring rather than as a bad answer, because that
+   * is the question it answers. The body is still shown and its findings are
+   * still read; what they lose is their places, and how often the product hands
+   * out lists instead of locations is the number that shows a divergence from
+   * the backend the day after a release rather than a month later through
+   * support. The module travels as the path, and nothing of the text does.
+   */
   if (verdict.reason === "offsetUnit") {
-    track("schema_error", { code: `OFFSET_UNIT_UNSUPPORTED:${result.module}` });
+    track("anchor_rejected", { code: `OFFSET_UNIT_UNSUPPORTED:${result.module}` });
   } else if (verdict.reason === "text") {
-    track("schema_error", { code: `TEXT_MISMATCH:${result.module}` });
+    track("anchor_rejected", { code: `TEXT_MISMATCH:${result.module}` });
   }
   return verdict;
 }

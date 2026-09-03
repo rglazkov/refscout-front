@@ -9,6 +9,21 @@ if (pagesBasePath !== "" && !pagesBasePath.startsWith("/")) {
 }
 
 /**
+ * Which build this is. Every telemetry event carries it, and without it an
+ * event says that something broke and not where: the same symptom in two
+ * releases is two different defects, and the report that cannot tell them apart
+ * sends somebody looking through code that was never deployed.
+ *
+ * The commit is preferred because it is the one identifier that leads straight
+ * back to the source. A build made on somebody's machine says "dev" outright
+ * rather than inventing a version number, so local crashes stay in their own
+ * bucket instead of being counted against a release.
+ */
+const release =
+  process.env.NEXT_PUBLIC_RELEASE ??
+  (process.env.GITHUB_SHA === undefined ? "dev" : process.env.GITHUB_SHA.slice(0, 7));
+
+/**
  * Static export: `next build` emits an `out/` folder, and there is no Node in
  * production. The consequences are accepted up front and not revisited: no
  * middleware, no route handlers, no ISR, no server actions. Redirects and
@@ -20,6 +35,7 @@ const nextConfig: NextConfig = {
   basePath: pagesBasePath,
   env: {
     NEXT_PUBLIC_BASE_PATH: pagesBasePath,
+    NEXT_PUBLIC_RELEASE: release,
   },
   pageExtensions: ["ts", "tsx", "mdx"],
   // Every route is a folder with an index.html: that is what any static host serves.

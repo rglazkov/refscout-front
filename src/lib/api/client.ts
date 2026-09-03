@@ -5,8 +5,10 @@ import {
   type JobStatus,
   type ModuleId,
   type ModuleResult,
+  type OauthProvider,
   type ScoutAnswer,
   type ScoutVote,
+  type Session,
   type SearchLimit,
   type SubmitJobRequest,
   type SubmitJobResult,
@@ -19,6 +21,7 @@ import { ApiError, NetworkError } from "./errors";
 import {
   fromSubmitJobRequest,
   toEntitlements,
+  toSession,
   toJobStatus,
   toModuleResult,
   toScoutAnswer,
@@ -28,6 +31,9 @@ import {
 import {
   zApiError,
   zEntitlements,
+  zExportAccountDataResponse,
+  zRedirectUrl,
+  zSessionResponse,
   zJobStatus,
   zModuleResult,
   zScoutResponse,
@@ -160,6 +166,11 @@ async function send(requested: Requested): Promise<Response> {
       if (attempt < attempts) await wait(backoffMs(attempt + 1));
     }
   }
+  // There was no answer at all, after every attempt this request was allowed.
+  // It is a separate kind from a refusal: one says the server decided
+  // something, the other says the browser never reached it, and the two are
+  // fixed in different places.
+  track("network_error", { code: "NETWORK_FAILED" });
   throw new NetworkError(lastError);
 }
 
@@ -245,6 +256,56 @@ async function readJson(response: Response): Promise<unknown> {
  */
 type Answered<W> = { readonly body: W; readonly requestId: string };
 
+/**
+ * Turns a refusal into the one error type the screens know. Every refusal
+ * carries the same envelope, so there is a single branch for a status the
+ * client was not built to expect, and one that is not the envelope at all still
+ * arrives as a code with a request identifier rather than as a parse failure.
+ */
+function refuse(response: Response, body: unknown, requestId: string): never {
+  const failure = zApiError.safeParse(body);
+  /*
+   * Every refusal is reported, whatever the screen does about it afterwards.
+   * The code travels as the path so that the enumeration in the telemetry
+   * module stays closed and the server's dictionary is not copied into it to
+   * drift; the status is a number and goes in the context.
+   */
+  track("api_error", {
+    code: `API_REFUSED:${failure.success ? failure.data.error.code : "INTERNAL_ERROR"}`,
+    context: { status: response.status },
+    requestId: failure.success ? failure.data.error.requestId : requestId,
+  });
+  throw new ApiError(
+    failure.success
+      ? {
+          code: failure.data.error.code,
+          requestId: failure.data.error.requestId,
+          status: response.status,
+          ...(failure.data.error.params === undefined
+            ? {}
+            : { params: failure.data.error.params }),
+          ...(failure.data.error.field === undefined
+            ? {}
+            : { field: failure.data.error.field }),
+          ...(failure.data.error.retryAfterSec === undefined
+            ? {}
+            : { retryAfterSec: failure.data.error.retryAfterSec }),
+        }
+      : { code: "INTERNAL_ERROR", requestId, status: response.status },
+  );
+}
+
+/**
+ * A request whose success has no body worth reading - signing out, deleting an
+ * account. A refusal still has to be raised: an account deletion that was
+ * refused and reported as done is the worst possible pair of outcomes.
+ */
+async function callVoid(requested: Requested): Promise<void> {
+  const response = await send(requested);
+  if (response.ok) return;
+  refuse(response, await readJson(response), response.headers.get("X-Request-Id") ?? "");
+}
+
 async function callWithId<W>(
   requested: Requested,
   schema: ZodType<W>,
@@ -254,29 +315,7 @@ async function callWithId<W>(
   const requestId = response.headers.get("X-Request-Id") ?? "";
   const body = await readJson(response);
 
-  if (!response.ok) {
-    // Every refusal carries the same envelope, so there is one branch for a
-    // status the client was not built to expect.
-    const failure = zApiError.safeParse(body);
-    throw new ApiError(
-      failure.success
-        ? {
-            code: failure.data.error.code,
-            requestId: failure.data.error.requestId,
-            status: response.status,
-            ...(failure.data.error.params === undefined
-              ? {}
-              : { params: failure.data.error.params }),
-            ...(failure.data.error.field === undefined
-              ? {}
-              : { field: failure.data.error.field }),
-            ...(failure.data.error.retryAfterSec === undefined
-              ? {}
-              : { retryAfterSec: failure.data.error.retryAfterSec }),
-          }
-        : { code: "INTERNAL_ERROR", requestId, status: response.status },
-    );
-  }
+  if (!response.ok) refuse(response, body, requestId);
 
   return { body: parse(schema, body, requestId, at), requestId };
 }
@@ -311,7 +350,10 @@ export async function getJob(
   jobToken: string,
   options: Options = {},
 ): Promise<JobStatus> {
-  const wire = await call(
+  // The identifier of the answer travels with the state. A job that failed is
+  // the one case a person writes to support about, and this is the line support
+  // finds it by.
+  const answered = await callWithId(
     {
       path: `/jobs/${encodeURIComponent(jobId)}`,
       method: "GET",
@@ -321,7 +363,7 @@ export async function getJob(
     zJobStatus,
     "getJob",
   );
-  return toJobStatus(wire);
+  return toJobStatus(answered.body, answered.requestId);
 }
 
 export async function cancelJob(jobId: string, jobToken: string): Promise<JobStatus> {
@@ -477,4 +519,119 @@ export async function getEntitlements(options: Options = {}): Promise<Entitlemen
     "getEntitlements",
   );
   return toEntitlements(wire);
+}
+
+/**
+ * Who is signed in, and the CSRF token for everything that follows. It is the
+ * first call the application makes: an anonymous principal is an ordinary
+ * answer, and the server issues an anonymous session cookie with it.
+ *
+ * The token is handed to the sender here rather than by the caller, because a
+ * token fetched and not installed is a session that works until the first
+ * mutating request and then stops with no explanation.
+ */
+export async function getSession(options: Options = {}): Promise<Session> {
+  const wire = await call(
+    {
+      path: "/auth/session",
+      method: "GET",
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    },
+    zSessionResponse,
+    "getSession",
+  );
+  const session = toSession(wire);
+  setCsrfToken(session.csrfToken);
+  return session;
+}
+
+/**
+ * The address the browser is sent to in order to sign in. It is built rather
+ * than fetched: the flow is a redirect to the provider and back to the server,
+ * and every part of it - the PKCE challenge, the `state`, the allowlist of
+ * redirect addresses - belongs to the server, which is the only party that can
+ * verify any of it.
+ *
+ * `next` is where the person lands afterwards, and it is validated as a path on
+ * this site. An unchecked return parameter is an open redirect, and an open
+ * redirect on a sign-in address is the ready-made phishing page: a link that
+ * genuinely starts at our domain and ends on somebody else's form.
+ */
+export function oauthStartUrl(provider: OauthProvider, next: string): string {
+  return `${ORIGIN}/auth/oauth/${provider}/start?next=${encodeURIComponent(relativePath(next))}`;
+}
+
+/**
+ * A path within this site, or `/`. Anything that could leave the site is
+ * refused rather than repaired: `//evil.example` is a protocol-relative URL,
+ * a backslash is read as a separator by some browsers, and a scheme needs no
+ * host at all to leave.
+ */
+function relativePath(next: string): string {
+  if (!next.startsWith("/")) return "/";
+  if (next.startsWith("//") || next.includes("\\") || next.includes("://")) return "/";
+  return next;
+}
+
+/** Ends the session on the server. What the browser kept is cleared by the caller. */
+export async function signOut(): Promise<void> {
+  try {
+    await callVoid({ path: "/auth/logout", method: "POST" });
+  } finally {
+    // Whatever the server said, this browser stops carrying the token: the
+    // session it belonged to is one the person has asked to end.
+    setCsrfToken(null);
+  }
+}
+
+/**
+ * The address of the payment form. The card details are the provider's
+ * business: this application has no field for them and never sees one.
+ */
+export async function startCheckout(plan: string): Promise<string> {
+  const wire = await call(
+    { path: "/billing/checkout", method: "POST", body: { plan } },
+    zRedirectUrl,
+    "startCheckout",
+  );
+  return wire.url;
+}
+
+/** The address of the provider's page for managing an existing subscription. */
+export async function openBillingPortal(options: Options = {}): Promise<string> {
+  const wire = await call(
+    {
+      path: "/billing/portal",
+      method: "GET",
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    },
+    zRedirectUrl,
+    "openBillingPortal",
+  );
+  return wire.url;
+}
+
+/**
+ * Everything the server holds about the person, as JSON. Its shape is the
+ * server's to decide and it is handed on unread: parsing it into a type of ours
+ * would mean a field the server started returning is a field the person's own
+ * export silently loses.
+ */
+export async function exportAccountData(
+  options: Options = {},
+): Promise<Readonly<Record<string, unknown>>> {
+  return await call(
+    {
+      path: "/account/export",
+      method: "GET",
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    },
+    zExportAccountDataResponse,
+    "exportAccountData",
+  );
+}
+
+/** Deletes the account on the server. The browser's own copies are a second act. */
+export async function deleteAccount(): Promise<void> {
+  await callVoid({ path: "/account/delete", method: "POST" });
 }

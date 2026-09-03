@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { eventKinds } from "@/lib/telemetry";
 import {
   zAnchorRange,
   zApiError,
+  zClientEvent,
   zEntitlements,
   zJobStatus,
   zModuleResult,
@@ -262,6 +264,44 @@ describe("kinds this version of the schema does not define", () => {
   it("a fact and an action of unfamiliar kinds survive too", () => {
     expect(issue?.evidence?.map((fact) => fact.kind)).toEqual(["confidence", "text"]);
     expect(issue?.actions?.map((action) => action.kind)).toEqual(["explain", "copy"]);
+  });
+});
+
+describe("what the product says about itself", () => {
+  /**
+   * The one seam here that is not generated. Everything else in this file is our
+   * own chain checked against itself; the kinds of event are written out in
+   * `lib/telemetry` because the type is what keeps a manuscript out of a
+   * context, and a kind the two sides disagree about is a batch refused whole.
+   */
+  it("the kinds the code can produce are the kinds the receiver accepts", () => {
+    const declared = zClientEvent.shape.kind.options;
+    expect([...eventKinds].sort()).toEqual([...declared].sort());
+  });
+
+  it("a context holds a number, a flag or an enumeration and nothing else", () => {
+    const event = {
+      id: "ev_1",
+      ts: "2026-08-24T09:41:07Z",
+      kind: "extract_failed",
+      code: "PARSE_FAILED:NO_TEXT_LAYER",
+      fingerprint: "extract_failed|PARSE_FAILED:NO_TEXT_LAYER|/|dev",
+      count: 1,
+      release: "dev",
+      route: "/",
+      locale: "en",
+      theme: "light",
+      viewport: { w: 1280, h: 800 },
+      context: { pages: 340, printableRatio: 0.02 },
+      breadcrumbs: [
+        { action: "add-document", outcome: "failed", ts: "2026-08-24T09:41:00Z" },
+      ],
+    };
+    expect(zClientEvent.parse(event).context.pages).toBe(340);
+
+    // The contract is deliberately looser here than the client, which refuses
+    // every string; what neither accepts is a shape that is none of the three.
+    expect(() => zClientEvent.parse({ ...event, context: { pages: [1, 2] } })).toThrow();
   });
 });
 

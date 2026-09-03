@@ -41,10 +41,51 @@ const jobs = new Map<string, SubmittedJob>();
 /** One job per idempotency key. The mock is where the second one would appear. */
 const byKey = new Map<string, string>();
 
+/**
+ * Which of the contract's four answers about access this session is living in.
+ * It is one value rather than a pile of flags because it is one situation: an
+ * anonymous visitor, a registered account with the trial run unspent, an open
+ * paid period, and a period that has ended.
+ */
+export type AccessScenario = "anonymous" | "trial" | "paid" | "periodEnded";
+
+let scenario: AccessScenario = "paid";
+
+export function setAccessScenario(next: AccessScenario): void {
+  scenario = next;
+}
+
+/**
+ * Every batch of events this session delivered. It is kept because the one
+ * claim worth making about telemetry cannot be checked at the call site: that
+ * nothing of a document reaches the wire. A test runs a manuscript through the
+ * product and then reads what actually left here.
+ */
+const telemetry: unknown[] = [];
+
+export function deliveredEvents(): readonly unknown[] {
+  return [...telemetry];
+}
+
 /** For the tests: nothing carries over from one scenario to the next. */
 export function resetMockServer(): void {
   jobs.clear();
   byKey.clear();
+  telemetry.length = 0;
+  scenario = "paid";
+}
+
+const entitlementsOf = () => scenarios.getEntitlements[scenario].body;
+
+/**
+ * Whether this module may run for the principal as things stand. It is the same
+ * field the interface draws its lock from, and it is read here as well because
+ * the interface is a hint and this is the decision: a lock removed by editing
+ * the store in a browser changes nothing about the answer given here.
+ */
+function allowed(module: string): boolean {
+  const modules = entitlementsOf().modules as Record<string, { allowed: boolean }>;
+  return modules[module]?.allowed !== false;
 }
 
 /** How many polls a job spends running before it finishes. */
@@ -213,6 +254,26 @@ export const handlers = [
     const body = await submittedBody(request);
     const payload = JSON.stringify(body);
 
+    /*
+     * Rights are checked before any module starts, so there is no such thing as
+     * a partial run: a submission asking for a check this principal may not
+     * have is refused whole, and the buffer on the other side is untouched.
+     *
+     * This is also the answer to a client that has been edited. Locks in the
+     * interface are drawn from the same fields, but they are a hint - clearing
+     * a store or calling the API directly removes them, and removes nothing
+     * here.
+     */
+    const asked = body.documents.flatMap((document) => document.checks);
+    if (asked.some((module) => !allowed(module))) {
+      return refusal(
+        scenario === "anonymous" ? 401 : 402,
+        scenario === "anonymous"
+          ? scenarios.submitJob.authRequired.body
+          : scenarios.submitJob.accessClosed.body,
+      );
+    }
+
     const known = byKey.get(key);
     if (known !== undefined) {
       const job = jobs.get(known);
@@ -344,7 +405,71 @@ export const handlers = [
     HttpResponse.json(scenarios.fetchVenueRequirements.ready.body),
   ),
 
-  http.get("*/entitlements", () =>
-    HttpResponse.json(scenarios.getEntitlements.paid.body),
+  http.get("*/entitlements", () => HttpResponse.json(entitlementsOf())),
+
+  /*
+   * The receiver of client events, and the one endpoint that has to answer a
+   * request made while a tab is closing: no credentials, no CSRF token, and a
+   * `text/plain` body, because anything else earns a preflight the browser has
+   * no time left to make.
+   *
+   * A batch is answered with `202` and the switch that says whether to go on
+   * collecting; a batch carrying a report somebody wrote is answered with an
+   * identifier as well, and that identifier is what they quote to support.
+   */
+  http.post("*/client-events", async ({ request }) => {
+    const body = (await request.json()) as { events?: { kind?: string }[] };
+    const events = body.events ?? [];
+    telemetry.push(...events);
+    const wrote = events.some((event) => event.kind === "user_report");
+    return HttpResponse.json(
+      {
+        ...scenarios.sendClientEvents.accepted.body,
+        ...(wrote ? {} : { reportId: undefined }),
+      },
+      { status: 202 },
+    );
+  }),
+
+  /*
+   * The session, and the token every mutating request carries with it. An
+   * anonymous principal is an ordinary answer: the product works signed out,
+   * and only the paid checks do not.
+   */
+  http.get("*/auth/session", () =>
+    HttpResponse.json(
+      scenario === "anonymous"
+        ? scenarios.getSession.anonymous.body
+        : scenarios.getSession.signedIn.body,
+    ),
+  ),
+
+  http.post("*/auth/logout", () => {
+    setAccessScenario("anonymous");
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post("*/billing/checkout", () =>
+    scenario === "anonymous"
+      ? refusal(401, scenarios.startCheckout.authRequired.body)
+      : HttpResponse.json(scenarios.startCheckout.redirect.body),
+  ),
+
+  http.get("*/billing/portal", () =>
+    scenario === "anonymous"
+      ? refusal(401, scenarios.openBillingPortal.authRequired.body)
+      : HttpResponse.json(scenarios.openBillingPortal.redirect.body),
+  ),
+
+  http.get("*/account/export", () =>
+    scenario === "anonymous"
+      ? refusal(401, scenarios.exportAccountData.authRequired.body)
+      : HttpResponse.json(scenarios.exportAccountData.export.body),
+  ),
+
+  http.post("*/account/delete", () =>
+    scenario === "anonymous"
+      ? refusal(401, scenarios.deleteAccount.authRequired.body)
+      : new HttpResponse(null, { status: 204 }),
   ),
 ];

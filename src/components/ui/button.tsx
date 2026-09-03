@@ -33,7 +33,14 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        /* The smallest control in the product, and its height is a floor
+           rather than a taste. A pointer target has to be at least 24 px in
+           both directions (WCAG 2.2, Target Size (Minimum)), and a control set
+           exactly at the limit has no room left: the next tightening of a
+           padding, or an icon-only variant a shade smaller, takes it under
+           without anything failing. So it sits a step above the floor, which is
+           what makes the rule survive the next edit. */
+        xs: "h-7 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
         /* The one large button in the product is "Run the check", and it has a
            size of its own: taller than the ordinary control and set in the body
@@ -41,7 +48,8 @@ const buttonVariants = cva(
            an obvious end. */
         lg: "h-[2.625rem] rounded-md px-[1.125rem] text-base has-[>svg]:px-4",
         icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        // Square, so the same floor applies to both of its sides at once.
+        "icon-xs": "size-7 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
       },

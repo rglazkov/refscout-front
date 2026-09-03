@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn";
 import { detectKind, downloadExtensionOf, releaseSourceFile } from "@/lib/docs";
 import { type DetectedKind, type SourceFormat } from "@/lib/domain";
 import { downloadText } from "@/lib/export";
+import { newId } from "@/lib/webcrypto";
 import { syntaxKindOf, useSyntax } from "@/features/editor/syntax";
 import { acceptFile } from "@/features/intake/intake";
 import { PasteOverlay } from "@/features/intake/paste-overlay";
@@ -181,7 +182,7 @@ export function DiffScreen({ onBack }: { readonly onBack: () => void }) {
    * buffer, because a pane is not a document under check.
    */
   const bring = async (side: Side, file: File) => {
-    const id = crypto.randomUUID();
+    const id = newId();
     running.current?.abort();
     apply(side, { ...emptyPane, name: file.name, reading: true });
     setAnswer(null);

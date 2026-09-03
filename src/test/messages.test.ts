@@ -48,7 +48,12 @@ function referencedKeys(): string[] {
       if (name === "") continue;
       // A key built from a variable is not a literal and is not seen here; the
       // families that happens to are declared in `dynamicKeys` below.
-      const calls = file.text.matchAll(new RegExp(`\\b${name}\\(\\s*"([^"$]+)"`, "g"));
+      // `t("key")` and `t.rich("key")` alike: the second is the same lookup
+      // with the tags of the phrase filled in by the caller, and a key read
+      // that way is a key the dictionary is asked for.
+      const calls = file.text.matchAll(
+        new RegExp(`\\b${name}(?:\\.rich)?\\(\\s*"([^"$]+)"`, "g"),
+      );
       for (const call of calls) {
         const key = call[1] ?? "";
         referenced.push(namespace === "" ? key : `${namespace}.${key}`);
@@ -75,6 +80,11 @@ const dynamicKeys: readonly RegExp[] = [
   // The names of the checks: t(module) over the list of module identifiers,
   // which stay in the code while their names come from here.
   /^capabilities\./,
+  // The window a lock opens: the check it is about and the reason the server
+  // gave are both values, and each names its own line.
+  /^access\.(description|reason)\./,
+  // The three sign-in providers, read from the list of them.
+  /^account\.provider\./,
   // States read from a value rather than written out: the extraction state of a
   // document, the state of a venue fetch, the state of a job, a severity, a
   // reason a document is not taking part, a settings choice, a syntax.
@@ -166,6 +176,19 @@ describe("dictionaries", () => {
  * renders its own missing-message placeholder, and only in the browser, so the
  * boundary is checked here rather than found there.
  */
+/**
+ * What is drawn on every address, and therefore what has to be served with the
+ * words it reads.
+ *
+ * The shell and the pages of the site, and one module beside them. "Report a
+ * problem" and the switch that stops the automatic reports stand in the footer
+ * of every page and open from every state of an error, including one on a page
+ * of the site - so unlike the rest of `features/`, that module is not part of
+ * the working screen's vocabulary and cannot wait for the working screen's
+ * dictionary to be fetched.
+ */
+const SITE_WIDE = ["src/components/", "src/app/", "src/features/feedback/"] as const;
+
 describe("the shell's share of the dictionary", () => {
   it("holds every namespace the site's own pages read", () => {
     const shell = new Set<string>(shellNamespaces);
@@ -177,8 +200,7 @@ describe("the shell's share of the dictionary", () => {
       // handed the whole dictionary; `lib/seo` reads its words on the server at
       // build time and never in a browser; `lib/i18n` looks up the keys the
       // modules name, which is the working screen's own vocabulary.
-      const own =
-        file.path.startsWith("src/components/") || file.path.startsWith("src/app/");
+      const own = SITE_WIDE.some((prefix) => file.path.startsWith(prefix));
       if (!own) continue;
       for (const binding of file.text.matchAll(BINDING)) {
         const namespace = (binding[2] ?? binding[3] ?? "").split(".")[0] ?? "";
@@ -194,8 +216,7 @@ describe("the shell's share of the dictionary", () => {
     // read it moved is the whole point of the split quietly undone.
     const read = new Set<string>();
     for (const file of readSources()) {
-      const own =
-        file.path.startsWith("src/components/") || file.path.startsWith("src/app/");
+      const own = SITE_WIDE.some((prefix) => file.path.startsWith(prefix));
       if (!own) continue;
       for (const binding of file.text.matchAll(BINDING)) {
         const namespace = (binding[2] ?? binding[3] ?? "").split(".")[0] ?? "";

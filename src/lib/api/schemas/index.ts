@@ -23,8 +23,11 @@ import { zModuleResult as zStrictModuleResult } from "@/lib/api/wire/zod.gen";
 export {
   zApiError,
   zEntitlements,
+  zExportAccountDataResponse,
   zJobStatus,
+  zRedirectUrl,
   zScoutResponse,
+  zSessionResponse,
   zSubmitJobResponse,
   zVenueFetchResponse,
 } from "@/lib/api/wire/zod.gen";

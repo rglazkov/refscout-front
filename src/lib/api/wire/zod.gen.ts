@@ -739,7 +739,7 @@ export const zCheckoutRequest = z.object({
 });
 
 export const zRedirectUrl = z.object({
-    url: z.url()
+    url: z.url().regex(/^https?:\/\//)
 });
 
 export const zHealthResponse = z.object({

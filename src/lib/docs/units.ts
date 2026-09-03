@@ -5,6 +5,8 @@
  * manuscript is made of - and the server counts code points, so two units would
  * disagree precisely where a limit is close.
  */
+import { digestSha256 } from "@/lib/webcrypto";
+
 export function countCodePoints(text: string): number {
   let count = 0;
   for (let index = 0; index < text.length; index += 1) {
@@ -35,9 +37,6 @@ export function countWords(text: string): number {
  * that the offsets in an answer were counted over our text.
  */
 export async function sha256Hex(text: string): Promise<string> {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  const digest = await digestSha256(new TextEncoder().encode(text));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

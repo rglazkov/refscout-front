@@ -1,10 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ErrorBoundary } from "react-error-boundary";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/telemetry";
+
+/**
+ * The way to say what happened, fetched with the failure rather than with the
+ * page: this fallback is drawn on the day something breaks and on no other.
+ */
+const ReportProblemButton = dynamic(
+  () =>
+    import("@/features/feedback/report-problem").then(
+      (module) => module.ReportProblemButton,
+    ),
+  { ssr: false },
+);
 
 type ZoneBoundaryProps = {
   /** The zone name cannot be expressed as a number, so the event carries a code. */
@@ -17,6 +30,7 @@ type ZoneBoundaryProps = {
     | "scout"
     | "diff"
     | "shell"
+    | "account"
     | "workspace";
   readonly children: React.ReactNode;
 };
@@ -37,7 +51,7 @@ export function ZoneBoundary({ zone, children }: ZoneBoundaryProps) {
   return (
     <ErrorBoundary
       onError={() => {
-        track("zone_error", { code: `RENDER_FAILED:${zone}` });
+        track("react_error", { code: `RENDER_FAILED:${zone}` });
       }}
       fallbackRender={({ resetErrorBoundary }) => (
         <div
@@ -46,14 +60,16 @@ export function ZoneBoundary({ zone, children }: ZoneBoundaryProps) {
         >
           <p className="font-medium">{t("zoneTitle")}</p>
           <p className="mt-1 text-sm opacity-90">{t("zoneBody")}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={resetErrorBoundary}
-          >
-            {t("retry")}
-          </Button>
+          {/* Trying again, and saying what happened. The second is offered in
+              every state of an error in the product: what the collector saw is
+              a stack, and what the person saw is the sentence nobody else can
+              write. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+              {t("retry")}
+            </Button>
+            <ReportProblemButton variant="outline" />
+          </div>
         </div>
       )}
     >

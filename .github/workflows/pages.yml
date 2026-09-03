@@ -43,6 +43,15 @@ jobs:
           # with an API origin the day one answers.
           NEXT_PUBLIC_API_SOURCE: mock
         run: npm run build
+      # Two files the build writes for a host that reads them, and GitHub Pages
+      # is not one: it serves files and takes no configuration from them. Left
+      # in, they are two publicly readable descriptions of the policy - which
+      # addresses are allowed, where violations are posted, where it is relaxed
+      # - answering a question nobody could otherwise ask of this deployment.
+      # They stay in `out/` for every other host and for the header smoke test;
+      # they are dropped from what is published here.
+      - name: Drop the files this host does not read
+        run: rm -f out/_headers out/security-headers.json
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:

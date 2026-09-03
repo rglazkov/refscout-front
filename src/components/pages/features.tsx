@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { site } from "@/lib/brand";
 import { type Locale } from "@/lib/i18n";
 import { localizedPath } from "@/lib/seo";
+import { JsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 
 /**
  * The list of checks. This is not where a tool is picked: the page explains
@@ -21,6 +22,10 @@ export async function FeaturesPage({ locale }: { readonly locale: Locale }) {
       data-region="reading"
       className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8"
     >
+      {/* The same declaration the start page carries: this address describes
+          the product too, by listing what it is made of. */}
+      <JsonLd data={await softwareApplicationJsonLd(locale)} />
+
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl leading-tight font-bold tracking-display text-balance">
           {t("title", { brandName: site.name })}

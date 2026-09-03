@@ -75,12 +75,34 @@ const CLASSIC_DIFF_WORKER = publicPath("/workers/classic/diff.worker.js");
  * parser chunk is reached through `import()` inside the worker and arrives with
  * the document that needs it.
  */
+/**
+ * How many documents may be read at once.
+ *
+ * Parsing is the one kind of work here that a person asks for several of at a
+ * time - fifty files dropped together - and each of them is a whole core for
+ * seconds. So there is a pool rather than a single worker, and its size is
+ * taken from the machine: one fewer than the cores it reports, so the thread
+ * that draws the cards keeps one to itself.
+ *
+ * The ceiling of three is about memory rather than about cores. A hundred
+ * megabytes of PDF being inflated is hundreds of megabytes in the tab, and four
+ * of those at once on a phone is a tab the browser ends - which is a worse
+ * outcome than reading the documents one after another. `undefined` is a
+ * browser that does not say, and the answer to a question that was not answered
+ * is the modest one.
+ */
+const PARSE_POOL_SIZE = Math.max(
+  1,
+  Math.min(3, (globalThis.navigator?.hardwareConcurrency ?? 4) - 1),
+);
+
 const parser = createWorkerClient<ParseRequest, Parsed>(
   [
     () => new Worker(PARSE_WORKER, { type: "module" }),
     () => new Worker(CLASSIC_PARSE_WORKER),
   ],
   parseCall,
+  PARSE_POOL_SIZE,
 );
 
 const compressor = createWorkerClient<CompressRequest, CompressResult>(

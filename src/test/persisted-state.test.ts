@@ -18,7 +18,13 @@ import { readSources } from "./utils/source-graph";
 const localStorageWriters: ReadonlyArray<{
   readonly module: string;
   readonly keys: readonly string[];
-}> = [{ module: "src/lib/theme/", keys: ["theme"] }];
+}> = [
+  { module: "src/lib/theme/", keys: ["theme"] },
+  // Whether automatic error reports are sent. It sits beside the theme for the
+  // same reason: it is a choice about this browser rather than about an
+  // account, so it belongs to the browser and travels nowhere.
+  { module: "src/lib/telemetry/", keys: ["telemetry"] },
+];
 
 /** The fields document contents live in. They cannot appear in persisted state. */
 const contentFields = [

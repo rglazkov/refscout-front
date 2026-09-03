@@ -14,6 +14,7 @@ import {
 } from "@codemirror/view";
 
 import {
+  edgeFade,
   editorHighlighting,
   editorSurface,
   plainTextPaste,
@@ -38,6 +39,16 @@ import { type DiffChange } from "@/workers";
  * Everything else about a pane is the product's one editor: the same face and
  * gutter, the same selection colour, the same syntax palette, the same fading
  * edges. What a comparison adds is the marks and the alignment.
+ *
+ * The alignment is ours rather than the package's, and the reason is wrapping.
+ * The package lays both panes inside one scroller and keeps them level by
+ * padding whichever is shorter, working from heights it has to estimate for the
+ * text nobody has scrolled past yet; a wrapped line is where those estimates go
+ * wrong, and on a manuscript reached by a jump the two halves of a change ended
+ * up a row or two apart. So each pane scrolls itself here, and a jump asks both
+ * of them for the same thing: put this change that far below the top edge. Two
+ * changes put at the same height are level whatever the text above them turned
+ * out to measure.
  */
 export type PanesHandle = {
   readonly next: () => void;
@@ -82,8 +93,12 @@ const marks = EditorView.theme({
   ".cm-mergeSpacer": { backgroundColor: "var(--muted)" },
 });
 
-/** How far the text dissolves at an edge that has more text behind it. */
-const FADE_PX = 20;
+/**
+ * Where a change sits after a jump: a third of the way down, so that what came
+ * before it is on screen and what follows has room. It is also the distance
+ * that makes the two panes level - each is asked for the same one.
+ */
+const JUMP_MARGIN = 0.33;
 
 export function MergePanes({
   onReady,
@@ -163,15 +178,8 @@ export function MergePanes({
       keymap.of([...defaultKeymap, ...historyKeymap]),
       editorHighlighting,
       plainTextPaste,
-      /*
-       * No wrapping here, and it is the alignment that decides it. A wrapped
-       * line is two rows tall in one pane and one in the other, so the panes
-       * drift apart by a row at a time and the drift is invisible until two
-       * lines that should face each other do not. Without wrapping every line
-       * is exactly one row in both panes, and a long line is read by scrolling
-       * the pane it is in.
-       */
-      EditorView.theme({ ".cm-scroller": { overflowX: "auto" } }),
+      EditorView.lineWrapping,
+      edgeFade,
       editorSurface,
       marks,
     ];
@@ -238,17 +246,31 @@ export function MergePanes({
     };
 
     /*
-     * The two panes are laid out inside one scroller, so the fading edges
-     * belong to it rather than to either pane: what they say is that the
-     * comparison goes on above and below, and it goes on in both at once.
+     * The two panes move together, at whatever distance apart the last jump
+     * left them. That distance is the whole of the state: scrolling one sets
+     * the other to match it, and a jump measures it again once both panes have
+     * settled on the change.
      */
-    const scroller = view.dom;
-    const fade = (): void => {
-      const top = scroller.scrollTop > 1;
-      const bottom =
-        scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1;
-      scroller.style.setProperty("--cm-fade-top", top ? `${FADE_PX}px` : "0px");
-      scroller.style.setProperty("--cm-fade-bottom", bottom ? `${FADE_PX}px` : "0px");
+    let apart = 0;
+    let linked = true;
+    /*
+     * Setting the other pane's position raises a scroll event of its own, and
+     * that event must not come back as a movement. One flag is enough because
+     * one assignment raises exactly one event - and it is only set when the
+     * assignment actually changes something.
+     */
+    let echoing = false;
+
+    const follow = (from: EditorView, to: EditorView, sign: 1 | -1) => (): void => {
+      if (!linked) return;
+      if (echoing) {
+        echoing = false;
+        return;
+      }
+      const want = from.scrollDOM.scrollTop + sign * apart;
+      if (Math.abs(to.scrollDOM.scrollTop - want) < 1) return;
+      echoing = true;
+      to.scrollDOM.scrollTop = want;
     };
 
     /*
@@ -264,31 +286,15 @@ export function MergePanes({
       scheduled = requestAnimationFrame(() => {
         scheduled = 0;
         report();
-        fade();
       });
     };
 
-    scroller.addEventListener("scroll", fade, { passive: true });
-
-    /*
-     * Sideways the panes move together. Up and down they are one scroller and
-     * cannot come apart; across they are two, and a line read at one offset
-     * against a line read at another is not a comparison.
-     */
-    let mirroring = false;
-    const mirror = (from: EditorView, to: EditorView) => (): void => {
-      if (mirroring) return;
-      mirroring = true;
-      to.scrollDOM.scrollLeft = from.scrollDOM.scrollLeft;
-      mirroring = false;
-    };
-    const mirrorA = mirror(view.a, view.b);
-    const mirrorB = mirror(view.b, view.a);
-    view.a.scrollDOM.addEventListener("scroll", mirrorA, { passive: true });
-    view.b.scrollDOM.addEventListener("scroll", mirrorB, { passive: true });
+    const followA = follow(view.a, view.b, 1);
+    const followB = follow(view.b, view.a, -1);
+    view.a.scrollDOM.addEventListener("scroll", followA, { passive: true });
+    view.b.scrollDOM.addEventListener("scroll", followB, { passive: true });
 
     report();
-    fade();
 
     /**
      * A jump to one change, in two beats.
@@ -300,28 +306,56 @@ export function MergePanes({
      * and settles them. Moving the caret first and scrolling to it on the next
      * frame asks for the position the measurement has already agreed on.
      */
+    /**
+     * A jump to one change: both panes are asked to put their half of it the
+     * same distance below their top edge, so the two halves end up level
+     * whatever the text above them measures. The editor does the scrolling
+     * itself, which is what keeps the position right after it has measured what
+     * it had only estimated.
+     *
+     * The caret is moved without scrolling first, and the page is left where it
+     * was: focusing a text field is enough to make a browser scroll the whole
+     * page to it, and the panes are on screen already.
+     */
     const jumpTo = (index: number): void => {
       const chunk = view.chunks[index];
       if (chunk === undefined) return;
       const side = focused();
       const editor = side === "a" ? view.a : view.b;
-      // The first word that differs rather than the start of the line it is on:
-      // lines are not wrapped here, so the difference can be a screen to the
-      // right of where the line begins.
-      const inside = chunk.changes[0];
-      const start = side === "a" ? chunk.fromA : chunk.fromB;
-      const at =
-        inside === undefined
-          ? start
-          : start + (side === "a" ? inside.fromA : inside.fromB);
-      editor.focus();
+      const at = side === "a" ? chunk.fromA : chunk.fromB;
+      const margin = Math.round(editor.scrollDOM.clientHeight * JUMP_MARGIN);
+      const pageY = window.scrollY;
+
+      editor.contentDOM.focus({ preventScroll: true });
       editor.dispatch({ selection: { anchor: at }, scrollIntoView: false });
+
+      /*
+       * Each pane is put where it belongs by its own arithmetic: the top of the
+       * change, less the margin. Twice, a frame apart, because the first move
+       * brings text into view that the editor had only estimated the height of,
+       * and the second asks again now that it has been measured.
+       *
+       * Neither pane follows the other while this happens - what they are being
+       * placed against is the change, not each other - and the distance they
+       * end up apart becomes the distance they keep afterwards.
+       */
+      linked = false;
+      const place = (): void => {
+        view.a.scrollDOM.scrollTop = view.a.lineBlockAt(chunk.fromA).top - margin;
+        view.b.scrollDOM.scrollTop = view.b.lineBlockAt(chunk.fromB).top - margin;
+      };
+      place();
       requestAnimationFrame(() => {
-        editor.dispatch({
-          effects: EditorView.scrollIntoView(at, { y: "center", x: "center" }),
+        place();
+        requestAnimationFrame(() => {
+          place();
+          apart = view.b.scrollDOM.scrollTop - view.a.scrollDOM.scrollTop;
+          linked = true;
+          // Focusing a text field is enough to make a browser scroll the whole
+          // page to it, and the panes were on screen already.
+          if (window.scrollY !== pageY) window.scrollTo({ top: pageY });
+          report();
         });
-        report();
-        fade();
       });
     };
 
@@ -355,9 +389,8 @@ export function MergePanes({
       notifyReady.current(null);
       panes.current = null;
       if (scheduled !== 0) cancelAnimationFrame(scheduled);
-      scroller.removeEventListener("scroll", fade);
-      view.a.scrollDOM.removeEventListener("scroll", mirrorA);
-      view.b.scrollDOM.removeEventListener("scroll", mirrorB);
+      view.a.scrollDOM.removeEventListener("scroll", followA);
+      view.b.scrollDOM.removeEventListener("scroll", followB);
       view.destroy();
     };
     /*

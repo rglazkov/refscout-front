@@ -5,9 +5,10 @@ import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/cn";
 import { type BufferItem } from "@/lib/domain";
-import { useBufferStore, useEntitlementsStore, useUiStore } from "@/stores";
+import { useBufferStore, useEntitlementsStore } from "@/stores";
 
-import { incompleteOf, reasonNotRunning } from "./compute";
+import { incompleteOf, lockOf, reasonNotRunning } from "./compute";
+import { useLockPress } from "./use-lock";
 
 /**
  * What will happen to this document, on this document's card.
@@ -26,15 +27,11 @@ export function DocumentPlan({ item }: { readonly item: BufferItem }) {
   const t = useTranslations("plan");
   const checkName = useTranslations("capabilities");
   const entitlements = useEntitlementsStore((state) => state.entitlements);
-  const openPaywall = useUiStore((state) => state.openPaywall);
+  const pressLock = useLockPress();
   const items = useBufferStore((state) => state.items);
 
-  const running = item.checks.filter(
-    (module) => entitlements?.modules[module].allowed !== false,
-  );
-  const locked = item.checks.filter(
-    (module) => entitlements?.modules[module].allowed === false,
-  );
+  const running = item.checks.filter((module) => !lockOf(entitlements, module).locked);
+  const locked = item.checks.filter((module) => lockOf(entitlements, module).locked);
   const incomplete = incompleteOf(item, items);
   const notRunning = reasonNotRunning(item);
   const venue = item.checks.includes("presubmit") ? item.venue : undefined;
@@ -70,7 +67,7 @@ export function DocumentPlan({ item }: { readonly item: BufferItem }) {
             key={module}
             type="button"
             className="inline-flex items-center gap-1 rounded-sm border border-warning-border bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
-            onClick={() => openPaywall(module)}
+            onClick={() => pressLock(module)}
           >
             <LockIcon className="size-3" aria-hidden="true" />
             {checkName(module)}

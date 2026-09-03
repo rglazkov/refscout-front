@@ -46,7 +46,6 @@ export function PasteInEditor({
       }}
     >
       <DialogContent
-        showCloseButton={false}
         style={{ "--overlay-height": height } as React.CSSProperties}
         className="flex h-[var(--overlay-height)] max-w-none flex-col gap-3 rounded-none p-4 sm:h-[calc(var(--overlay-height)-1rem)] sm:max-w-3xl sm:rounded-lg"
       >

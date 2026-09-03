@@ -6,7 +6,8 @@ import { useMutation } from "@tanstack/react-query";
 import { ApiError, NetworkError, submitJob } from "@/lib/api";
 import { buildSubmission, withCompanions } from "@/lib/docs";
 import { type BufferItem } from "@/lib/domain";
-import { track } from "@/lib/telemetry";
+import { breadcrumb, track } from "@/lib/telemetry";
+import { newId } from "@/lib/webcrypto";
 import { useEntitlementsStore, useJobStore } from "@/stores";
 
 /**
@@ -20,6 +21,14 @@ import { useEntitlementsStore, useJobStore } from "@/stores";
 export type RunFailure = {
   readonly code: string;
   readonly requestId: string;
+  /**
+   * The status the refusal came with, and how long to wait when the refusal was
+   * about frequency. Both are read as well as the code: a status the client was
+   * not built to expect still has to reach the right screen, and the code alone
+   * cannot tell "you are not signed in" from "your access has ended".
+   */
+  readonly status: number;
+  readonly retryAfterSec?: number;
 };
 
 export function useRun(locale: string): {
@@ -46,6 +55,7 @@ export function useRun(locale: string): {
       /** The whole buffer, so a companion can be found and sent with them. */
       readonly buffer: readonly BufferItem[];
     }) => {
+      breadcrumb("run-check", "started");
       const submission = await buildSubmission(
         withCompanions(input.items, input.buffer),
         locale,
@@ -56,7 +66,7 @@ export function useRun(locale: string): {
       // A press whose payload hash matches the standing intention is the same
       // intention and keeps its key; a different hash is a different intention
       // and must get a new one.
-      const intent = store.beginIntent(crypto.randomUUID(), submission.payloadHash);
+      const intent = store.beginIntent(newId(), submission.payloadHash);
 
       return submitJob(submission.request, { idempotencyKey: intent.key });
     },
@@ -69,6 +79,7 @@ export function useRun(locale: string): {
         useJobStore.getState().setInflight(false);
         return;
       }
+      breadcrumb("run-check", "done");
       // The intention is cleared only once a job exists. Until the answer
       // arrives we do not know whether the request reached the server, and are
       // obliged to repeat with the same key.
@@ -80,24 +91,38 @@ export function useRun(locale: string): {
     onError: (error: unknown) => {
       useJobStore.getState().setInflight(false);
 
+      breadcrumb("run-check", "failed");
+
       if (error instanceof ApiError) {
         // A reused key with a different body is a report of our own defect, and
         // it is loud: no key rotation, no automatic second attempt. A silent
         // self-correction would create a second job for a body the person may
         // not have meant, and hide the one failure that looks like success.
-        track("job_failed", {
-          code: error.failure.code === "IDEMPOTENCY_KEY_REUSE" ? "KEY_REUSE" : "TIMEOUT",
+        track("api_error", {
+          code:
+            error.failure.code === "IDEMPOTENCY_KEY_REUSE"
+              ? "KEY_REUSE"
+              : `API_REFUSED:${error.failure.code}`,
+          context: { status: error.failure.status },
+          requestId: error.failure.requestId,
         });
-        setFailure({ code: error.failure.code, requestId: error.failure.requestId });
+        setFailure({
+          code: error.failure.code,
+          requestId: error.failure.requestId,
+          status: error.failure.status,
+          ...(error.failure.retryAfterSec === undefined
+            ? {}
+            : { retryAfterSec: error.failure.retryAfterSec }),
+        });
         return;
       }
       if (error instanceof NetworkError) {
-        track("job_failed", { code: "NETWORK_FAILED" });
-        setFailure({ code: "NETWORK_FAILED", requestId: "" });
+        track("network_error", { code: "NETWORK_FAILED" });
+        setFailure({ code: "NETWORK_FAILED", requestId: "", status: 0 });
         return;
       }
-      track("job_failed", { code: "TIMEOUT" });
-      setFailure({ code: "INTERNAL_ERROR", requestId: "" });
+      track("js_error", { code: "UNCAUGHT_ERROR:submitJob" });
+      setFailure({ code: "INTERNAL_ERROR", requestId: "", status: 0 });
     },
     // Whatever happened, the button is a button again.
     onSettled: () => {

@@ -50,7 +50,7 @@ export function ConfirmDialog({
       {/* Wide enough to hold the two answers and whatever is offered beside
           them on one line. At `md` the three wrapped, and the offer ended up
           alone above a row of answers pushed to the far corner. */}
-      <DialogContent showCloseButton={false} data-testid={testId} className="sm:max-w-xl">
+      <DialogContent data-testid={testId} className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base">{title}</DialogTitle>
           <DialogDescription>{body}</DialogDescription>

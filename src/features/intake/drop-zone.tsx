@@ -113,12 +113,25 @@ export function DropZone({
           </span>
         </div>
 
-        <p className="font-mono text-xs text-muted-foreground">
-          {t("limits", {
-            maxSizeMb: Math.round(limits.maxFileBytes / (1024 * 1024)),
-            maxDocuments: limits.maxDocuments,
-          })}
-        </p>
+        {/* Two lines and two roles, because the face follows the role of the
+            text. The formats are values - a closed list of tokens, scanned
+            rather than read - and they are monospaced. What follows is a
+            sentence addressed to a person, so it is set in the ordinary face,
+            and only the quantities inside it are monospaced: a whole sentence
+            in the monospaced face reads as the output of a program rather than
+            as something said to somebody. */}
+        <div className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
+          {/* Balanced, because on a phone the row wraps and an unbalanced break
+              leaves the last format alone on a line of its own. */}
+          <p className="font-mono tracking-wide text-balance">{t("formats")}</p>
+          <p>
+            {t.rich("limits", {
+              maxSizeMb: Math.round(limits.maxFileBytes / (1024 * 1024)),
+              maxDocuments: limits.maxDocuments,
+              v: (chunks) => <span className="font-mono">{chunks}</span>,
+            })}
+          </p>
+        </div>
       </div>
 
       {refusals.length === 0 ? null : (

@@ -88,6 +88,7 @@ export function CheckCard({
    */
   const asOverlay = module === "cite";
   const [citeOpen, setCiteOpen] = React.useState(false);
+  const drawn = useRowsDrawn(issues.length, open && !asOverlay);
   const openable = issues.length > 0;
   const findingCount =
     issues.length > 0
@@ -290,18 +291,28 @@ export function CheckCard({
         /*
          * There is no limit on the number of findings and there are no
          * truncated lists: a finding dropped because the interface was built
-         * for a hundred makes the whole result untrustworthy. What is limited
-         * is how much of it the browser draws at once, which is a rendering
-         * optimisation and not a limit on the product.
+         * for a hundred makes the whole result untrustworthy. What is paced is
+         * how much of it the browser is asked to do at once, and that is a
+         * rendering decision rather than a limit on the product - every finding
+         * ends up in the document.
          *
-         * `content-visibility` is the half of that which costs nothing: a row
-         * below the fold is skipped for layout, style and paint until it comes
-         * near, while staying in the document, findable by the browser's own
-         * search and reachable by Tab. The intrinsic size is what a collapsed
-         * row measures, so the scrollbar does not jump as rows are drawn.
+         * Two halves, and they answer different costs. `content-visibility` is
+         * the free one: a row below the fold is skipped for layout, style and
+         * paint until it comes near, while staying in the document, findable by
+         * the browser's own search and reachable by Tab. The intrinsic size is
+         * what a collapsed row measures, so the scrollbar does not jump as rows
+         * are drawn.
+         *
+         * What it does not answer is the cost of building the rows in the first
+         * place. A dissertation can return thousands of findings, and asking
+         * React to mount thousands of components in one pass blocks the tab for
+         * as long as it takes, however little of the result is painted - so the
+         * card opens with a first slice and the rest is added in the browser's
+         * idle time. The list is complete a moment later without the moment
+         * being one the person spends waiting.
          */
         <ul className="border-t [&>li]:[contain-intrinsic-size:auto_2.25rem] [&>li]:[content-visibility:auto]">
-          {issues.map((issue) => (
+          {issues.slice(0, drawn).map((issue) => (
             <IssueRow
               key={issue.issueId}
               docId={docId}
@@ -391,6 +402,70 @@ type MorphRun = {
   readonly siblings: readonly Animation[];
   readonly placeholder: HTMLDivElement;
 };
+
+/**
+ * The first slice of a list of findings, and how much is added to it at a time.
+ *
+ * The first number is what an ordinary card holds whole: most checks on most
+ * documents return fewer findings than this, so for them the list is complete
+ * on the first render and none of the machinery below ever runs. The second is
+ * a step large enough that a list of thousands is finished in a handful of
+ * steps rather than in hundreds of them.
+ */
+const FIRST_ROWS = 150;
+const MORE_ROWS = 300;
+
+/**
+ * Runs the browser's idle time, or the nearest thing to it. `requestIdleCallback`
+ * is what should pace this - the browser knows what else it has to do - and
+ * Safari does not have it, where a task on the queue is still enough to let a
+ * paint and a keypress through between two slices.
+ */
+function whenIdle(run: () => void): () => void {
+  if (typeof globalThis.requestIdleCallback === "function") {
+    const handle = globalThis.requestIdleCallback(run);
+    return () => globalThis.cancelIdleCallback(handle);
+  }
+  const handle = globalThis.setTimeout(run, 32);
+  return () => globalThis.clearTimeout(handle);
+}
+
+/**
+ * How many rows of a list are in the document, growing until all of them are.
+ *
+ * It grows rather than paginates because the whole list has to be there: the
+ * browser's own search has to find a finding the person half-remembers, and Tab
+ * has to reach it. A "show more" button would make both of those true only for
+ * the part somebody had already opened.
+ */
+function useRowsDrawn(total: number, active: boolean): number {
+  const [drawn, setDrawn] = React.useState(() => Math.min(total, FIRST_ROWS));
+  const [showing, setShowing] = React.useState({ total, active });
+
+  /*
+   * Back to the first slice whenever the list itself changes or the card
+   * closes. A retry brings a new body, and a card reopened on it would
+   * otherwise start at whatever count the previous attempt had grown to -
+   * mounting a thousand rows in the one render this exists to avoid.
+   *
+   * It happens while rendering rather than in an effect: an effect would draw
+   * the old count once first, which for a card that has just been given a
+   * shorter list means a render of rows that are no longer there.
+   */
+  if (showing.total !== total || showing.active !== active) {
+    setShowing({ total, active });
+    setDrawn(Math.min(total, FIRST_ROWS));
+  }
+
+  React.useEffect(() => {
+    if (!active || drawn >= total) return;
+    return whenIdle(() => {
+      setDrawn((current) => Math.min(total, current + MORE_ROWS));
+    });
+  }, [active, drawn, total]);
+
+  return drawn;
+}
 
 /**
  * The card is the one surface whose final grid column has no intermediate

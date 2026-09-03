@@ -919,6 +919,9 @@ export type CheckoutRequest = {
 };
 
 export type RedirectUrl = {
+    /**
+     * The payment provider's own page, and the browser is sent to it. Restricted to http and https for that reason: a scheme other than those in a field a navigation is made to is not followed but executed, so the constraint belongs in the contract rather than in a check one client remembers to make.
+     */
     url: string;
 };
 

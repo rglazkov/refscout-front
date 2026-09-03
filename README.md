@@ -34,7 +34,31 @@ Two things it does not do yet, and both are scheduled work rather than gaps. A
 Word file is downloaded as `.md` until the browser can build a `.docx` again,
 and the button says so. And the buffer lives as long as the tab does: the
 extracted text is held in memory, storage that survives a reload is not built
-yet, and until it exists the screen says so in as many words.
+yet, and until it exists the screen says so in as many words - which is also why
+a step that leaves the site asks first.
+
+**Two of the checks are paid, and the boundary is drawn once.** PreSubmit and
+Cite are locked where the checks are ticked rather than after a form has been
+filled in; the lock stays focusable, says why in the words of the reason the
+server gave, and offers the one thing that removes that reason - signing in for
+somebody who is not, and Pro for everybody else. Which checks are paid, what the
+pricing page lists and what the lock's window offers all come out of
+`src/lib/entitlements.ts`, so the three cannot drift apart. Nothing is counted
+here: the days of access are spent by the server, `GET /entitlements` answers
+whether access is open right now, and the line under the run button repeats that
+answer and no arithmetic of ours. The lock is a hint and never the protection -
+a submission asking for a check the account may not have is refused whole by the
+server, the buffer and the ticks untouched, and that is a test rather than a
+sentence.
+
+**The account is four errands and no dashboard.** Signing in goes through
+Google, GitHub or ORCID and is entirely the server's flow; the page shows the
+address, the state of paid access, a link into the payment provider, the export
+of what the server holds, the deletion of the account and the way out. There is
+no history of checks and no library of documents, because results are not
+addressable and manuscripts are not kept on our side. Signing out empties this
+browser - the buffer, the texts, the findings and every cached answer - since
+the reason that button exists is a shared computer.
 
 **The backend does not exist yet, and three things are owed the moment it does.**
 A body of real size has to go through a stand in the same week the parsing
@@ -213,6 +237,19 @@ re-export; both are needed.
   the explanation, the replacement is to say the thing itself. A test greps for
   them.
 - One module writes to `localStorage`: `src/lib/theme`.
+- `crypto.randomUUID` and `crypto.subtle` are reached through
+  `src/lib/webcrypto.ts` and nowhere else. Both exist only in a secure context -
+  https and localhost - so a build opened over plain http from another machine,
+  which `probe:workers` invites by name, has neither. Called directly they take
+  out the identifier every document is given, the key that makes a submission
+  repeatable and the hash every finding’s place is checked against; that module
+  has a way through for both, and a grep test holds the rule.
+- The password flows and the administration panel are not in this bundle at all,
+  not even behind a flag that is off. Code that ships names the addresses it
+  calls, and an address named in public JavaScript is one anybody can start
+  knocking on: a reset arrives as a link to a server address, and the
+  administration panel is a separate subdomain and a separate build. A test
+  fails on either of them appearing in hand-written source.
 
 ## How to add and how to remove a check
 
@@ -392,6 +429,52 @@ It is one number rather than a cap per chunk, because the question worth asking
 is how much the on-demand half has grown, and a per-chunk cap answers that only
 for the chunk somebody thought to name. What keeps any of it out of the first
 screen is the architecture test, not a budget.
+
+## What the product says about itself
+
+`src/lib/telemetry` is the one module that sends anything without a person
+pressing a button, and every rule around it follows from that.
+
+**Nothing of a document reaches it, and the type is what says so.** An event has
+a `context` of numbers and flags - a string there is the door a fragment of
+somebody's manuscript eventually arrives through - and a `code` that is an
+enumeration plus a path, never a value. Exactly one free-text field exists, and
+it is the sentence a person typed into the report form knowing they were typing
+it. A run with one manuscript proves the absence of one substring for one
+document, so the check is the shape of the event and not the run:
+`src/test/telemetry.test.ts` walks every kind of event and reads the bodies the
+receiver was actually handed.
+
+**Collection may not fail and may not loop.** `track()` never throws, and a
+failure inside the sender is swallowed instead of reported - an error report
+that produces an error report is a recursion landing on the one person whose tab
+has already broken. Identical events are collapsed by fingerprint with a count,
+and a session has a ceiling on how many _different_ things it may report.
+
+**A record leaves the queue on a confirmed send and never on an attempt.**
+Unsent events wait in a database of their own (`refscout-telemetry`), so a
+connection that drops while the answer is on its way loses nothing, and a
+session that ended in a crash delivers its events on the next visit. The tab
+going away is handled by `sendBeacon` on `pagehide` and on the first
+`visibilitychange` to hidden - which is the event that matters on a phone, where
+the tab is backgrounded first and killed later without a word. Batches go as
+`text/plain` for the same reason: a request made during an unload has to be a
+simple cross-origin one, and `application/json` earns a preflight there is no
+time left for.
+
+**There are two switches, and either one stops it.** The person's, a checkbox in
+the footer of every page, remembered in `localStorage` beside the theme and
+dropping the queue when it is turned off; and the receiver's, `collect: 'off'`
+in the answer to a batch, so collection that has started causing trouble stops
+without an emergency release. Neither touches "Report a problem", where what
+will be sent is on screen with a tick beside every line before anything goes.
+
+**Telemetry cannot reach the API layer or the texts.** Both are held by
+`src/test/architecture.test.ts` rather than by care. The sender still has to obey
+the switch that decides which server answers, so the shell hands it a callback
+(`src/components/shell/feedback-mount.tsx`) instead of the module reaching for
+one - and the callback is called only when a batch is actually due, so a page
+nothing went wrong on loads none of it.
 
 ## The corpus of documents
 

@@ -5,12 +5,13 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { BlockedButton } from "@/components/ui/blocked-button";
 import { Button } from "@/components/ui/button";
-import { messageKeyFor } from "@/lib/api";
 import { type BufferItem } from "@/lib/domain";
+import { isPaidModule } from "@/lib/entitlements";
 import { totalChars, useEntitlementsStore } from "@/stores";
 
 import { sendingItems } from "@/features/plan/compute";
 
+import { RunFailureNotice } from "./run-failure";
 import { type RunFailure } from "./use-run";
 
 /**
@@ -32,15 +33,16 @@ export function LaunchRow({
   readonly onRun: (items: readonly BufferItem[], buffer: readonly BufferItem[]) => void;
 }) {
   const t = useTranslations("job");
-  const errors = useTranslations();
   const format = useFormatter();
   const entitlements = useEntitlementsStore((state) => state.entitlements);
 
   // The companions go with them, so this number is the number that leaves.
   const sending = sendingItems(items, entitlements);
-  const paidRequested = items.some((item) =>
-    item.checks.some((module) => module === "presubmit" || module === "cite"),
-  );
+  const accessState =
+    entitlements === null ? "unknown" : entitlements.access ? "open" : "closed";
+  // Which checks are paid is read from the one table of rights, not listed
+  // again here: a boundary written out twice moves in one place first.
+  const paidRequested = items.some((item) => item.checks.some(isPaidModule));
   if (items.length === 0) return null;
 
   return (
@@ -80,32 +82,48 @@ export function LaunchRow({
               {t("characters", { chars: format.number(totalChars(sending)) })}
             </span>
           </p>
+          {/* Shown only when a paid check is in the plan: a run of free checks
+              has nothing to say here, because free checks have no limit for
+              anybody.
+
+              What it says comes from `access` alone. Whether a check may be
+              ticked is a different question with a different field behind it,
+              and an account with an unspent trial run has them disagreeing -
+              `cite.allowed: true` with `access: false` - so a line worked out
+              from the ticks would be wrong on most accounts.
+
+              And there is no number in it. The days of access are spent by the
+              server, in the server's own time zone, from whichever device the
+              person is using; anything counted down here would be a second
+              opinion that is sometimes right. */}
           {paidRequested ? (
-            <p data-testid="paid-access-line">
-              {entitlements === null
-                ? t("accessChecking")
-                : entitlements.modules.presubmit.allowed &&
-                    entitlements.modules.cite.allowed
-                  ? entitlements.periodEndsAt === undefined
-                    ? t("accessOpen")
-                    : t("accessOpenUntil", {
-                        date: format.dateTime(new Date(entitlements.periodEndsAt), {
-                          day: "numeric",
-                          month: "short",
-                        }),
-                      })
-                  : t("accessLocked")}
-            </p>
+            <>
+              <p data-testid="paid-access-line" data-access={accessState}>
+                {accessState === "unknown"
+                  ? t("accessChecking")
+                  : accessState === "closed"
+                    ? t("accessLocked")
+                    : entitlements?.periodEndsAt === undefined
+                      ? t("accessOpen")
+                      : t("accessOpenUntil", {
+                          date: format.dateTime(new Date(entitlements.periodEndsAt), {
+                            day: "numeric",
+                            month: "short",
+                          }),
+                        })}
+              </p>
+              {/* Said before the run rather than after it: told nothing, people
+                  send their documents one at a time to make the access last,
+                  and get the same checks slower for the same day. */}
+              {accessState === "open" ? (
+                <p data-testid="paid-no-limits">{t("accessNoLimits")}</p>
+              ) : null}
+            </>
           ) : null}
         </div>
       </div>
 
-      {failure === null ? null : (
-        <p role="alert" className="mt-3 text-sm text-critical" data-testid="run-failure">
-          {errors(messageKeyFor(failure.code))}
-          {failure.requestId === "" ? "" : ` (${failure.requestId})`}
-        </p>
-      )}
+      {failure === null ? null : <RunFailureNotice failure={failure} />}
     </div>
   );
 }

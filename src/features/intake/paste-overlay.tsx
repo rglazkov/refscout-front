@@ -75,7 +75,6 @@ export function PasteOverlay({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        showCloseButton={false}
         /*
          * On a phone the overlay is the whole screen. On anything wider it
          * leaves only 0.5rem above and below, maximising the text that stays

@@ -26,6 +26,7 @@
     "features": "Features",
     "pricing": "Pricing",
     "signIn": "Sign in",
+    "account": "Account",
     "menu": "Menu",
     "home": "{brandName} home",
     "privacy": "Privacy",
@@ -56,7 +57,8 @@
       "paste": "Paste text",
       "orPaste": "or press",
       "pasteShortcut": "Ctrl+V",
-      "limits": "PDF · DOCX · TEX · BIB · GLS · MD · TXT — up to {maxSizeMb} MB each, {maxDocuments} texts in all, counting the ones your checks read"
+      "formats": "PDF · DOCX · TEX · BIB · GLS · MD · TXT",
+      "limits": "up to <v>{maxSizeMb} MB</v> each, <v>{maxDocuments}</v> texts in all, counting the ones your checks read"
     },
     "about": {
       "title": "What {brandName} checks",
@@ -256,7 +258,8 @@
       "citeWholeDocument": "Cite will read this document from the first line to the last and propose sources for the claims it finds.",
       "maxPerClaim": "Sources per claim",
       "instructions": "Instructions for Cite"
-    }
+    },
+    "lockedCheck": "{check} — {name} — locked, paid check"
   },
   "editor": {
     "done": "Done",
@@ -300,7 +303,11 @@
     "accessOpenUntil": "Paid checks: access open until {date}",
     "accessLocked": "Paid checks: access closed — free checks will still run",
     "progressOf": "{done} of {total}",
-    "checksDone": "{done} of {total}"
+    "checksDone": "{done} of {total}",
+    "accessNoLimits": "Within your access days there is no limit on runs or on documents in a run.",
+    "retryAfter": "Try again in {seconds, plural, one {# second} other {# seconds}}.",
+    "signIn": "Sign in",
+    "seePro": "See Pro options"
   },
   "results": {
     "heading": "Check results",
@@ -440,8 +447,8 @@
     "export": "{count, plural, =0 {Keep a source first} one {Export # source} other {Export # sources}}",
     "exportName": "sources",
     "citationsPlaceholder": "0",
-    "fewer": "One fewer",
-    "more": "One more",
+    "fewer": "One fewer: {field}",
+    "more": "One more: {field}",
     "authorPlaceholder": "Author name",
     "venuePlaceholder": "Venue name",
     "withDoiOnly": "Verified DOI only"
@@ -492,7 +499,15 @@
       "export": "Generated citations and corrected files can be downloaded from the results."
     },
     "notNow": "Not now",
-    "upgrade": "See Pro options"
+    "upgrade": "See Pro options",
+    "reason": {
+      "requires-account": "This check needs an account. Signing in also gives you one trial run of it.",
+      "requires-paid": "This check is part of Pro. Your plan does not include it right now.",
+      "trial-used": "You have used the trial run of this check. Pro opens it again.",
+      "period-ended": "Your paid access has ended, so this check is closed until you renew it.",
+      "unknown": "This check is not available on this account right now."
+    },
+    "signIn": "Sign in"
   },
   "report": {
     "title": "Findings",
@@ -591,9 +606,6 @@
     "privacy": "Privacy",
     "support": "Support"
   },
-  "stub": {
-    "body": "This page is not written yet."
-  },
   "error": {
     "zoneTitle": "This part of the page stopped working",
     "zoneBody": "The rest of the page is unaffected. Reloading usually clears it.",
@@ -626,9 +638,9 @@
     "lead": "Pricing is being finalised. Full access is free while {brandName} is in its pilot phase.",
     "badge": "Pilot",
     "planName": "Everything, free",
-    "price": "$0",
-    "planNote": "Every check is available at no cost while the pilot runs. BibCheck, Glossary, Scout and DiffChecker have no usage limits at all.",
-    "cta": "Start using {brandName}",
+    "planNote": "Every check is available at no cost while the pilot runs. {free} have no usage limits at all.",
+    "connect": "Connect Pro",
+    "manage": "Manage subscription",
     "footnote": "Pricing will be announced here before any charges begin. No payment method is required during the pilot."
   },
   "pricingPlan": {
@@ -639,5 +651,68 @@
     "glossary": "Glossary — LaTeX acronym handling",
     "diffchecker": "DiffChecker — compare two LaTeX versions",
     "download": "Download in the format you brought: Word, BibTeX, LaTeX, Markdown, plain text"
+  },
+  "account": {
+    "title": "Your account",
+    "signInTitle": "Sign in",
+    "signInLead": "An account is needed for the paid checks, and for nothing else. Signing in takes you to your provider and brings you back here.",
+    "loading": "Checking who is signed in…",
+    "provider": {
+      "google": "Continue with Google",
+      "github": "Continue with GitHub",
+      "orcid": "Continue with ORCID"
+    },
+    "freeWithoutAccount": "The free checks need no account and have no usage limits at all.",
+    "signedInAs": "Signed in as",
+    "accessLabel": "Paid checks",
+    "accessChecking": "Checking access…",
+    "accessOpen": "Access is open",
+    "accessClosed": "Access is closed",
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "signOutClears": "Signing out clears this browser: the documents in the buffer, the findings on screen and everything read out of your files go with it.",
+    "yourData": "Your data",
+    "yourDataBody": "Deleting your account removes what our server holds about you. The documents you brought are a separate matter: they are read in this browser, never uploaded, and they are cleared when you sign out.",
+    "exportData": "Download my data",
+    "deleteAccount": "Delete account",
+    "deleteTitle": "Delete this account?",
+    "deleteBody": "Your account, your sign-in and everything the server holds about you are deleted. Paid access ends with it. This cannot be undone.",
+    "deleteConfirm": "Delete the account",
+    "deleteCancel": "Keep the account",
+    "expired": "Your session has ended. Sign in again to keep checking — what is already on this screen stays here.",
+    "leaving": {
+      "title": "Leave {brandName} for a moment?",
+      "body": "This opens another site and comes back as a fresh page, and the buffer does not survive that yet: {documents, plural, one {# document} other {# documents}} would be lost. Open a document and download it first if you want to keep it.",
+      "confirm": "Continue",
+      "cancel": "Stay here"
+    }
+  },
+  "feedback": {
+    "report": "Report a problem",
+    "collect": "Send error reports automatically",
+    "title": "Report a problem",
+    "lead": "Tell us what happened. We attach what the application was doing - and nothing from your documents.",
+    "messageLabel": "What did you expect, and what happened instead?",
+    "messagePlaceholder": "The page showed 47 references, but the file I downloaded had 46.",
+    "willSend": "What will be sent",
+    "untickAny": "untick anything you would rather keep",
+    "themeSystem": "system",
+    "noEvents": "none",
+    "attachExcerpt": "Attach the text I selected",
+    "promise": "No document text, file names, search queries or PDF passwords are included - ever, in this report or in the automatic ones.",
+    "send": "Send report",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "failed": "The report could not be sent. It is kept and goes at the next opportunity.",
+    "sent": "Thank you. Quote this reference if you write to support:",
+    "close": "Close",
+    "row": {
+      "release": "release",
+      "route": "screen",
+      "localeAndTheme": "language · theme",
+      "viewport": "window",
+      "events": "recent events",
+      "requestId": "request id"
+    }
   }
 }

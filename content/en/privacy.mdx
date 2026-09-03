@@ -3,7 +3,7 @@ title: Privacy Policy
 description: What happens to your manuscript — read in your browser, checked as text, kept nowhere afterwards — plus the GDPR legal bases, the processors involved, retention and your rights.
 ---
 
-Last updated: 2026-09-02. This document describes RefScout as it currently
+Last updated: 2026-09-03. This document describes RefScout as it currently
 operates during its pilot phase and is updated as the product changes.
 
 <Callout>
@@ -55,14 +55,31 @@ why the screen says so and offers the download beside every result. Storage that
 survives a reload is being built; this section will describe it when it exists,
 and it will remain storage on your own device rather than on our servers.
 
-Two small items are written to your browser's own storage and are not sent to us
-at all:
+These items are written to your browser's own storage:
 
 - **`theme`** — whether you chose the light or the dark appearance, saved only
-  when you use the switch.
+  when you use the switch. Not sent to us.
+- **`telemetry`** — set only if you switch automatic error reports off, so that
+  the choice survives a reload. Not sent to us.
+- **Unsent error reports** — the events described in section 4 wait in your
+  browser until they have been delivered, so that a report is not lost when the
+  connection is. They hold numbers, flags and error codes and never any part of
+  a document. Signing out deletes them, and so does switching automatic reports
+  off.
+- **A sign-in cookie**, and only once you sign in. It is set by our server, not
+  readable by any script on the page, and sent only to us. It carries a session
+  identifier and nothing about you. Signing out deletes it.
 - **Cloudflare security cookies (`__cf_bm`, `cf_clearance`)** — set by our CDN
   and security provider to tell humans from bots and protect the service.
   Strictly necessary for security.
+
+**How to remove all of it.** Closing the tab loses the documents and everything
+read out of them, because that is where they live. **Sign out** clears the rest
+in one action: the buffer, the findings on screen, the sign-in cookie, the
+cached answers from our server and any error reports still waiting to be sent.
+Turning off _Send error reports automatically_ in the footer deletes the
+collected reports on its own. The theme setting is removed with your browser's
+own "clear site data", along with everything above.
 
 Nothing here is used to track you, no advertising or cross-site cookie is set,
 and no third-party script is loaded when you simply visit the site — which is
@@ -76,15 +93,38 @@ why there is no cookie banner to click away.
 - **Server logs.** Standard web-server logs — IP address, timestamp, HTTP
   method, path, response code — for security and debugging.
 
-Accounts, sign-in, saved sources and payment are not part of the product during
-this phase: there is nothing to sign in to, and no billing data is collected.
-When they arrive, this policy is updated before they do.
+**Your account, if you make one.** The free checks need no account. The paid
+checks do, and signing in goes through Google, GitHub or ORCID: you are sent to
+the provider you chose and come back to us with your email address and the
+identifier that provider gave you. There is no password anywhere in the product,
+so there is none for us to hold or to lose.
 
-**Automatic error reports** are being built and are not being sent yet. When
-they are, they will carry numbers, flags and error codes — how long something
-took, how many pages a document had, which step failed — and never the text of
-a document, a file name or anything you typed. The page will say so, and it will
-be possible to turn off.
+**Payment.** We never see your card. Pressing the button on the pricing page or
+in your account asks our server for an address at our payment provider
+(**Stripe**) and sends your browser there; the card details are entered on their
+page, and what comes back to us is whether access is open. There is no field for
+a card number anywhere on this site.
+
+**Automatic error reports.** When something in the application fails — an
+unexpected error, an answer from our own API that did not have the shape we
+expected, a document we could not read — the browser sends us a short record of
+it. Each record carries numbers, flags and error codes: which build you were
+using, which screen you were on, your language and appearance, the size of the
+window, how many pages a document had, which step failed, and the names of the
+last few actions you took with the outcome of each.
+
+Never included, in an automatic report or in one you send yourself: the text of
+a document, any fragment of it, a file name, a DOI, a search you typed, or a PDF
+password. This is enforced in the code by the type of the record itself and by
+tests over what actually leaves the browser, rather than by care at each place
+that writes one.
+
+**Switching it off.** There is a checkbox in the footer of every page — _Send
+error reports automatically_. Turning it off stops collection and deletes
+anything collected and not yet sent. "Report a problem", beside it, still works:
+there you write the message yourself, and the form shows you every field before
+it goes, with a tick beside each one you can clear. A fragment of your text is
+attached only if you select it yourself and confirm.
 
 ## 5. What we do not do
 
@@ -97,12 +137,14 @@ be possible to turn off.
 
 ## 6. Why we process your data, and the legal basis
 
-| Purpose                                                                 | Legal basis (GDPR Art. 6)           |
-| ----------------------------------------------------------------------- | ----------------------------------- |
-| Run the check you asked for on the text you submitted                   | Performance of a contract — 6(1)(b) |
-| Keep the service available, prevent abuse of it and of third-party APIs | Legitimate interests — 6(1)(f)      |
-| Security logs                                                           | Legitimate interests — 6(1)(f)      |
-| Error reports and product analytics, once they exist                    | Consent — 6(1)(a), opt-in           |
+| Purpose                                                                       | Legal basis (GDPR Art. 6)                                                                       |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Run the check you asked for on the text you submitted                         | Performance of a contract — 6(1)(b)                                                             |
+| Keep the service available, prevent abuse of it and of third-party APIs       | Legitimate interests — 6(1)(f)                                                                  |
+| Keep your account, sign you in and open the paid checks                       | Performance of a contract — 6(1)(b)                                                             |
+| Take payment and keep the record of it                                        | Performance of a contract — 6(1)(b), and a legal obligation for the accounting record — 6(1)(c) |
+| Security logs                                                                 | Legitimate interests — 6(1)(f)                                                                  |
+| Automatic error reports — keeping the service working and diagnosing failures | Legitimate interests — 6(1)(f), with the opt-out in section 4                                   |
 
 ## 7. Who we share data with
 
@@ -116,6 +158,11 @@ check:
   Europe PMC, arXiv, DOAJ, HAL, IETF, CORE, bioRxiv/medRxiv and Unpaywall
   receive the titles, DOIs and search terms taken from your references in order
   to return matches. They do not receive your identity.
+- **Google, GitHub and ORCID** — whichever one you choose to sign in with
+  receives the fact that you are signing in to us, and returns your email
+  address and their identifier for you. You choose whether to use one at all.
+- **Stripe** — takes the payment and holds the card details, which never reach
+  us. It receives your email address and what you bought.
 - **Cloudflare** — serves the site and protects it from abuse.
 
 ## 8. International transfers
@@ -136,6 +183,9 @@ change.
 
 - **The text sent for a check** — held while the check runs and deleted once its
   findings have been collected; it is not retained afterwards.
+- **Your account** — for as long as the account exists. Deleting it removes what
+  the server holds about you, apart from the payment records we are obliged to
+  keep for accounting.
 - **Server logs** — up to 30 days.
 - **Backups** — purged on a rolling cycle of no more than six months.
 
@@ -154,6 +204,10 @@ If you are in the EU or EEA you have the right to:
 - **Withdraw consent** at any time for anything based on consent. This does not
   affect processing done before withdrawal.
 
+**In your account.** _Download my data_ writes everything the server holds about
+you to a file, and _Delete account_ removes it. Both are on the account page,
+beside signing out.
+
 **How to exercise these rights.** Email
 [support@refscout.app](mailto:support@refscout.app). Requests are handled
 **manually** — we do not yet offer an automated self-service tool — and
@@ -169,9 +223,11 @@ Finnish supervisory authority, the **Office of the Data Protection Ombudsman**
 
 ## 12. Is providing data required?
 
-To have a document checked, its text has to be sent — that is the service. There
-is nothing else you are asked for: no account, no email address, and no
-information about yourself.
+To have a document checked, its text has to be sent — that is the service. For
+the free checks there is nothing else you are asked for: no account, no email
+address, and no information about yourself. The paid checks need an account, so
+they need the email address your sign-in provider returns; without it we cannot
+tell whose access is open.
 
 ## 13. Automated decision-making
 
@@ -184,7 +240,9 @@ responsible for verifying results before relying on them.
 
 All traffic uses HTTPS. The parts of a check that need a server are reachable
 only for the duration of a job and only with the token that job was created
-with. The reading of your file happens in your browser, inside a worker with no
+with. The sign-in cookie is marked so that no script on the page can read it,
+which is what stops a single flaw in our own JavaScript from handing over an
+account. The reading of your file happens in your browser, inside a worker with no
 access to the network — which is also what makes the promise at the top of this
 page enforceable rather than a matter of trust.
 

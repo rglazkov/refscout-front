@@ -74,7 +74,7 @@ function toJobDocument(w: WireJobDocument): JobDocument {
   };
 }
 
-export function toJobStatus(w: WireJobStatus): JobStatus {
+export function toJobStatus(w: WireJobStatus, requestId = ""): JobStatus {
   return {
     id: w.id,
     createdAt: w.createdAt,
@@ -82,6 +82,7 @@ export function toJobStatus(w: WireJobStatus): JobStatus {
     ...(w.pollAfterMs === undefined ? {} : { pollAfterMs: w.pollAfterMs }),
     stages: (w.stages ?? []).map(toStage),
     documents: (w.documents ?? []).map(toJobDocument),
+    ...(requestId === "" ? {} : { requestId }),
   };
 }
 

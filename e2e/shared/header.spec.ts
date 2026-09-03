@@ -87,7 +87,7 @@ test.describe("narrow screen", () => {
     await page.goto("/");
     const header = page.locator("header");
     await expect(header.getByRole("group", { name: "Theme" })).toBeVisible();
-    await expect(header.getByRole("link", { name: "Sign in" })).toBeVisible();
+    await expect(header.getByTestId("account-link")).toBeVisible();
 
     // Width is why the toggle has two positions rather than three: on a narrow
     // screen, next to the menu and the sign-in, there is simply no room for a
@@ -144,6 +144,27 @@ test("theme toggle: two positions, starting from the environment theme", async (
     "aria-pressed",
     "false",
   );
+});
+
+/**
+ * The one control in the header whose word the static HTML cannot know.
+ *
+ * The page is served with the way in - "Sign in" - because somebody arriving
+ * to sign in must find it there before any script has run. Who is actually
+ * reading is the server's answer, and it arrives in the browser: from then on
+ * the control has to say where it leads rather than keep offering an errand
+ * that has already been done. The mock answers with a signed-in session, which
+ * is exactly the case that used to be wrong on every page of the site.
+ */
+test("the account control stops offering to sign in to whoever already has", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const link = page.locator("header").getByTestId("account-link");
+
+  await expect(link).toHaveAttribute("data-signed-in", "true");
+  await expect(link).toHaveText("Account");
+  await expect(link).toHaveAttribute("href", "/account/");
 });
 
 /**

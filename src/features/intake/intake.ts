@@ -28,6 +28,7 @@ import {
   type IntakeRefusal,
 } from "@/lib/docs";
 import { track } from "@/lib/telemetry";
+import { newId } from "@/lib/webcrypto";
 import {
   ParseFailure,
   extract,
@@ -68,10 +69,6 @@ export type ExtractOptions = RunOptions & {
   /** Typed on the card of a protected PDF and held nowhere else. */
   readonly password?: string;
 };
-
-function newId(): string {
-  return crypto.randomUUID();
-}
 
 /**
  * The card a document has while it is being read. It exists before the text

@@ -21,6 +21,8 @@ import { cn } from "@/lib/cn";
 import { type BufferItem, moduleIds } from "@/lib/domain";
 import { useIntakeApi } from "@/features/intake/intake-context";
 import { DocumentPlan } from "@/features/plan/document-plan";
+import { lockOf } from "@/features/plan/compute";
+import { useLockPress } from "@/features/plan/use-lock";
 import { useBufferStore, useEntitlementsStore, useUiStore } from "@/stores";
 
 import { DocumentSettings } from "./document-settings";
@@ -52,7 +54,7 @@ export function DocumentCard({
   const toggleCheck = useBufferStore((state) => state.toggleCheck);
   const remove = useBufferStore((state) => state.remove);
   const openOverlay = useUiStore((state) => state.openOverlay);
-  const openPaywall = useUiStore((state) => state.openPaywall);
+  const pressLock = useLockPress();
   const entitlements = useEntitlementsStore((state) => state.entitlements);
   const [confirming, setConfirming] = React.useState(false);
   const [configuring, setConfiguring] = React.useState(false);
@@ -153,7 +155,7 @@ export function DocumentCard({
               {t("checkFor")}
             </span>
             {moduleIds.map((module) => {
-              const locked = entitlements?.modules[module].allowed === false;
+              const { locked } = lockOf(entitlements, module);
               const checked = !locked && item.checks.includes(module);
               return (
                 <button
@@ -164,7 +166,11 @@ export function DocumentCard({
                   data-state={checked ? "checked" : "unchecked"}
                   data-locked={locked ? "" : undefined}
                   data-testid={`check-${module}`}
-                  aria-label={`${checkName(module)} — ${item.name}`}
+                  aria-label={
+                    locked
+                      ? t("lockedCheck", { check: checkName(module), name: item.name })
+                      : `${checkName(module)} — ${item.name}`
+                  }
                   className={cn(
                     // A control on a card takes the card's own control fill, or
                     // it is a border drawn on the card it stands on.
@@ -174,7 +180,7 @@ export function DocumentCard({
                     locked && "opacity-60",
                   )}
                   onClick={() =>
-                    locked ? openPaywall(module) : toggleCheck(item.id, module, !checked)
+                    locked ? pressLock(module) : toggleCheck(item.id, module, !checked)
                   }
                 >
                   <span

@@ -82,3 +82,19 @@ test("the security headers arrive with every page", async ({ request }) => {
     expect(headers["reporting-endpoints"]).toMatch(/^csp="https:\/\//);
   }
 });
+
+test("the payment origin is allowed on the pricing page and nowhere else", async ({
+  request,
+}) => {
+  // The wider set exists for the payment widget, and it is confined to the one
+  // address that needs it. One relaxed policy over the whole application would
+  // take the protection off the screen the manuscripts are on.
+  const pricing = (await request.get("/pricing/")).headers()["content-security-policy"];
+  expect(pricing).toContain("https://js.stripe.com");
+
+  for (const path of ["/", "/features/", "/privacy/", "/account/"]) {
+    const policy = (await request.get(path)).headers()["content-security-policy"];
+    expect(policy).not.toContain("js.stripe.com");
+    expect(policy).toContain("frame-src 'none'");
+  }
+});

@@ -5,7 +5,6 @@ import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
-import { Button } from "@/components/ui/button";
 
 /**
  * The control the dialogue was opened from, so that closing can hand the focus
@@ -71,13 +70,24 @@ function DialogOverlay({
   );
 }
 
+/**
+ * The cross in the corner is drawn only when it has been given a name, and the
+ * name is a parameter rather than a word written here.
+ *
+ * The stock primitive carries a boolean and an English literal beside it, and
+ * this folder is exempt from the rule that no text lives in component code -
+ * so that literal would have survived into every further language, and the one
+ * place it is read is the one place a person cannot see it: a screen reader
+ * announcing the only control that closes the window. A label the caller has to
+ * supply cannot be forgotten silently, because there is nothing to fall back to.
+ */
 function DialogContent({
   className,
   children,
-  showCloseButton = true,
+  closeLabel,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean;
+  readonly closeLabel?: string;
 }) {
   const opener = React.useContext(OpenerContext);
 
@@ -105,13 +115,13 @@ function DialogContent({
         }}
       >
         {children}
-        {showCloseButton && (
+        {closeLabel === undefined ? null : (
           <DialogPrimitive.Close
             data-slot="dialog-close"
+            aria-label={closeLabel}
             className="absolute end-4 top-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -129,14 +139,14 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function DialogFooter({
-  className,
-  showCloseButton = false,
-  children,
-  ...props
-}: React.ComponentProps<"div"> & {
-  showCloseButton?: boolean;
-}) {
+/**
+ * The row of answers. It renders what it is given and adds nothing of its own:
+ * a dialogue's way out is written by the screen that asked the question, in the
+ * words of that question - "Cancel" beside "Remove", "Not yet" beside "Leave" -
+ * and a ready-made "Close" appended here would be a second, unnamed exit
+ * competing with it. `DialogClose` is what a caller wraps its own button in.
+ */
+function DialogFooter({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
@@ -150,11 +160,6 @@ function DialogFooter({
       {...props}
     >
       {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
-        </DialogPrimitive.Close>
-      )}
     </div>
   );
 }

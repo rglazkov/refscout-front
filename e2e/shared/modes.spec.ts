@@ -69,6 +69,41 @@ test.describe("searching for sources", () => {
     );
   });
 
+  test("a number is stepped by one, and keeps going while the button is held", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByTestId("enter-scout").click();
+    await page.getByTestId("scout-query").fill("attention");
+    await page.getByTestId("scout-run").click();
+    await expect(page.getByTestId("scout-result").first()).toBeVisible();
+    await page.getByTestId("scout-filters-toggle").click();
+
+    const field = page.getByTestId("scout-min-citations");
+    const more = page.getByRole("button", { name: "One more: Minimum citations" });
+
+    /*
+     * Held down, it keeps going: thirty is not a number anybody should reach by
+     * tapping thirty times. The press is sent as pointer events rather than
+     * through the mouse, because that is the one way to hold a control down on
+     * both a pointer and a touch screen from here.
+     */
+    await more.dispatchEvent("pointerdown", { button: 0, pointerId: 1, isPrimary: true });
+    await page.waitForTimeout(1200);
+    await more.dispatchEvent("pointerup", { button: 0, pointerId: 1, isPrimary: true });
+
+    const reached = Number(await field.inputValue());
+    expect(reached).toBeGreaterThan(5);
+
+    // And it stops when the button is let go.
+    await page.waitForTimeout(300);
+    expect(Number(await field.inputValue())).toBe(reached);
+
+    // A press on its own is one step, however long the last one lasted.
+    await more.click();
+    expect(Number(await field.inputValue())).toBe(reached + 1);
+  });
+
   test("a partial answer says which databases were missing", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("enter-scout").click();

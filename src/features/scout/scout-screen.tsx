@@ -293,22 +293,24 @@ export function ScoutScreen({ onBack }: { readonly onBack: () => void }) {
               className="grid gap-3 rounded-xl border bg-card p-3.5 sm:grid-cols-2 lg:grid-cols-3"
               data-testid="scout-filters"
             >
-              <YearField
+              <NumberField
                 label={t("yearFrom")}
-                hint={years[years.length - 1]}
+                hint={String(years[years.length - 1] ?? "")}
                 value={filters.yearFrom}
                 onChange={(value) => setFilters({ ...filters, yearFrom: value })}
               />
-              <YearField
+              <NumberField
                 label={t("yearTo")}
-                hint={years[0]}
+                hint={String(years[0] ?? "")}
                 value={filters.yearTo}
                 onChange={(value) => setFilters({ ...filters, yearTo: value })}
               />
-              <CountField
+              <NumberField
                 label={t("minCitations")}
+                hint={t("citationsPlaceholder")}
                 value={filters.minCitations}
                 onChange={(value) => setFilters({ ...filters, minCitations: value })}
+                testId="scout-min-citations"
               />
               <FilterField
                 label={t("author")}
@@ -401,63 +403,113 @@ function FilterField({
 }
 
 /**
- * A year: four digits, and nothing else the field will take. The hint is the
- * end of the range the answer actually covers, so the two fields say between
- * which years there is anything to narrow before a key is pressed.
+ * How long a press waits before it starts repeating, and how fast it repeats
+ * once it has. The wait is what keeps a single press a single step; the repeat
+ * is what stops a person tapping thirty times to reach thirty.
  */
-function YearField({
+const HOLD_DELAY_MS = 400;
+
+const HOLD_EVERY_MS = 60;
+
+/**
+ * A button that keeps going while it is held. The repeat is set up on the press
+ * and taken down on the release, on the pointer leaving, and on the component
+ * going away - a timer that outlives its button goes on changing a number
+ * nobody is holding.
+ */
+function useHold(step: () => void): {
+  readonly onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  readonly onPointerUp: () => void;
+  readonly onPointerLeave: () => void;
+  readonly onPointerCancel: () => void;
+  readonly onBlur: () => void;
+} {
+  const acting = React.useRef(step);
+  const timers = React.useRef<{ delay?: number; repeat?: number }>({});
+
+  React.useEffect(() => {
+    acting.current = step;
+  }, [step]);
+
+  const stop = React.useCallback(() => {
+    if (timers.current.delay !== undefined) window.clearTimeout(timers.current.delay);
+    if (timers.current.repeat !== undefined) window.clearInterval(timers.current.repeat);
+    timers.current = {};
+  }, []);
+
+  React.useEffect(() => stop, [stop]);
+
+  const start = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return;
+      acting.current();
+      stop();
+      timers.current.delay = window.setTimeout(() => {
+        timers.current.repeat = window.setInterval(() => acting.current(), HOLD_EVERY_MS);
+      }, HOLD_DELAY_MS);
+    },
+    [stop],
+  );
+
+  /*
+   * Every way a press can end is a way the repeat ends: the button released,
+   * the pointer leaving it, the gesture cancelled by the browser, and the
+   * button losing the focus. A repeat that outlives its press goes on changing
+   * a number nobody is holding.
+   */
+  return {
+    onPointerDown: start,
+    onPointerUp: stop,
+    onPointerLeave: stop,
+    onPointerCancel: stop,
+    onBlur: stop,
+  };
+}
+
+/**
+ * A number, and only a number: digits are the only thing the field takes, and
+ * the two buttons beside it move it by one - held down, they keep moving it.
+ *
+ * The years and the citations are the same control because they are the same
+ * question. A field that takes any text at all takes a word and then hides the
+ * whole list without saying why.
+ */
+function NumberField({
   label,
   hint,
   value,
   onChange,
+  testId,
 }: {
   readonly label: string;
-  readonly hint: number | undefined;
+  /** Shown while the field is empty: what the answer looks like. */
+  readonly hint: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block text-sm">
-      {label}
-      <Input
-        className="mt-1 font-mono"
-        surface="card"
-        inputMode="numeric"
-        maxLength={4}
-        value={value}
-        placeholder={hint === undefined ? "" : String(hint)}
-        onChange={(event) => onChange(event.target.value.replace(/[^0-9]/g, ""))}
-      />
-    </label>
-  );
-}
-
-/** How far a step of the two buttons moves the number. */
-const CITATION_STEP = 1;
-
-/**
- * A count, and only a count. Digits are the only thing the field takes, and the
- * two buttons beside it move by one: the numbers that get typed here are five
- * and twenty as often as they are a hundred, and a step that steps over them is
- * a step in the way.
- */
-function CountField({
-  label,
-  value,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
+  readonly testId?: string;
 }) {
   const t = useTranslations("scout");
   const id = React.useId();
-  const current = value === "" ? 0 : Number(value);
+  /*
+   * The number as it stands this instant, which a repeat cannot ask a render
+   * for: sixteen steps a second are faster than the screen is redrawn, and a
+   * step that added to the value of the last render would keep arriving at the
+   * same answer.
+   */
+  const latest = React.useRef(value);
+  React.useEffect(() => {
+    latest.current = value;
+  }, [value]);
 
   const step = (by: number) => {
-    const next = Math.max(0, current + by);
-    onChange(next === 0 ? "" : String(next));
+    const now = latest.current === "" ? 0 : Number(latest.current);
+    const next = Math.max(0, now + by);
+    latest.current = next === 0 ? "" : String(next);
+    onChange(latest.current);
   };
+
+  const fewer = useHold(() => step(-1));
+  const more = useHold(() => step(1));
 
   return (
     <div className="text-sm">
@@ -469,8 +521,8 @@ function CountField({
           type="button"
           variant="outlineOnCard"
           size="icon-sm"
-          aria-label={t("fewer")}
-          onClick={() => step(-CITATION_STEP)}
+          aria-label={t("fewer", { field: label })}
+          {...fewer}
         >
           <MinusIcon aria-hidden="true" />
         </Button>
@@ -480,8 +532,8 @@ function CountField({
           className="text-center font-mono"
           inputMode="numeric"
           value={value}
-          placeholder={t("citationsPlaceholder")}
-          data-testid="scout-min-citations"
+          placeholder={hint}
+          {...(testId === undefined ? {} : { "data-testid": testId })}
           // Digits, and nothing that looks like a number to a parser and like a
           // mistake to a person: no minus, no exponent, no separator.
           onChange={(event) => onChange(event.target.value.replace(/[^0-9]/g, ""))}
@@ -490,8 +542,8 @@ function CountField({
           type="button"
           variant="outlineOnCard"
           size="icon-sm"
-          aria-label={t("more")}
-          onClick={() => step(CITATION_STEP)}
+          aria-label={t("more", { field: label })}
+          {...more}
         >
           <PlusIcon aria-hidden="true" />
         </Button>

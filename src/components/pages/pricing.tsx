@@ -1,29 +1,33 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
-import { Button } from "@/components/ui/button";
+import { UpgradeMount } from "@/components/shell/upgrade-mount";
 import { site } from "@/lib/brand";
-import { type Locale } from "@/lib/i18n";
-import { localizedPath } from "@/lib/seo";
-
-const planItems = [
-  "scout",
-  "cite",
-  "bibcheck",
-  "presubmit",
-  "glossary",
-  "diffchecker",
-  "download",
-] as const;
+import { capabilities, planPrice } from "@/lib/entitlements";
 
 /**
  * Pricing is not a long text but a single card, so the page is assembled from
  * components rather than from a file in content/: its strings live in the
  * dictionary like the rest of the interface text.
+ *
+ * What the plan covers, and which of the checks have no limit for anybody, are
+ * read from the one table of rights rather than written out again here. A
+ * boundary stated in three places - this page, the lock on a check and the
+ * window the lock opens - moves in one of them first, and the disagreement is
+ * found by the person paying.
+ *
+ * The card is served as text, with one live control in it: the button is the
+ * end of the offer, so it goes to the payment provider rather than anywhere on
+ * this site.
  */
-export async function PricingPage({ locale }: { readonly locale: Locale }) {
+export async function PricingPage() {
   const t = await getTranslations("pricing");
   const item = await getTranslations("pricingPlan");
+  const checkName = await getTranslations("capabilities");
+  const format = await getFormatter();
+
+  const unlimited = capabilities
+    .filter((capability) => capability.tier === "free" && capability.id !== "download")
+    .map((capability) => checkName(capability.id));
 
   return (
     <div
@@ -47,25 +51,29 @@ export async function PricingPage({ locale }: { readonly locale: Locale }) {
         <div>
           <p className="text-lg font-semibold">{t("planName")}</p>
           <p className="text-3xl leading-none font-bold tracking-tight text-primary">
-            {t("price")}
+            {format.number(planPrice.amount, {
+              style: "currency",
+              currency: planPrice.currency,
+              // A whole number of currency units: "$0.00" on a card reads as an
+              // invoice, and the pilot's figure has no cents in it to lose.
+              maximumFractionDigits: 0,
+            })}
           </p>
         </div>
 
-        <p className="text-sm leading-relaxed text-muted-foreground">{t("planNote")}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {t("planNote", { free: format.list(unlimited, { type: "conjunction" }) })}
+        </p>
 
         <ul className="ms-4 flex list-disc flex-col gap-1.5 text-sm">
-          {planItems.map((id) => (
+          {capabilities.map(({ id }) => (
             <li key={id} className="ps-1">
               {item(id)}
             </li>
           ))}
         </ul>
 
-        <Button asChild className="mt-1 self-start">
-          <Link href={localizedPath("/", locale)}>
-            {t("cta", { brandName: site.name })}
-          </Link>
-        </Button>
+        <UpgradeMount />
       </div>
 
       <p className="mx-auto max-w-[36rem] text-center text-sm text-muted-foreground">

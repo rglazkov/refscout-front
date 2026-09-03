@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildGraph,
+  packagesUpFront,
   reachableFrom,
   readSources,
   resolveSpecifier,
@@ -77,6 +78,52 @@ describe("layer boundaries", () => {
           !file.path.startsWith("src/test/") &&
           network.test(file.text),
       )
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("a result once given is not taken back", () => {
+  /**
+   * The screen of findings knows nothing about access. Days of access that ran
+   * out in the middle of a run leave every card that had already arrived
+   * readable and exportable, and the way that is guaranteed is that there is no
+   * path from the results to the answer about entitlements at all - so no
+   * condition on it can be added by accident, and none can be added on purpose
+   * without this failing first.
+   */
+  it("nothing on the results screen names the entitlements", () => {
+    const offenders = files
+      .filter((file) => file.path.startsWith("src/features/results/"))
+      .filter((file) => /entitlement/i.test(file.text))
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("what the client bundle must not contain", () => {
+  /**
+   * The password flows and the administration panel. Both exist on the server,
+   * and neither may exist here even behind a flag that is switched off: code in
+   * the bundle names the addresses it calls, and an address named in public
+   * JavaScript is an address anybody can start knocking on. Sign-in goes
+   * through the providers, a reset arrives as a link in an email to a server
+   * address, and the administration panel is a separate subdomain and a
+   * separate build.
+   */
+  it("has neither the password flows nor the administration panel in it", () => {
+    const forbidden = /auth\/password\/|admin-modal|\/admin/;
+    const offenders = files
+      // The generated wire module is exempt because it is the contract written
+      // out: it declares a type per operation, including the ones only the
+      // server ever performs, and a type is erased before anything is shipped.
+      // What matters is that nothing hand-written calls those addresses.
+      .filter(
+        (file) =>
+          !file.path.startsWith("src/test/") &&
+          !file.path.startsWith("src/lib/api/wire/"),
+      )
+      .filter((file) => forbidden.test(file.text))
       .map((file) => file.path);
     expect(offenders).toEqual([]);
   });
@@ -301,5 +348,107 @@ describe("the two modes of the working screen", () => {
     const reachable = reachableFrom(graph, "src/features/diff/");
     const leaks = [...reachable].filter((module) => module.startsWith("src/lib/api"));
     expect(leaks).toEqual([]);
+  });
+});
+
+describe("what a marketing page costs to open", () => {
+  /**
+   * The addresses a person arrives on before they have brought anything: the
+   * start page, the list of checks, a check's own page and the pricing card.
+   * The layout is one of them because every page is served inside it.
+   */
+  const MARKETING = [
+    "src/app/[locale]/layout.tsx",
+    "src/app/[locale]/page.tsx",
+    "src/app/[locale]/features/page.tsx",
+    "src/app/[locale]/features/[feature]/page.tsx",
+    "src/app/[locale]/pricing/page.tsx",
+  ];
+
+  /**
+   * The libraries that exist to read or to write a document, and which are of
+   * no use at all until somebody has brought one. Between them they are most of
+   * what the product weighs - a PDF engine, an editor, the readers and writers
+   * of the formats - and none of it may arrive with a page that is text.
+   *
+   * The recorded sizes in `budget.json` say what a page costs; this says why.
+   * A budget notices growth after it has happened and only when it is large
+   * enough to show, whereas this fails on the import that caused it and names
+   * the chain that brought it in.
+   */
+  const ON_DEMAND_ONLY = [
+    "pdfjs-dist",
+    "mammoth",
+    "turndown",
+    "@joplin/turndown-plugin-gfm",
+    "@mixmark-io/domino",
+    "fflate",
+    "@codemirror/",
+    "codemirror-lang-bib",
+    /*
+     * And the query library, which belongs to the screens that hold the
+     * server's state. A page of text asks the server nothing until somebody
+     * presses something, so the one control that does press reaches for it
+     * behind an import() of its own.
+     */
+    "@tanstack/react-query",
+  ];
+
+  it("no page a visitor lands on pulls in a parser or the editor", () => {
+    const packages = packagesUpFront(files, MARKETING);
+    // A renamed entry file would leave the walk with nothing to follow, and the
+    // check would pass by reaching no package at all.
+    expect([...packages.keys()]).toContain("next-intl/server");
+
+    const offenders = [...packages]
+      .filter(([name]) => ON_DEMAND_ONLY.some((library) => name.startsWith(library)))
+      .map(([, chain]) => chain);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("one dictionary, one language", () => {
+  const DICTIONARY = /messages\/[^/]+\.json$/;
+
+  /**
+   * A dictionary reached by a static import is a dictionary in the bundle, and
+   * with a second language every visitor would carry the words of a language
+   * they are not reading. It is loaded through `import()` with the language in
+   * the path instead, so the bundler makes one chunk per language.
+   */
+  it("no language's words are imported statically", () => {
+    // The tests are not the bundle: a case that renders a screen hands it the
+    // words directly rather than letting it fetch them.
+    const offenders: string[] = [];
+    for (const file of files) {
+      if (file.path.startsWith("src/test/")) continue;
+      for (const specifier of file.imports) {
+        if (DICTIONARY.test(specifier)) offenders.push(`${file.path} -> ${specifier}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("every dictionary is asked for by the language being read", () => {
+    // A literal in the path would be one language pinned into the code, which
+    // is the same defect wearing an import() around it.
+    const literal = files
+      .flatMap((file) =>
+        file.dynamicImports
+          .filter((specifier) => DICTIONARY.test(specifier))
+          .map((specifier) => `${file.path} -> ${specifier}`),
+      )
+      .filter((entry) => !entry.includes("${"));
+    expect(literal).toEqual([]);
+
+    // And the two places that do ask, so that a third way in cannot appear
+    // unnoticed: the request configuration used at build time, and the fetch
+    // the browser makes when a screen needs the rest of the words.
+    const asking = files
+      .filter((file) => !file.path.startsWith("src/test/"))
+      .filter((file) => /messages\/\$\{/.test(file.text))
+      .map((file) => file.path)
+      .sort();
+    expect(asking).toEqual(["src/lib/i18n/messages.ts", "src/lib/i18n/request.ts"]);
   });
 });

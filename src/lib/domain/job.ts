@@ -74,6 +74,13 @@ export type JobStatus = {
   readonly pollAfterMs?: number;
   readonly stages: readonly JobStage[];
   readonly documents: readonly JobDocument[];
+  /**
+   * The identifier of the poll that brought this state. It is not part of the
+   * body - it is the header every answer carries - and it is kept because a job
+   * that failed is a case somebody writes to support about, and this is the
+   * line support finds it by in the server's own log.
+   */
+  readonly requestId?: string;
 };
 
 /** The key of one result body: the document and the module together. */

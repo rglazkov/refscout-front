@@ -10,6 +10,7 @@ import {
   type IntakeRefusal,
 } from "@/lib/docs";
 import { type BufferItem, type FilledSlot, type SourceFormat } from "@/lib/domain";
+import { newId } from "@/lib/webcrypto";
 import { type ParseProgress } from "@/workers";
 import { totalChars, useBufferStore } from "@/stores";
 
@@ -318,7 +319,7 @@ export function useIntake(): IntakeApi {
       // overwriting it would throw away whatever was corrected in it.
       if (known && docRegistry.get(id)?.text === input.text) return id;
       const { item, content } = await acceptArtifact(input);
-      const fresh = known ? { ...item, id: crypto.randomUUID() } : item;
+      const fresh = known ? { ...item, id: newId() } : item;
       docRegistry.put(fresh.id, content);
       useBufferStore.getState().add(fresh);
       return fresh.id;

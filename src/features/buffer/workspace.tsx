@@ -24,6 +24,9 @@ import {
   startApiSource,
 } from "@/lib/api";
 import { type ModuleId } from "@/lib/domain";
+import { SessionNotice } from "@/features/auth/session-notice";
+import { ReportProblemButton } from "@/features/feedback/report-problem";
+import { useSession } from "@/features/auth/use-session";
 import { TextOverlay } from "@/features/editor/text-overlay";
 import { DropZone } from "@/features/intake/drop-zone";
 import { IntakeProvider } from "@/features/intake/intake-context";
@@ -123,11 +126,19 @@ function WorkspaceBody() {
   const intake = useIntake();
   const { addFiles } = intake;
   const run = useRun(locale);
-  const { job } = useJob(handle);
+  const { job, error: jobError } = useJob(handle);
   const [pasting, setPasting] = React.useState(false);
   const setPasteText = useIntakeDraftStore((state) => state.setText);
   const queries = useQueryClient();
   const setEntitlements = useEntitlementsStore((state) => state.set);
+
+  /*
+   * Who is signed in, asked before anything else happens on this screen. The
+   * answer carries the CSRF token that every mutating request has to send, so a
+   * run pressed before it came back would be refused for a reason the person
+   * has no way to act on.
+   */
+  useSession();
 
   const entitlementQuery = useQuery({
     queryKey: ["entitlements"],
@@ -307,6 +318,12 @@ function WorkspaceBody() {
           </>
         ) : null}
 
+        {/* A session that ended between two polls. It is a line above the work
+            rather than a screen in place of it: what is on screen at that
+            moment is a check somebody is waiting for, and the findings that
+            have already arrived stay readable and exportable. */}
+        <SessionNotice error={jobError} />
+
         {mode === "buffer" && job === null && handle !== null ? (
           <p className="mt-6 text-sm text-muted-foreground">{t("starting")}</p>
         ) : null}
@@ -340,15 +357,22 @@ function WorkspaceBody() {
                 <p className="mt-1 text-sm">
                   {t("failedBody", { jobId: job.status.id })}
                 </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={resetJob}
-                >
-                  {t("backToBuffer")}
-                </Button>
+                {/* Back to the buffer, and the offer to tell us about it. The
+                    report carries the identifier of the poll that brought the
+                    failure, and support finds the case in the logs by it.
+                    Nothing here says what the attempt cost: the server counts
+                    what was spent and the client is not told. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={resetJob}>
+                    {t("backToBuffer")}
+                  </Button>
+                  <ReportProblemButton
+                    variant="outline"
+                    {...(job.status.requestId === undefined
+                      ? {}
+                      : { requestId: job.status.requestId })}
+                  />
+                </div>
               </div>
             ) : (
               <ZoneBoundary zone="results">
