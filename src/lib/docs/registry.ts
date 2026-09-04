@@ -1,10 +1,10 @@
-import { type DocContent } from "@/lib/domain";
+import { type BibSpan, type DocContent } from "@/lib/domain";
 
 import { clearSnapshots, forgetSnapshot } from "./snapshot";
 import { releaseAllSourceFiles, releaseSourceFile } from "./sources";
 
 /**
- * The text registry. Four operations and an adapter behind them; when the
+ * The text registry. A handful of operations and an adapter behind them; when the
  * adapter becomes IndexedDB not one line of calling code changes.
  *
  * It lives outside React on purpose. Text that has once been in a store will be
@@ -63,6 +63,23 @@ export function replaceText(docId: string, text: string): DocContent | undefined
   const next: DocContent = { ...current, text };
   adapter.put(docId, next);
   return next;
+}
+
+/**
+ * Replaces the map of where a bibliography's entries sit. It arrives after the
+ * text does - the reading is a second pass, and after an edit it is a second
+ * pass over a text that has already been written back - so it is set apart from
+ * the text rather than with it.
+ *
+ * An empty map is stored as no map at all. The difference matters: a finding
+ * that names an entry key asks whether the entry is known, and an empty list
+ * answers "no entries here", which is exactly what a file with none has.
+ */
+export function setBibEntries(docId: string, bibEntries: readonly BibSpan[]): void {
+  const current = adapter.get(docId);
+  if (current === undefined) return;
+  const { bibEntries: _previous, ...rest } = current;
+  adapter.put(docId, bibEntries.length === 0 ? rest : { ...rest, bibEntries });
 }
 
 /**

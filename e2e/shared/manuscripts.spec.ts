@@ -89,9 +89,7 @@ test.describe("PDF and Word arrive like any other document", () => {
     await expect(page.getByTestId("editor")).toContainText("你好世界");
   });
 
-  test("a Word file becomes markdown, and says it will come back as .md", async ({
-    page,
-  }) => {
+  test("a Word file becomes markdown and comes back a Word file", async ({ page }) => {
     await page.goto("/");
     await drop(
       page,
@@ -111,9 +109,29 @@ test.describe("PDF and Word arrive like any other document", () => {
     const editor = page.getByTestId("editor");
     await expect(editor).toContainText("# On the estimation of variance");
     await expect(editor).toContainText("The footnote that proves footnotes survive.");
-    // Until a `.docx` builder is written the honest file to hand back is the
-    // markdown that is actually in the buffer, and the button says so.
-    await expect(page.getByTestId("download-document")).toContainText(".md");
+
+    // You get back the format you brought, and the file is assembled here from
+    // the markdown the person has been reading.
+    await expect(page.getByTestId("download-document")).toContainText(".docx");
+    // Said where the person presses rather than in a help page: somebody who
+    // brought a typeset manuscript would otherwise learn that its layout is
+    // gone by opening what they had just saved.
+    await expect(page.getByRole("dialog")).toContainText(
+      "the original layout and pictures are not",
+    );
+
+    const [saved] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByTestId("download-document").click(),
+    ]);
+    expect(saved.suggestedFilename()).toBe("thesis.docx");
+
+    const stream = await saved.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    // A `.docx` is a zip of XML parts, so the container's own signature is what
+    // says a Word file was built rather than markdown given a new extension.
+    expect(Buffer.concat(chunks).subarray(0, 2).toString("latin1")).toBe("PK");
   });
 });
 

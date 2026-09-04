@@ -2,6 +2,7 @@ import { type ExtractedText } from "@/lib/docs/canonical";
 import { type DocMeta, type PageSpan, type SourceFormat } from "@/lib/domain";
 
 import { type Measured } from "./quality";
+import { type Reading } from "./reading";
 
 /**
  * What a parser hands back. It is the same shape for every format, because the
@@ -38,6 +39,13 @@ export type Parsed = {
    * dissertation.
    */
   readonly measured?: Measured;
+  /**
+   * What was understood about the file beyond its text: where the entries of a
+   * bibliography sit, and the warnings a bibliography earns without anything
+   * being sent anywhere. Absent on the formats that have no such structure - a
+   * PDF, a Word file, a paragraph somebody typed.
+   */
+  readonly reading?: Reading;
 };
 
 /**

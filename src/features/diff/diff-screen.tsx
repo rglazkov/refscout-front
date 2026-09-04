@@ -8,6 +8,7 @@ import {
   CopyIcon,
   DownloadIcon,
   HighlighterIcon,
+  LoaderIcon,
   Trash2Icon,
   TypeIcon,
   UploadIcon,
@@ -26,7 +27,7 @@ import {
 import { cn } from "@/lib/cn";
 import { detectKind, downloadExtensionOf, releaseSourceFile } from "@/lib/docs";
 import { type DetectedKind, type SourceFormat } from "@/lib/domain";
-import { downloadText } from "@/lib/export";
+import { saveDocument } from "@/lib/export";
 import { newId } from "@/lib/webcrypto";
 import { syntaxKindOf, useSyntax } from "@/features/editor/syntax";
 import { acceptFile } from "@/features/intake/intake";
@@ -79,7 +80,7 @@ const emptyPane: Pane = {
  * the text turned out to be - and the rest of the list is there for the times
  * that rule guesses wrong, which is why it can be overridden at all.
  */
-const exportFormats = ["auto", "tex", "bib", "md", "txt"] as const;
+const exportFormats = ["auto", "docx", "tex", "bib", "md", "txt"] as const;
 
 type ExportFormat = (typeof exportFormats)[number];
 
@@ -126,6 +127,13 @@ export function DiffScreen({ onBack }: { readonly onBack: () => void }) {
   const [highlight, setHighlight] = React.useState(true);
   const [position, setPosition] = React.useState<Position>({ current: 0, total: 0 });
   const [exportAs, setExportAs] = React.useState<ExportFormat>("auto");
+  /**
+   * Whether the file is being built. One of the formats is a container rather
+   * than text and is assembled in a worker, which takes a moment on a long
+   * document - and a button that answers a press with nothing is a defect here
+   * as anywhere else.
+   */
+  const [saving, setSaving] = React.useState(false);
   const [pasteInto, setPasteInto] = React.useState<Side | null>(null);
   const handle = React.useRef<PanesHandle | null>(null);
   const holdPanes = React.useCallback((panes: PanesHandle | null) => {
@@ -414,11 +422,22 @@ export function DiffScreen({ onBack }: { readonly onBack: () => void }) {
               variant="outline"
               size="sm"
               data-testid="diff-export"
-              onClick={() =>
-                downloadText(right.text, right.name, "", extensionFor(right, exportAs))
-              }
+              aria-busy={saving}
+              onClick={() => {
+                if (saving) return;
+                setSaving(true);
+                void saveDocument({
+                  text: right.text,
+                  documentName: right.name,
+                  extension: extensionFor(right, exportAs),
+                }).finally(() => setSaving(false));
+              }}
             >
-              <DownloadIcon aria-hidden="true" />
+              {saving ? (
+                <LoaderIcon className="animate-spin" aria-hidden="true" />
+              ) : (
+                <DownloadIcon aria-hidden="true" />
+              )}
               {t("export", { extension: extensionFor(right, exportAs) })}
             </Button>
             <span className="text-[0.8125rem] text-muted-foreground">

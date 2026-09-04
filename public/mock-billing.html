@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Mock payment page</title>
+    <!--
+      Where the mock data source sends the browser instead of a payment
+      provider.
+
+      The contract's example answers a checkout with an address on a provider's
+      own domain. That address exists for the provider and for nobody else, so
+      under the mock the button led out of the site to a host the browser cannot
+      resolve, and the journey - the warning about the buffer, the departure,
+      the way back - stopped at a browser error page. This stands in its place:
+      the wire shape is unchanged, the browser really does leave for an absolute
+      address, and the address happens to be ours.
+
+      No payment is taken here and nothing is asked for: there is no form on
+      this page, because the product has no field for a card number anywhere.
+      With the real server this page is never named and never reached.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ground: #f6f7f6;
+        --surface: #ffffff;
+        --ink: #12211f;
+        --muted: #5b6b68;
+        --line: #d9e0de;
+        --accent: #0f5f56;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #04100f;
+          --surface: #0a1a18;
+          --ink: #e6efed;
+          --muted: #93a5a1;
+          --line: #1d3330;
+          --accent: #7fd8c8;
+        }
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem;
+        background: var(--ground);
+        color: var(--ink);
+        font:
+          1rem/1.6 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      main {
+        width: min(34rem, 100%);
+        box-sizing: border-box;
+        padding: 2rem;
+        border: 1px solid var(--line);
+        border-radius: 0.875rem;
+        background: var(--surface);
+      }
+
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.375rem;
+        line-height: 1.3;
+      }
+
+      p {
+        margin: 0 0 1rem;
+        color: var(--muted);
+      }
+
+      code {
+        font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", monospace;
+        font-size: 0.9em;
+        color: var(--ink);
+      }
+
+      a {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.625rem 1rem;
+        border: 1px solid var(--accent);
+        border-radius: 0.625rem;
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      a:hover {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>This is the mock, not a payment provider</h1>
+      <p>
+        The data source answering this browser is the contract's own mock, so
+        <code>POST /billing/checkout</code> and <code>GET /billing/portal</code>
+        hand back this page instead of a provider's. Nothing was charged, and nothing was
+        asked for.
+      </p>
+      <p>
+        Point the site at a real API with
+        <code>NEXT_PUBLIC_API_SOURCE=stand</code> and the same button leads to the
+        provider's page instead.
+      </p>
+      <a id="back" href="/">Back to the site</a>
+    </main>
+    <script>
+      // The address to come back to, handed over by the mock. Only an address
+      // on this origin is followed: a page that redirects wherever the query
+      // string tells it to is an open redirect, and this one is served from the
+      // product's own origin.
+      (function () {
+        var asked = new URL(window.location.href).searchParams.get("return");
+        if (asked === null) return;
+        var target;
+        try {
+          target = new URL(asked, window.location.origin);
+        } catch (error) {
+          return;
+        }
+        if (target.origin !== window.location.origin) return;
+        document.getElementById("back").href = target.href;
+      })();
+    </script>
+  </body>
+</html>

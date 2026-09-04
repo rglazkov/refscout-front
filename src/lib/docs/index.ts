@@ -3,6 +3,7 @@ export {
   docRegistry,
   forgetDocument,
   replaceText,
+  setBibEntries,
   useAdapter,
   type DocRegistryAdapter,
 } from "./registry";

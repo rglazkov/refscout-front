@@ -1,9 +1,15 @@
-The workers and the typed client in front of them. `parse.worker.ts` reads
-every document — pdf.js, mammoth and turndown arrive inside it through
-`import()`, with the document that needs them — `gzip.worker.ts` compresses the
-one request that carries text, and `diff.worker.ts` compares two versions,
-which is one pass over both of them in full and so belongs nowhere near the
-thread the panes are drawn on.
+The workers and the typed client in front of them. `parse.worker.ts` reads every
+document, reads the structure of one again after it has been edited, and
+assembles the one format that is a container rather than text — pdf.js, mammoth,
+turndown, citation-js, unified-latex, markdown-it and the Word assembler all
+arrive inside it through `import()`, with the document that needs them.
+`gzip.worker.ts` compresses the one request that carries text, and
+`diff.worker.ts` compares two versions, which is one pass over both of them in
+full and so belongs nowhere near the thread the panes are drawn on.
+
+**Three calls, one worker.** Which of the three a message asks for travels in
+the envelope, so reading a Word file and writing one back share a script and a
+pool instead of shipping the same megabyte twice.
 
 **They are built by us**, by `scripts/build-workers.mjs` into `public/workers`,
 and not by the application bundler: its way of shipping `new Worker(new URL(…))`

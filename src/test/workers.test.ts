@@ -88,10 +88,14 @@ describe("the workers", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the parsing libraries are named in one place", () => {
-    // pdf.js, mammoth, turndown and the zip reader are tens of kilobytes each
-    // and they arrive with the document that needs them. Imported from a
-    // screen, one of them would join the first paint instead.
+  it("the libraries that read and write documents are named in one place", () => {
+    // Every one of these is tens or hundreds of kilobytes, and they arrive with
+    // the document that needs them. Imported from a screen, one of them would
+    // join the first paint instead.
+    //
+    // Both directions are on this list, because the folder holds both: the same
+    // worker reads a Word file and writes one back, and a library that only
+    // exists on the way out would otherwise be free to be imported anywhere.
     const libraries = [
       "pdfjs-dist",
       "mammoth",
@@ -99,6 +103,11 @@ describe("the workers", () => {
       "@joplin/turndown-plugin-gfm",
       "@mixmark-io/domino",
       "fflate",
+      "@citation-js/core",
+      "@citation-js/plugin-bibtex",
+      "@unified-latex/",
+      "markdown-it",
+      "@turbodocx/html-to-docx",
     ];
     const offenders: string[] = [];
     for (const file of files) {
@@ -117,14 +126,25 @@ describe("the workers", () => {
   it("the heavy parsers are reached through import() alone", () => {
     // Statically imported, pdf.js would be in the chunk of every document -
     // including the person who brought a `.bib` and will never open a PDF.
-    const heavy = ["pdfjs-dist", "mammoth", "turndown"];
+    const heavy = [
+      "pdfjs-dist",
+      "mammoth",
+      "turndown",
+      "@citation-js/",
+      "@unified-latex/",
+      "markdown-it",
+      "@turbodocx/html-to-docx",
+    ];
     const offenders: string[] = [];
     for (const file of files) {
       if (file.path.startsWith("src/test/")) continue;
       for (const specifier of file.imports) {
         if (heavy.some((library) => specifier.startsWith(library))) {
-          // The parser modules themselves are the leaves that `import()` reaches.
-          if (/^src\/lib\/parse\/(pdf|docx)\.ts$/.test(file.path)) continue;
+          // The modules themselves are the leaves that `import()` reaches: one
+          // per format on the way in, and the assembler on the way out.
+          if (/^src\/lib\/parse\/(pdf|docx|bib|latex|assemble)\.ts$/.test(file.path)) {
+            continue;
+          }
           offenders.push(`${file.path} -> ${specifier}`);
         }
       }
@@ -136,10 +156,11 @@ describe("the workers", () => {
 describe("one markdown parser", () => {
   /**
    * markdown-it is the project's markdown parser, and there is no second one
-   * under any pretext. It arrives with the `.docx` export path, where
-   * `render()` is what builds the HTML a Word file is assembled from; until
-   * then the rule is all there is to hold, because a second parser added now
-   * is a second parser to remove later.
+   * under any pretext. It arrived with the `.docx` export path, where
+   * `render()` builds the HTML a Word file is assembled from, and the same
+   * library's tokens are what a preview is drawn from - one library answering
+   * both, so that what is shown and what is written out cannot disagree about
+   * where a heading ends.
    *
    * The grammar CodeMirror highlights with is not one of these. It reads text
    * to colour it and produces no document, and swapping it for markdown-it

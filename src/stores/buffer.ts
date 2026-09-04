@@ -10,6 +10,7 @@ import {
   type CheckOptions,
   type ExtractInfo,
   type FilledSlot,
+  type LocalFinding,
   type ModuleId,
   type VenueRef,
   moduleIds,
@@ -80,6 +81,14 @@ export type BufferState = {
     patch: Partial<CheckOptions[K]>,
   ) => void;
   readonly patchExtract: (docId: string, patch: Partial<ExtractInfo>) => void;
+  /**
+   * What reading the file in the browser had to say about it. It is replaced
+   * whole rather than added to, because it is recomputed from the text as it
+   * now stands: a duplicate key the person has just removed stops being
+   * reported the moment they remove it, and a warning that outlived its cause
+   * would be worse than none.
+   */
+  readonly setLocalFindings: (docId: string, findings: readonly LocalFinding[]) => void;
   /**
    * The finished document in place of the card that stood there while it was
    * being read. It is a replacement rather than a patch because extraction
@@ -233,6 +242,13 @@ export const useBufferStore = create<BufferState>()(
         const item = state.items.find((candidate) => candidate.id === docId);
         if (item === undefined) return;
         item.extract = castDraft({ ...item.extract, ...patch });
+      }),
+
+    setLocalFindings: (docId, findings) =>
+      set((state) => {
+        const item = state.items.find((candidate) => candidate.id === docId);
+        if (item === undefined) return;
+        item.localFindings = castDraft(findings);
       }),
   })),
 );

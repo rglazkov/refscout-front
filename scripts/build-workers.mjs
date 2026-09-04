@@ -28,6 +28,32 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const outdir = join(root, "public", "workers");
 
+/**
+ * The one alias both builds share besides `@`. A bibliography reader ships with
+ * Node's HTTP clients for the addresses it can also read from, and they cannot
+ * be bundled for a browser at all - nor should they be, since this is the box
+ * documents are parsed in and it has no network. They are replaced by a
+ * function that throws.
+ */
+const alias = {
+  "@": join(root, "src"),
+  "node-fetch": join(here, "stubs", "no-network.mjs"),
+  "sync-fetch": join(here, "stubs", "no-network.mjs"),
+};
+
+/**
+ * `global` is Node's name for the global object and does not exist in a
+ * browser. The Word assembler's own browser bundle nonetheless reaches for it
+ * by that name, once, to decide which kind of container to hand its file back
+ * in - and an undefined name there is a `ReferenceError` at the last line of
+ * the work, after the whole document has been packed.
+ *
+ * A substitution rather than a variable declared somewhere: nothing of ours
+ * writes `global`, so the only occurrences this touches are a library's, and it
+ * replaces them with the name every environment agrees on.
+ */
+const define = { global: "globalThis" };
+
 rmSync(outdir, { recursive: true, force: true });
 
 const result = await build({
@@ -44,9 +70,8 @@ const result = await build({
   target: ["chrome111", "firefox114", "safari16.4"],
   minify: true,
   sourcemap: true,
-  // The same alias the application uses, so a worker imports `@/lib/parse` the
-  // way every other module does.
-  alias: { "@": join(root, "src") },
+  alias,
+  define,
   /*
    * Named by their entry rather than by a hash. The address is written in the
    * application by hand, so it has to be one a person can write; the chunks
@@ -84,7 +109,8 @@ const fallback = await build({
   // module support inside a worker, not modern syntax.
   target: ["chrome111", "firefox114", "safari16.4"],
   minify: true,
-  alias: { "@": join(root, "src") },
+  alias,
+  define,
   entryNames: "[name]",
   logLevel: "warning",
   metafile: true,

@@ -30,6 +30,13 @@ export type RunOptions = {
 
 export type WorkerClient<Request, Result> = {
   readonly run: (request: Request, options?: RunOptions) => Promise<Result>;
+  /**
+   * The same pool, asked to do the other thing this kind of worker knows how to
+   * do. A Word file is read and written by one worker - the libraries for both
+   * directions live together and neither should arrive twice - so the direction
+   * travels in the envelope rather than in a second pool of the same script.
+   */
+  readonly ask: <Q, R>(type: string, request: Q, options?: RunOptions) => Promise<R>;
   /** Ends every worker of this kind. The next call starts a new one. */
   readonly dispose: () => void;
 };
@@ -240,13 +247,17 @@ export function createWorkerClient<Request, Result>(
     }
   };
 
-  const call = async (request: Request, options: RunOptions): Promise<Result> => {
+  const call = async <Q, R>(
+    callType: string,
+    request: Q,
+    options: RunOptions,
+  ): Promise<R> => {
     if (options.signal?.aborted === true) throw new ParseFailure("CANCELLED");
 
     const instance = await open();
     const active = instance.worker;
 
-    return new Promise<Result>((resolve, reject) => {
+    return new Promise<R>((resolve, reject) => {
       const id = newId();
       let settled = false;
 
@@ -269,7 +280,7 @@ export function createWorkerClient<Request, Result>(
         reject(failure);
       };
 
-      const onMessage = (event: MessageEvent<WorkerReply<Result>>): void => {
+      const onMessage = (event: MessageEvent<WorkerReply<R>>): void => {
         const reply = event.data;
         if (reply.id !== id || settled) return;
         if (reply.type === "progress") {
@@ -316,13 +327,14 @@ export function createWorkerClient<Request, Result>(
         return;
       }
 
-      const message: WorkerCall = { id, type, payload: request };
+      const message: WorkerCall = { id, type: callType, payload: request };
       active.postMessage(message);
     });
   };
 
   return {
-    run: (request, options = {}) => call(request, options),
+    run: (request, options = {}) => call<Request, Result>(type, request, options),
+    ask: (callType, request, options = {}) => call(callType, request, options),
     dispose: () => {
       for (const instance of pool.splice(0)) instance.worker.terminate();
       // Anything waiting for a place is waiting for a pool that no longer has

@@ -55,6 +55,14 @@ export const extractFailureCodes = [
   "WORKER_TIMEOUT",
   "WORKER_CRASHED",
   "CANCELLED",
+  /**
+   * The one code here about the way back out rather than the way in: the Word
+   * file could not be assembled from the text. It shares this enumeration
+   * because a worker's refusal travels as one code whichever direction it was
+   * working in, and a second enumeration for a single value would be two lists
+   * to keep in step.
+   */
+  "DOCX_BUILD_FAILED",
 ] as const;
 
 export type ExtractFailureCode = (typeof extractFailureCodes)[number];
@@ -199,9 +207,28 @@ export type Attachment = {
   readonly slot: AttachmentSlot;
 };
 
+/**
+ * What reading a bibliography in the browser can say without a server. It is
+ * deliberately short: these are the things visible in the file itself, and
+ * everything that needs the outside world - whether a work was retracted,
+ * whether a DOI resolves - belongs to the check that has the outside world.
+ */
+export const localFindingCodes = [
+  /** Two entries under one key: whichever is cited, one of them is not. */
+  "BIB_DUPLICATE_KEY",
+  /**
+   * The file did not read as a whole. The text is accepted as any other text
+   * and the check still runs on it; what stops is this reading of it, so the
+   * card says the lint is off rather than pretending it found nothing.
+   */
+  "BIB_UNREADABLE",
+] as const;
+
+export type LocalFindingCode = (typeof localFindingCodes)[number];
+
 /** A problem found in the browser, before anything is sent. */
 export type LocalFinding = {
-  readonly code: string;
+  readonly code: LocalFindingCode;
   readonly severity: "warning" | "info";
   readonly params?: Readonly<Record<string, string | number>>;
 };

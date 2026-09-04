@@ -12,6 +12,26 @@ each one saying where it is in words, a page, an entry of a bibliography, the
 sentence the module was reading. They mark one as dealt with or turn it down,
 and take the report and the text away as files.
 
+**The file comes back in the format it was brought in.** A `.docx` comes back a
+`.docx`, assembled here out of the markdown the person has been correcting -
+headings, lists, tables and footnotes kept, the original layout and its pictures
+not, which the button says where it is pressed rather than in a help page. A
+`.tex`, a `.bib` and a `.md` come back as the characters they went in as, down
+to the byte-order mark and the line ending, because they were never anything but
+text and printing them back through a library would reformat somebody else's
+file. A PDF and text that was typed come back as `.txt`, having no format of
+their own. That is what closes the loop: correct the text, save the file, drop
+it into the next check.
+
+**A bibliography is read here as well as sent.** Its entries are found -
+citation-js for a `.bib`, unified-latex for a bibliography written inside a
+`.tex` - which is what lets a finding that names an entry key be shown against
+that entry, and what puts a key written twice on the card before anything is
+sent or paid for. A file that will not read as a whole is still an ordinary
+text: it is sent and checked as it is, and the card says that this reading of it
+is off rather than showing an empty list that would pass for a clean bill of
+health.
+
 **Two more tools sit beside the checks, and neither starts from a document in
 the buffer.** A search takes a topic and gives back real papers from ten
 bibliographic databases: the query string is the whole of what leaves the tab,
@@ -24,18 +44,18 @@ text" while the buffer is empty, and one way out, "Back"; entering either and
 coming back leaves the buffer exactly as it was.
 
 **The file never leaves the browser.** Every format is read in a worker - pdf.js
-for PDF, mammoth and turndown for Word, our own code for the rest - and only the
-extracted text is ever sent. That makes the quality of the reading ours and
+for PDF, mammoth and turndown for Word, our own code for the formats that are
+already text, and citation-js and unified-latex over that text for the structure
+a bibliography has - and only the extracted text is ever sent. That makes the quality of the reading ours and
 visible: a document that would not read keeps its card, says why in numbers and
 offers a way out that can be taken there - a password, another attempt, another
 file, or the text typed in by hand.
 
-Two things it does not do yet, and both are scheduled work rather than gaps. A
-Word file is downloaded as `.md` until the browser can build a `.docx` again,
-and the button says so. And the buffer lives as long as the tab does: the
-extracted text is held in memory, storage that survives a reload is not built
-yet, and until it exists the screen says so in as many words - which is also why
-a step that leaves the site asks first.
+One thing it does not do yet, and it is scheduled work rather than a gap. The
+buffer lives as long as the tab does: the extracted text is held in memory,
+storage that survives a reload is not built yet, and until it exists the screen
+says so in as many words - which is also why a step that leaves the site asks
+first.
 
 **Two of the checks are paid, and the boundary is drawn once.** PreSubmit and
 Cite are locked where the checks are ticked rather than after a form has been
@@ -201,11 +221,15 @@ re-export; both are needed.
   Each is built twice, as a module worker and as a classic script that needs no
   module support, and a worker that has not said `ready` in three seconds is
   replaced by the second rather than waited on.
-- Nothing is parsed outside a worker. `src/lib/parse` is reachable from
-  `src/workers` and from the tests alone, the parsing libraries are named in
-  that one folder, and no code a worker runs touches the DOM or the network -
-  the class of risk that comes with reading strangers' binary formats has moved
-  from the server into the tab, and the worker is the box it is kept in.
+- Nothing is parsed outside a worker, and nothing is assembled outside one.
+  `src/lib/parse` is reachable from `src/workers` and from the tests alone, the
+  libraries of both directions are named in that one folder, and no code a
+  worker runs touches the DOM or the network - the class of risk that comes with
+  reading strangers' binary formats has moved from the server into the tab, and
+  the worker is the box it is kept in. citation-js brings Node's HTTP clients
+  with it for the addresses it can also read from; the worker build replaces
+  them with a function that throws, so the box has no way out even where a
+  library expected one.
 - Comparing two versions cannot reach the layer that sends: the mode has
   nothing to send, and the architecture test says so rather than the prose. The
   comparison itself runs in its own worker, because it is one pass over both
@@ -215,9 +239,12 @@ re-export; both are needed.
 - A bibliographic record is drawn by one component, wherever it appears. A
   search result and a candidate proposed for a claim are the same record in the
   contract, and two cards for it would differ by the second edit.
-- There is one markdown parser in the project, and it is markdown-it. It arrives
-  with the `.docx` export path; until then the rule is enforced against every
-  other one.
+- There is one markdown parser in the project, and it is markdown-it. It arrived
+  with the `.docx` export path, where `render()` builds the HTML the Word
+  assembler reads, and the same library's tokens are what a preview is drawn
+  from - one library answering both, so that what is shown and what is written
+  out cannot disagree about where a heading ends. That HTML string exists for
+  the length of one function and reaches no DOM.
 - No text lives in component code - only dictionary keys; no colours live in the
   code - only `src/app/tokens.css`; the product name does not appear in `src/`.
 - The dictionary is split where the product is. The provider at the root carries
@@ -424,7 +451,8 @@ something that should arrive on demand is arriving up front.
 **The third entry counts both builds of the workers, so it is larger than what
 any one person downloads: a browser takes the module build or the classic one,
 never both. The third entry is everything that arrives later**: every chunk the build
-produced that no page asks for up front - pdf.js, mammoth, turndown, CodeMirror.
+produced that no page asks for up front - pdf.js, mammoth, turndown, CodeMirror,
+citation-js, unified-latex, markdown-it and the Word assembler.
 It is one number rather than a cap per chunk, because the question worth asking
 is how much the on-demand half has grown, and a per-chunk cap answers that only
 for the chunk somebody thought to name. What keeps any of it out of the first
@@ -498,6 +526,16 @@ are already text the invariant is exact instead: what was read is the file, byte
 for byte, once the line endings are normalised. There is one encoding in the
 product and it is UTF-8: a `.txt` is decoded like any other file, nothing
 records what its bytes were written in, and nothing offers to change it.
+
+**The way out is checked by going round the circle, not against a stored file.**
+A `.docx` from the corpus is read, written back out and read again, and what is
+compared is the structure that survived - headings, lists, tables, footnotes;
+a stored file would turn red on the assembler's next release over one attribute
+that moved. For the formats that are already text the circle is exact: the bytes
+written out are the bytes that came in, the byte-order mark and the line ending
+included. That last one runs against a browser's globals rather than Node's
+(`src/test/docx-round-trip.test.ts`), because the assembler ships a build per
+environment and the product uses the browser one.
 
 Two things need a browser and live in the browser lane
 (`e2e/shared/manuscripts.spec.ts`): that a worker starts at all, and that a

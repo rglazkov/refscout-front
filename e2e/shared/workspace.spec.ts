@@ -291,6 +291,43 @@ test.describe("from a file to a downloaded report", () => {
     }).toPass({ timeout: 10_000 });
   });
 
+  test("a key written twice is named on the card, before anything is sent", async ({
+    page,
+  }) => {
+    /*
+     * The bibliography is read here as well as sent, and a duplicate key is
+     * visible in the file itself - so it is said now, on the card, rather than
+     * after a check has run. It changes nothing else: the ticks stand, the plan
+     * stands, and the run button is exactly as it was.
+     */
+    await page.goto("/");
+    await page.getByTestId("file-input").setInputFiles({
+      name: "refs.bib",
+      mimeType: "text/plain",
+      buffer: Buffer.from(BIBLIOGRAPHY + BIBLIOGRAPHY, "utf8"),
+    });
+
+    const card = page.getByTestId("document-card");
+    await expect(card).toContainText("Two entries share the key");
+    await expect(card).toContainText("smith2019attention");
+    await expect(page.getByTestId("run")).toBeEnabled();
+
+    // And it goes when the cause goes. The reading is redone over the text as
+    // it now stands, so a warning cannot outlive the thing it was about.
+    await page.getByRole("button", { name: "refs.bib", exact: true }).click();
+    const editor = page.getByTestId("editor");
+    await expect(editor).toBeVisible();
+    await editor.getByRole("textbox").click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("Delete");
+    await page.keyboard.type("@article{only2019,\n  title = {One entry},\n");
+    await page.keyboard.press("Escape");
+
+    await expect(card).not.toContainText("Two entries share the key", {
+      timeout: 15_000,
+    });
+  });
+
   test("a bibliography on its own is a document, and it names its manuscript", async ({
     page,
   }) => {

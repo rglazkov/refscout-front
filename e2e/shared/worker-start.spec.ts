@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 import { buildDocx, buildPdf, paragraph, textPage } from "../../src/test/corpus";
 
 /**
- * Every kind of document is read, in whatever engine is running this.
+ * Every kind of document is read - and one of them written back out - in
+ * whatever engine is running this.
  *
  * This is the test the second browser project exists for, and it is written as
  * one page rather than as a file of scenarios on purpose: what it asks is not
@@ -31,7 +32,7 @@ A manuscript brought as LaTeX.
 \\end{document}
 `;
 
-test("a worker starts here, and reads text, PDF and Word", async ({ page }) => {
+test("a worker starts here, reads every format and writes one back", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("drop-zone")).toBeVisible();
 
@@ -67,6 +68,27 @@ test("a worker starts here, and reads text, PDF and Word", async ({ page }) => {
   // Read, not merely accepted: the text is what the editor shows.
   await page.getByRole("button", { name: "paper.pdf", exact: true }).click();
   await expect(page.getByTestId("editor")).toContainText("A page of prose in a PDF.");
+  await page.keyboard.press("Escape");
+
+  /*
+   * And the other direction, asked here for the same reason as the first. A
+   * Word file is assembled in that same worker, so on a browser that took the
+   * second build of it the assembler is inside a single script with everything
+   * else - a different bundle, a different set of globals, and a failure that
+   * would show up as a button answering a press with nothing.
+   */
+  await page.getByRole("button", { name: "thesis.docx", exact: true }).click();
+  const [saved] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("download-document").click(),
+  ]);
+  expect(saved.suggestedFilename()).toBe("thesis.docx");
+  const stream = await saved.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  // A `.docx` is a zip of XML parts, so the container's own signature is what
+  // says a Word file was built rather than markdown given a new extension.
+  expect(Buffer.concat(chunks).subarray(0, 2).toString("latin1")).toBe("PK");
 });
 
 /**

@@ -107,56 +107,6 @@
   padding-top: calc(var(--spacing) * 5);
 }
 
-/* On a wide screen the lead and the drop zone stand beside each other.
-   Stacked, they leave the lead holding its own measure - sixty characters - on
-   a page twelve hundred pixels wide, so two thirds of the first screen is
-   empty to the right of it while the drop zone below runs the whole width and
-   centres a small button inside it. Three alignments, none of them agreeing.
-
-   Side by side, the text keeps its measure because the column gives it one,
-   the zone gets a width close to its own content, and the pair of mode buttons
-   above the zone finally stands over the thing it belongs to.
-
-   The columns are not switched off when the buffer fills - the left one closes.
-   Turning the grid off would move the zone from half the width to all of it in
-   the same instant the lead disappears, which is two movements; closing the
-   track puts the whole change on one curve and one duration, the same the
-   vertical fold above already runs on. */
-@media (min-width: 72rem) {
-  .home-workspace {
-    display: grid;
-    grid-template-columns: 22rem minmax(0, 1fr);
-    grid-template-areas:
-      "lead work"
-      "about about";
-    column-gap: calc(var(--spacing) * 10);
-    align-items: start;
-    transition:
-      padding-top var(--motion-slow) var(--ease-out),
-      grid-template-columns var(--motion-slow) var(--ease-out),
-      column-gap var(--motion-slow) var(--ease-out);
-  }
-
-  .home-lead {
-    grid-area: lead;
-  }
-
-  .home-work {
-    grid-area: work;
-  }
-
-  /* No spacing of its own: the block inside it carries the margin and the rule
-     that separate it from the screen above, at every width. */
-  .home-about {
-    grid-area: about;
-  }
-
-  .home-workspace:has([data-workspace-state]:not([data-workspace-state="empty"])) {
-    grid-template-columns: 0rem minmax(0, 1fr);
-    column-gap: 0;
-  }
-}
-
 @keyframes dialog-scrim-in {
   from {
     opacity: 0;

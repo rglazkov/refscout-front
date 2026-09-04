@@ -93,6 +93,9 @@ const dynamicKeys: readonly RegExp[] = [
   // its words by the name of the slot it was given.
   /^buffer\.attach\.(bibcheck|glossary|venue|bibcheckCites|glossaryUsedBy)\.(label|what|pastedName|pasteTitle)$/,
   /^buffer\.attach\.venue\.state\./,
+  // What reading a bibliography in the browser found, looked up by the code of
+  // the finding rather than written out.
+  /^buffer\.local\./,
   /^plan\.(reason|missing)\./,
   /^intake\.paste\.syntax\./,
   /^job\.state\./,

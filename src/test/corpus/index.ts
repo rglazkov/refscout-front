@@ -110,3 +110,29 @@ export function corruptPdfBytes(): Uint8Array {
 
 /** A name carrying a right-to-left override, which is the oldest disguise there is. */
 export const DECEPTIVE_NAME = "invoice\u202Egpj.exe";
+
+/**
+ * A LaTeX manuscript carrying its bibliography inside it, which is how a paper
+ * written without BibTeX arrives. One entry is cited and one is not, and the
+ * label in square brackets is there because it is the thing most easily
+ * mistaken for the key.
+ */
+export const TEX_WITH_BIBLIOGRAPHY = `\\documentclass{article}
+\\begin{document}
+As shown by \\cite{smith2019}, the variance is stable.
+\\begin{thebibliography}{9}
+\\bibitem{smith2019} Smith, J. On the estimation of variance. 2019.
+\\bibitem[Jo20]{jones2020} Jones, K. An uncited work. 2020.
+\\end{thebibliography}
+\\end{document}
+`;
+
+/** A bibliography that stops in the middle of a field, as a half-saved file does. */
+export const BROKEN_BIB = `@article{good,
+  title = {A finished entry},
+  year = {2019}
+}
+
+@article{truncated,
+  title = {The file ends here
+`;

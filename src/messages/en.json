@@ -259,14 +259,20 @@
       "maxPerClaim": "Sources per claim",
       "instructions": "Instructions for Cite"
     },
-    "lockedCheck": "{check} — {name} — locked, paid check"
+    "lockedCheck": "{check} — {name} — locked, paid check",
+    "local": {
+      "BIB_DUPLICATE_KEY": "Two entries share the key <mono>{key}</mono>. Only one of them is what a citation reaches.",
+      "BIB_UNREADABLE": "This file did not read as a bibliography, so nothing was checked here before the run. Open the text to see where it breaks — it is sent and checked as it is."
+    }
   },
   "editor": {
     "done": "Done",
     "download": "Download .{extension}",
     "volume": "{chars} characters · {words} words",
     "readOnlyReason": "Read-only here: an edit would move the findings, and recomputing where they point comes later. Edit before a run, or download the text.",
-    "fieldLabel": "The text of {name}"
+    "fieldLabel": "The text of {name}",
+    "docxNote": "Rebuilt from the text: headings, lists, tables and footnotes are kept, the original layout and pictures are not.",
+    "downloadFailed": "The file could not be assembled. Your text here is unchanged — try again."
   },
   "plan": {
     "heading": "Check plan",

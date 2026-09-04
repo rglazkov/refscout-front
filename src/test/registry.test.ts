@@ -7,6 +7,7 @@ import {
   forgetDocument,
   holdSourceFile,
   replaceText,
+  setBibEntries,
   sourceFileOf,
   useAdapter,
   type DocRegistryAdapter,
@@ -15,7 +16,7 @@ import { type DocContent } from "@/lib/domain";
 import { useBufferStore } from "@/stores";
 
 /**
- * The text registry. Four operations and an adapter behind them: when the
+ * The text registry. A handful of operations and an adapter behind them: when the
  * adapter becomes IndexedDB not one line of calling code changes, which is a
  * claim worth testing now rather than discovering to be false then.
  */
@@ -67,6 +68,28 @@ describe("the registry holds the texts", () => {
 
   it("editing a document that is not there changes nothing", () => {
     expect(replaceText("missing", "text")).toBeUndefined();
+  });
+
+  it("the map of a bibliography's entries is replaced whole", () => {
+    // It arrives after the text does and again after every edit, so it is set
+    // apart from the text rather than written with it.
+    docRegistry.put("a", content("@article{one,}"));
+    setBibEntries("a", [{ key: "one", from: 0, to: 14 }]);
+    expect(docRegistry.get("a")?.bibEntries).toEqual([{ key: "one", from: 0, to: 14 }]);
+    expect(docRegistry.get("a")?.text).toBe("@article{one,}");
+  });
+
+  it("an empty map is no map, which is a different answer from no entries", () => {
+    /*
+     * A finding that names an entry key asks whether the entry is known. An
+     * empty list answers "there are no entries here", which is what a file with
+     * none has - and what a file mid-edit, whose reading has just failed, does
+     * not have. Storing nothing is how the second says "we no longer know".
+     */
+    docRegistry.put("a", content("text"));
+    setBibEntries("a", [{ key: "one", from: 0, to: 4 }]);
+    setBibEntries("a", []);
+    expect(docRegistry.get("a")).not.toHaveProperty("bibEntries");
   });
 });
 

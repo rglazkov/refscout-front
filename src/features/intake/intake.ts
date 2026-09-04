@@ -423,7 +423,8 @@ async function build(input: {
   /** Set when this is an attachment rather than a document of the buffer. */
   readonly slot?: AttachmentSlot;
 }): Promise<IntakeResult> {
-  const { extracted, pages, meta, pageCount, pagesParsed, missingPages } = input.parsed;
+  const { extracted, pages, meta, pageCount, pagesParsed, missingPages, reading } =
+    input.parsed;
   const { text, hadBom, eol } = extracted;
   // An attachment is read by the check that is ticked on the document it hangs
   // off, so it carries no ticks itself and nothing is proposed on it.
@@ -480,7 +481,10 @@ async function build(input: {
     companions: {},
     options: defaultOptions,
     extract,
-    localFindings: [],
+    // What reading the file here had to say about it: duplicate keys, an entry
+    // nothing cites, a bibliography that would not read as a whole. None of it
+    // has been anywhere near a server, and none of it stops the check.
+    localFindings: reading?.localFindings ?? [],
   };
 
   const content: DocContent = {
@@ -490,6 +494,9 @@ async function build(input: {
     eol,
     ...(pages === undefined ? {} : { pages }),
     ...(meta === undefined ? {} : { meta }),
+    ...(reading === undefined || reading.bibEntries.length === 0
+      ? {}
+      : { bibEntries: reading.bibEntries }),
   };
 
   return { ok: true, item, content };

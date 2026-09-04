@@ -52,6 +52,17 @@ export function isTextFormat(format: SourceFormat): format is TextFormat {
 }
 
 /**
+ * The formats that have a structure worth reading beside their text: a
+ * bibliography's entries, a LaTeX source's own bibliography. It decides two
+ * things at once - whether a worker is asked to read one after an edit, and
+ * whether a card can carry local warnings at all - so it is one answer rather
+ * than the same list of extensions written in both places.
+ */
+export function hasStructure(format: SourceFormat): boolean {
+  return format === "bib" || format === "tex" || format === "gls";
+}
+
+/**
  * What the content turned out to be, read from the text rather than the
  * extension.
  */

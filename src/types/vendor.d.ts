@@ -1,6 +1,8 @@
 /**
- * Two packages that ship no types of their own. Both are named here rather than
- * silenced at the call site, so that a wrong call is still a type error.
+ * The packages whose types do not reach the entry point we actually import -
+ * a browser build named by its path, a bundle that ships none at all. Each is
+ * declared here rather than silenced at the call site, so that a wrong call is
+ * still a type error.
  */
 
 /**
@@ -40,3 +42,41 @@ declare module "@joplin/turndown-plugin-gfm" {
   export const strikethrough: TurndownService.Plugin;
   export const taskListItems: TurndownService.Plugin;
 }
+
+/**
+ * The Word assembler's browser bundle. Its types are written for the package
+ * entry and describe the same function; naming the browser build is what keeps
+ * the bundler from reaching for the Node one, which brings a file system with
+ * it. What comes back is whatever that build had to hand - an `ArrayBuffer`, a
+ * `Blob` or a `Buffer` - and the caller settles it into bytes.
+ */
+declare module "@turbodocx/html-to-docx/dist/html-to-docx.browser.esm.js" {
+  const HTMLtoDOCX: (
+    html: string,
+    headerHtml?: string | null,
+    options?: Record<string, unknown>,
+    footerHtml?: string | null,
+  ) => Promise<unknown>;
+  export default HTMLtoDOCX;
+}
+
+/**
+ * citation-js, which ships no types. What is used of it is one link of its
+ * input chain - the one that stops at the entries a BibTeX file holds, before
+ * they are converted into a shape for producing citations in a style - so that
+ * is what is declared, and a call to anything else is a type error rather than
+ * `any`.
+ */
+declare module "@citation-js/core" {
+  export const plugins: {
+    readonly input: {
+      readonly chainLink: (
+        input: string,
+        options?: { readonly forceType?: string },
+      ) => unknown;
+    };
+  };
+}
+
+/** The BibTeX reader for citation-js. Imported for its effect: it registers itself. */
+declare module "@citation-js/plugin-bibtex";

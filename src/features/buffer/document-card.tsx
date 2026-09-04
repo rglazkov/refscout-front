@@ -27,6 +27,7 @@ import { useBufferStore, useEntitlementsStore, useUiStore } from "@/stores";
 
 import { DocumentSettings } from "./document-settings";
 import { ExtractAnnouncement, ExtractNotice, needsNotice } from "./extract-notice";
+import { LocalNotes } from "./local-notes";
 
 /**
  * One document in the buffer. A type icon, the name - which opens the text -
@@ -266,6 +267,12 @@ export function DocumentCard({
               onOpenText={() => openOverlay({ docId: item.id, mode: "edit" })}
             />
           ) : null}
+
+          {/* What reading the file here found in it: a key written twice, an
+              entry nothing cites, a bibliography that would not read as a
+              whole. It sits above the plan because it is about the document
+              rather than about the run, and it never stops one. */}
+          <LocalNotes item={item} />
 
           {/* The plan of this document, under its own ticks and its own
               settings: what will run on it, what the checks will read alongside

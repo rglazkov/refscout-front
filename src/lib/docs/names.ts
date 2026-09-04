@@ -55,17 +55,19 @@ export function downloadName(
 }
 
 /**
- * The extension a document is handed back under. The rule is "the format it was
- * brought in", and the exceptions are the formats the browser cannot build yet.
- * Each loses its exception when its builder is written, and the rule above it
- * does not change.
+ * The extension a document is handed back under, and the rule is the whole of
+ * it: the format it was brought in. A `.docx` comes back a `.docx`, a `.tex`
+ * comes back a `.tex`, and it is the same rule in the main check and in a
+ * comparison, because both ask it here.
  *
- * Word is the interesting one. From the moment it is converted it lives in the
- * buffer as markdown - that is the text the person reads, corrects and sends -
- * so `.md` is not a downgrade of the file but the honest name for what is being
- * handed over. PDF and typed text have no such form and come back as `.txt`.
+ * One exception is left and it is permanent. A PDF comes back as `.txt`,
+ * because we do not build PDFs: that means a document generator in the bundle
+ * and a return to the binary formats the product moved away from, and the
+ * program somebody writes their manuscript in makes a better one anyway. Text
+ * that was typed or pasted comes back as `.txt` for the plainer reason that it
+ * never had a format of its own.
  */
 export function downloadExtensionOf(format: SourceFormat): string {
   if (isTextFormat(format)) return format;
-  return format === "docx" ? "md" : "txt";
+  return format === "docx" ? "docx" : "txt";
 }

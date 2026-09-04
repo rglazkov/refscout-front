@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, LoaderIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,13 @@ import {
   downloadExtensionOf,
   proposeChecks,
   replaceText,
+  setBibEntries,
   sha256Hex,
 } from "@/lib/docs";
+import { hasStructure } from "@/lib/domain";
 import { downloadDocumentText } from "@/lib/export";
 import { useBufferStore, useUiStore } from "@/stores";
+import { readStructureOf } from "@/workers";
 
 import { CodeMirror } from "./code-mirror";
 import { syntaxKindOf, useSyntax } from "./syntax";
@@ -72,6 +75,7 @@ function OverlayBody({
   const item = useBufferStore((state) => state.items.find((entry) => entry.id === docId));
   const patchExtract = useBufferStore((state) => state.patchExtract);
   const propose = useBufferStore((state) => state.propose);
+  const setLocalFindings = useBufferStore((state) => state.setLocalFindings);
   const height = useVisualViewportHeight();
 
   // Asked for by what the document is, and fetched while the overlay opens. The
@@ -128,8 +132,29 @@ function OverlayBody({
     });
     if (sourceFormat !== undefined) {
       propose(docId, proposeChecks(next, sourceFormat));
+      /*
+       * The bibliography is read again over the text as it now stands. It has
+       * to be: the entry the person has just deleted is gone, the duplicate key
+       * they have just renamed is not a duplicate any more, and the map of
+       * where the entries sit is what a finding naming a key is shown against.
+       * A reading that failed leaves both empty, which is the same as saying
+       * "we no longer know", and that is the honest answer while the file is
+       * mid-edit and does not parse.
+       */
+      if (hasStructure(sourceFormat)) {
+        void readStructureOf({ text: next, format: sourceFormat }).then(
+          (reading) => {
+            setBibEntries(docId, reading.bibEntries);
+            setLocalFindings(docId, reading.localFindings);
+          },
+          () => {
+            setBibEntries(docId, []);
+            setLocalFindings(docId, []);
+          },
+        );
+      }
     }
-  }, [docId, patchExtract, propose, sourceFormat]);
+  }, [docId, patchExtract, propose, setLocalFindings, sourceFormat]);
 
   /**
    * The edit is applied to the buffer itself, not to a copy made for viewing:
@@ -204,21 +229,11 @@ function OverlayBody({
             </DialogDescription>
           </div>
           {/* The text is downloaded from the place the person is reading it, in
-              the format it was brought in - `.txt` while the browser cannot yet
-              build that format. This is the bridge between one check and the
-              next: correct the text here, save the file, drop it into a new
-              check. */}
-          <div className="flex shrink-0 gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              data-testid="download-document"
-              onClick={() => downloadDocumentText(docId, item.name, extension)}
-            >
-              <DownloadIcon aria-hidden="true" />
-              {t("download", { extension })}
-            </Button>
+              the format it was brought in. This is the bridge between one check
+              and the next: correct the text here, save the file, drop it into a
+              new check. */}
+          <div className="flex shrink-0 items-start gap-2">
+            <SaveButton docId={docId} name={item.name} extension={extension} />
             {/* The one action that closes the overlay, so it is the primary
                 button - the same weight as Download report on the results,
                 which is the other place a screen has a single obvious way
@@ -241,5 +256,80 @@ function OverlayBody({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Saving the text as a file. It is a component of its own because one format
+ * takes time: a Word file is built again out of the markdown, in a worker, and
+ * a hundred pages of it is a second or two in which the button has to say that
+ * something is happening. Every other format is a string handed to the browser
+ * and is over before the next frame.
+ *
+ * The button is never disabled - no button in this product is. While it is
+ * working it says so, and a second press during that time is ignored rather
+ * than queued: two presses mean one file, and the person meant the first.
+ */
+function SaveButton({
+  docId,
+  name,
+  extension,
+}: {
+  readonly docId: string;
+  readonly name: string;
+  readonly extension: string;
+}) {
+  const t = useTranslations("editor");
+  const [saving, setSaving] = React.useState(false);
+  const [failed, setFailed] = React.useState(false);
+
+  const save = (): void => {
+    if (saving) return;
+    setSaving(true);
+    setFailed(false);
+    void downloadDocumentText(docId, name, extension).then(
+      () => setSaving(false),
+      () => {
+        setSaving(false);
+        setFailed(true);
+      },
+    );
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        data-testid="download-document"
+        aria-busy={saving}
+        onClick={save}
+      >
+        {saving ? (
+          <LoaderIcon className="animate-spin" aria-hidden="true" />
+        ) : (
+          <DownloadIcon aria-hidden="true" />
+        )}
+        {t("download", { extension })}
+      </Button>
+      {/* Said where the person presses, not in a help page. A Word file is built
+          again out of the text, so the layout of the original and its pictures
+          are not in it - and somebody who brought a typeset manuscript would
+          otherwise find that out by opening what they had just saved. */}
+      {extension === "docx" && !failed ? (
+        <p className="max-w-64 text-right text-xs text-muted-foreground">
+          {t("docxNote")}
+        </p>
+      ) : null}
+      {/* A build that failed says so where it was asked for, and stays there.
+          The text itself is untouched and is still in front of the person -
+          what did not work is the packing of it into a container. */}
+      {failed ? (
+        <p role="alert" className="max-w-64 text-right text-xs text-destructive">
+          {t("downloadFailed")}
+        </p>
+      ) : null}
+    </div>
   );
 }

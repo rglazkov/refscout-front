@@ -1,11 +1,20 @@
 import { type DiffResult } from "@/lib/diff/text";
+import { type Reading } from "@/lib/parse/reading";
 import { type ParseRequest, type Parsed, type PdfResources } from "@/lib/parse/types";
 import { publicPath } from "@/lib/public-path";
 
 import { createWorkerClient, type RunOptions } from "./client";
 import { type DiffRequest } from "./diff.worker";
 import { type CompressRequest, type CompressResult } from "./gzip";
-import { compressCall, diffCall, parseCall } from "./protocol";
+import {
+  assembleCall,
+  compressCall,
+  diffCall,
+  parseCall,
+  readCall,
+  type AssembleRequest,
+  type ReadRequest,
+} from "./protocol";
 
 export { COMPRESS_ABOVE_BYTES, type CompressResult } from "./gzip";
 /*
@@ -35,6 +44,7 @@ export {
   type TextStats,
 } from "@/lib/parse/quality";
 export { type ParseProgress, type Parsed } from "@/lib/parse/types";
+export type { Reading };
 
 /**
  * Where the built workers live. They are files of our own, built by
@@ -156,6 +166,36 @@ export function extract(
 ): Promise<Parsed> {
   return parser.run(
     request.format === "pdf" ? { ...request, resources: pdfResources() } : request,
+    options,
+  );
+}
+
+/**
+ * Reads the structure of a text that has one, over a text that is already in
+ * the browser. It is called after an edit as well as after a parse: the entries
+ * of a bibliography move as it is corrected, and a duplicate key the person has
+ * just removed must stop being reported the moment they remove it.
+ */
+export function readStructureOf(
+  request: ReadRequest,
+  options: RunOptions = {},
+): Promise<Reading> {
+  return parser.ask<ReadRequest, Reading>(readCall, request, options);
+}
+
+/**
+ * Writes a Word file back out of the markdown it became, and hands back its
+ * bytes. It goes to the same pool the parsers use, because the work is the same
+ * kind and the same size: a hundred pages of markdown rendered and packed would
+ * be seconds of a frozen tab on the thread the page is drawn on.
+ */
+export function assembleDocxFile(
+  request: AssembleRequest,
+  options: RunOptions = {},
+): Promise<Uint8Array<ArrayBuffer>> {
+  return parser.ask<AssembleRequest, Uint8Array<ArrayBuffer>>(
+    assembleCall,
+    request,
     options,
   );
 }

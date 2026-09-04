@@ -1,5 +1,7 @@
 import { http, HttpResponse, type DefaultBodyType, type StrictRequest } from "msw";
 
+import { publicPath } from "@/lib/public-path";
+
 import { scenarios } from "./handlers.gen";
 
 /**
@@ -248,6 +250,29 @@ async function submittedBody(
   return JSON.parse(text) as { documents: WireDocument[] };
 }
 
+/**
+ * Where the browser is sent to pay, under this data source.
+ *
+ * The contract's example names an address on the payment provider's own domain,
+ * and that address exists for the provider and for nobody else: under the mock
+ * the button led out of the site to a host the browser cannot resolve, and the
+ * journey - the warning about the buffer, the departure, the way back - ended
+ * at a browser error page. The stand-in is a page of ours that says what it is,
+ * so the whole errand can be walked. The wire shape does not move: the field is
+ * still one absolute address the browser leaves for.
+ *
+ * Outside a browser - the tests that run this file under Node - there is no
+ * origin to build such an address from, and the example's own value is what the
+ * schema is checked against anyway.
+ */
+function billingUrl(fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const url = new URL(publicPath("/mock-billing.html"), window.location.origin);
+  // The way back. The page follows it only if it is on this origin.
+  url.searchParams.set("return", window.location.href);
+  return url.href;
+}
+
 export const handlers = [
   http.post("*/jobs", async ({ request }) => {
     const key = request.headers.get("Idempotency-Key") ?? "";
@@ -452,13 +477,15 @@ export const handlers = [
   http.post("*/billing/checkout", () =>
     scenario === "anonymous"
       ? refusal(401, scenarios.startCheckout.authRequired.body)
-      : HttpResponse.json(scenarios.startCheckout.redirect.body),
+      : HttpResponse.json({ url: billingUrl(scenarios.startCheckout.redirect.body.url) }),
   ),
 
   http.get("*/billing/portal", () =>
     scenario === "anonymous"
       ? refusal(401, scenarios.openBillingPortal.authRequired.body)
-      : HttpResponse.json(scenarios.openBillingPortal.redirect.body),
+      : HttpResponse.json({
+          url: billingUrl(scenarios.openBillingPortal.redirect.body.url),
+        }),
   ),
 
   http.get("*/account/export", () =>

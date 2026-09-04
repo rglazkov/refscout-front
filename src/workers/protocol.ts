@@ -1,3 +1,4 @@
+import { type SourceFormat } from "@/lib/domain";
 import { type ParseFailureData } from "@/lib/parse/failure";
 import { type ParseProgress } from "@/lib/parse/types";
 
@@ -38,8 +39,31 @@ export type WorkerReply<R = unknown> =
 /** What a worker sends the moment it can be spoken to. */
 export const readyReply: WorkerReply<never> = { id: "", type: "ready" };
 
-/** The names of the calls a parsing worker answers. */
+/**
+ * The names of the calls a document worker answers. Three, because the format
+ * that is a container rather than text is read and written by the same worker:
+ * its libraries belong together, and a second worker for the way out would ship
+ * them twice.
+ */
 export const parseCall = "parse" as const;
+
+/**
+ * Reading the structure of a text that has one - the entries of a bibliography
+ * and what is wrong with them - over a text that is already here. It is a call
+ * of its own because an edit changes the answer and there is no file to parse
+ * again by then.
+ */
+export const readCall = "read" as const;
+
+/** Writing a Word file back out of the markdown it became. */
+export const assembleCall = "assemble" as const;
+
+export type ReadRequest = {
+  readonly text: string;
+  readonly format: SourceFormat;
+};
+
+export type AssembleRequest = { readonly text: string };
 
 export const compressCall = "compress" as const;
 
