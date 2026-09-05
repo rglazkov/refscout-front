@@ -12,7 +12,7 @@ import {
   useAdapter,
   type DocRegistryAdapter,
 } from "@/lib/docs";
-import { type DocContent } from "@/lib/domain";
+import { asDocOffset, type DocContent } from "@/lib/domain";
 import { useBufferStore } from "@/stores";
 
 /**
@@ -59,7 +59,10 @@ describe("the registry holds the texts", () => {
   });
 
   it("an edit replaces the text and keeps what extraction learned", () => {
-    docRegistry.put("a", { ...content("before"), pages: [{ page: 1, from: 0, to: 6 }] });
+    docRegistry.put("a", {
+      ...content("before"),
+      pages: [{ page: 1, from: asDocOffset(0), to: asDocOffset(6) }],
+    });
     const after = replaceText("a", "after");
     expect(after?.text).toBe("after");
     expect(after?.pages).toEqual([{ page: 1, from: 0, to: 6 }]);
@@ -74,7 +77,7 @@ describe("the registry holds the texts", () => {
     // It arrives after the text does and again after every edit, so it is set
     // apart from the text rather than written with it.
     docRegistry.put("a", content("@article{one,}"));
-    setBibEntries("a", [{ key: "one", from: 0, to: 14 }]);
+    setBibEntries("a", [{ key: "one", from: asDocOffset(0), to: asDocOffset(14) }]);
     expect(docRegistry.get("a")?.bibEntries).toEqual([{ key: "one", from: 0, to: 14 }]);
     expect(docRegistry.get("a")?.text).toBe("@article{one,}");
   });
@@ -87,7 +90,7 @@ describe("the registry holds the texts", () => {
      * not have. Storing nothing is how the second says "we no longer know".
      */
     docRegistry.put("a", content("text"));
-    setBibEntries("a", [{ key: "one", from: 0, to: 4 }]);
+    setBibEntries("a", [{ key: "one", from: asDocOffset(0), to: asDocOffset(4) }]);
     setBibEntries("a", []);
     expect(docRegistry.get("a")).not.toHaveProperty("bibEntries");
   });

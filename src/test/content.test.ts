@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 
 import { readFileSync } from "node:fs";
 
+import { z } from "zod";
+
 import { listFeatures } from "@/lib/content/features";
+import { parseFrontmatter } from "@/lib/content/frontmatter";
 import {
   contentFilePath,
   contentNameFor,
@@ -128,5 +131,59 @@ describe("links inside the texts", () => {
     }
 
     expect(broken).toEqual([]);
+  });
+});
+
+describe("front matter", () => {
+  // Two delimiters, one result: whichever language the block is written in, the
+  // page ends up with the same fields and the same text under them.
+  const schema = z.object({ title: z.string(), draft: z.boolean().optional() });
+
+  const yamlBlock = `---
+title: A page
+draft: true
+---
+The text.
+`;
+
+  const tomlBlock = `+++
+title = "A page"
+draft = true
++++
+The text.
+`;
+
+  it("reads a YAML block", () => {
+    const { data, content } = parseFrontmatter(yamlBlock, schema, "example.mdx");
+
+    expect(data).toEqual({ title: "A page", draft: true });
+    expect(content.trim()).toBe("The text.");
+  });
+
+  it("reads a TOML block", () => {
+    const { data, content } = parseFrontmatter(tomlBlock, schema, "example.mdx");
+
+    expect(data).toEqual({ title: "A page", draft: true });
+    expect(content.trim()).toBe("The text.");
+  });
+
+  it("names the file and the trap of the language when a block does not parse", () => {
+    // The message is read by whoever wrote the text, so it has to say which file
+    // broke and what to try, rather than only that a parser was unhappy.
+    const brokenToml = `+++
+title = A page
++++
+`;
+    const brokenYaml = `---
+title: A page: with a colon
+---
+`;
+
+    expect(() => parseFrontmatter(brokenToml, schema, "example.mdx")).toThrow(
+      /example\.mdx[\s\S]*TOML wants quotes/,
+    );
+    expect(() => parseFrontmatter(brokenYaml, schema, "example.mdx")).toThrow(
+      /example\.mdx[\s\S]*put the string in quotes/,
+    );
   });
 });

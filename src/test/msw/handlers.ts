@@ -1,5 +1,7 @@
 import { http, HttpResponse, type DefaultBodyType, type StrictRequest } from "msw";
 
+import { astralIndex, toCpOffset, toDocOffset } from "@/lib/anchor";
+import { asCpOffset, asDocOffset } from "@/lib/domain";
 import { publicPath } from "@/lib/public-path";
 
 import { scenarios } from "./handlers.gen";
@@ -25,6 +27,7 @@ type WireDocument = {
   name: string;
   role: string;
   checks: string[];
+  text: string;
   textSha256: string;
   cpLength: number;
 };
@@ -201,6 +204,8 @@ function statusBody(job: SubmittedJob, running: boolean) {
 function resultBody(job: SubmittedJob, docId: string, module: string) {
   const template = RESULTS[module as keyof typeof RESULTS] ?? RESULTS.bibcheck;
   const sent = job.documents.find((document) => document.docId === docId);
+  const text = sent?.text ?? "";
+  let taken = 0;
   return {
     ...template,
     module,
@@ -214,11 +219,80 @@ function resultBody(job: SubmittedJob, docId: string, module: string) {
     ],
     issues: template.issues.map((issue) => ({
       ...issue,
-      anchors: issue.anchors.map((anchor) =>
-        "docId" in anchor ? { ...anchor, docId } : anchor,
-      ),
+      anchors: issue.anchors.map((anchor) => {
+        const pointed = repoint(anchor, text, taken);
+        if (pointed !== anchor) taken += 1;
+        return "docId" in pointed ? { ...pointed, docId } : pointed;
+      }),
     })),
   };
+}
+
+type WireAnchor = Record<string, unknown> & { kind: string };
+
+/**
+ * Where a place actually is in the text that was submitted.
+ *
+ * A module's answer is about the manuscript it was given, and an example in the
+ * contract is about the example's manuscript: its offsets fall somewhere in the
+ * middle of a word of somebody else's document, or past the end of it. Left as
+ * they are, every highlight in the product would be one the resolver refuses,
+ * and the one state a stand-in must not put the product permanently into is the
+ * state it is supposed to reach only when something is wrong.
+ *
+ * So the wording of the finding stays the contract's and its coordinates become
+ * this document's: a fragment is picked from the text, and the quote and the
+ * neighbouring context are cut from it on the same rule the contract states -
+ * sixty-four code points either side, verbatim, meeting the fragment exactly.
+ * What comes out is an answer of the shape a real module sends about a real
+ * manuscript.
+ */
+function repoint(anchor: WireAnchor, text: string, taken: number): WireAnchor {
+  if (text === "") return anchor;
+  if (anchor.kind === "bibkey") {
+    const key = /@[ \t]*[A-Za-z]+[ \t\r\n]*\{([^,{}\s]+)[,}]/.exec(text)?.[1];
+    return key === undefined ? anchor : { ...anchor, bibkey: key };
+  }
+  if (anchor.kind !== "range" && anchor.kind !== "quote" && anchor.kind !== "point") {
+    return anchor;
+  }
+
+  const span = fragment(text, taken);
+  if (span === null) return anchor;
+
+  const astral = astralIndex(text);
+  const cpLength = text.length - (astral?.length ?? 0);
+  const cpFrom = toCpOffset(astral, asDocOffset(span.from));
+  const cpTo = toCpOffset(astral, asDocOffset(span.to));
+  const prefixFrom = toDocOffset(astral, asCpOffset(Math.max(0, cpFrom - 64)));
+  const suffixTo = toDocOffset(astral, asCpOffset(Math.min(cpLength, cpTo + 64)));
+  const context = {
+    prefix: text.slice(prefixFrom, span.from),
+    suffix: text.slice(span.to, suffixTo),
+  };
+
+  if (anchor.kind === "point") return { ...anchor, at: cpFrom, ...context };
+  const quote = text.slice(span.from, span.to);
+  if (anchor.kind === "quote") return { ...anchor, quote, ...context };
+  return { ...anchor, from: cpFrom, to: cpTo, quote, ...context };
+}
+
+/**
+ * A run of the text worth pointing at: a stretch of words long enough to be
+ * looked up, taken from a different part of the document for each place, so
+ * that the findings of one answer do not all land on the same paragraph.
+ */
+function fragment(text: string, taken: number): { from: number; to: number } | null {
+  const words = [...text.matchAll(/\S+/g)];
+  if (words.length === 0) return null;
+  const first = words[(taken * 11 + 3) % words.length];
+  if (first === undefined) return null;
+  const from = first.index;
+  const end = Math.min(text.length, from + 40);
+  // Ended on a word boundary, so the fragment reads as a fragment of the text
+  // rather than as a slice through the middle of a word.
+  const boundary = text.lastIndexOf(" ", end);
+  return { from, to: boundary > from ? boundary : end };
 }
 
 function refusal(status: number, body: object) {
@@ -325,6 +399,7 @@ export const handlers = [
         name: document.name,
         role: document.role,
         checks: document.checks,
+        text: document.text,
         textSha256: document.textSha256,
         cpLength: document.cpLength,
       })),

@@ -153,8 +153,18 @@ test.describe("from a file to a downloaded report", () => {
     );
     await expect(page.getByTestId("issue-occurrences").first()).toContainText("3");
     await finding.click();
-    // And the third way of naming a place: the sentence the module was reading.
-    await expect(page.getByTestId("issue-quote").first()).toHaveText("Smith et al. [22]");
+    /*
+     * And the third way of naming a place: the sentence the module was reading.
+     * Which sentence that is belongs to the document rather than to the check -
+     * the stand-in answers about the manuscript it was actually given, and its
+     * places are cut from that text - so what is asked here is that the row
+     * quotes this document and not somebody else's.
+     */
+    const quote = page.getByTestId("issue-quote").first();
+    await expect(quote).toBeVisible();
+    const quoted = (await quote.textContent()) ?? "";
+    expect(quoted.length).toBeGreaterThan(0);
+    expect(MANUSCRIPT).toContain(quoted);
 
     const fixed = page.getByRole("button", { name: "Fixed" }).first();
     await fixed.click();
@@ -200,9 +210,13 @@ test.describe("from a file to a downloaded report", () => {
     await page.getByTestId("open-cite").click();
     const overlay = page.getByTestId("cite-overlay");
     await expect(overlay).toBeVisible();
-    await expect(overlay.getByTestId("cite-claim").first()).toContainText(
-      "Transformer models",
-    );
+    // A claim is named by the sentence it was made in, and that sentence comes
+    // out of the manuscript that was sent rather than out of the check.
+    const claim = overlay.getByTestId("cite-claim").first().locator("p").first();
+    await expect(claim).toBeVisible();
+    const claimed = (await claim.textContent()) ?? "";
+    expect(claimed.length).toBeGreaterThan(0);
+    expect(MANUSCRIPT).toContain(claimed);
 
     // The first one offered is a source the manuscript does not already cite:
     // the ones it does are folded away under "Already cited".

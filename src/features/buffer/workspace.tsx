@@ -23,6 +23,7 @@ import {
   retryModule,
   startApiSource,
 } from "@/lib/api";
+import { forgetPlaces } from "@/lib/anchor";
 import { type ModuleId } from "@/lib/domain";
 import { SessionNotice } from "@/features/auth/session-notice";
 import { ReportProblemButton } from "@/features/feedback/report-problem";
@@ -210,6 +211,9 @@ function WorkspaceBody() {
   const newCheck = () => {
     clearBuffer();
     resetJob();
+    // The places go with the findings they belonged to: a place kept past the
+    // run that produced it points into a document that is no longer here.
+    forgetPlaces();
     closeOverlay();
   };
 
@@ -392,7 +396,7 @@ function WorkspaceBody() {
           onClose={() => setPasting(false)}
           onAdd={(text, name, format) => void intake.addText(text, name, format)}
         />
-        <TextOverlay />
+        <TextOverlay results={job?.results ?? {}} />
         <AccessDialog />
       </div>
     </IntakeProvider>

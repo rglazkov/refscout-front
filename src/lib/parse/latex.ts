@@ -1,6 +1,6 @@
 import { getParser } from "@unified-latex/unified-latex-util-parse";
 
-import { type BibSpan } from "@/lib/domain";
+import { asDocOffset, type BibSpan } from "@/lib/domain";
 
 import { duplicateFindings } from "./bib";
 import { type Reading, emptyReading, unreadable } from "./reading";
@@ -73,8 +73,8 @@ function entriesOf(bibliography: Node): readonly BibSpan[] {
   const end = lastOffset(bibliography);
   return items.map((item, index) => ({
     key: item.key,
-    from: item.from,
-    to: items[index + 1]?.from ?? end,
+    from: asDocOffset(item.from),
+    to: asDocOffset(items[index + 1]?.from ?? end),
   }));
 }
 

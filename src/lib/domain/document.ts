@@ -1,4 +1,5 @@
 import { type DetectedKind, type DocRole, type ModuleId, type SourceFormat } from "./ids";
+import { type DocOffset } from "./offsets";
 import { type CheckOptions } from "./options";
 
 /**
@@ -257,16 +258,23 @@ export type DocContent = {
   readonly eol: "\n" | "\r\n" | "\r";
 };
 
+/**
+ * Where one page of the original sits in the extracted text. Its boundaries are
+ * in the browser's own units, like every map built while a document was read:
+ * what they are compared with is a place that has already been through the
+ * conversion, and a map in the unit of the wire would put a finding on the page
+ * before the one it is on as soon as a formula appeared above it.
+ */
 export type PageSpan = {
   readonly page: number;
-  readonly from: number;
-  readonly to: number;
+  readonly from: DocOffset;
+  readonly to: DocOffset;
 };
 
 export type BibSpan = {
   readonly key: string;
-  readonly from: number;
-  readonly to: number;
+  readonly from: DocOffset;
+  readonly to: DocOffset;
 };
 
 /** What the parser read out of the file. PreSubmit reads it for anonymity. */

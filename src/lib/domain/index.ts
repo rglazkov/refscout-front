@@ -4,8 +4,10 @@
  * agreed - while the requirements of the server are not.
  */
 export * from "./ids";
+export * from "./offsets";
 export * from "./document";
 export * from "./issue";
+export * from "./place";
 export * from "./options";
 export * from "./job";
 export * from "./scout";

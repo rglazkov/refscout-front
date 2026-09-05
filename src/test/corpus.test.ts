@@ -125,11 +125,15 @@ describe("PDF", () => {
     }
   });
 
-  it("maps pages in code points, whatever is on the page before", async () => {
-    // A character above the basic plane is one code point and two UTF-16
-    // units, so a map measured in `String.length` would push every boundary
-    // after it forward - and a finding on page two would be reported on page
-    // one. The unit is the one every offset in an answer is counted in.
+  it("maps pages in the units the text is stored in, whatever is on the page before", async () => {
+    /*
+     * A character above the basic plane is one code point and two units of a
+     * JavaScript string, and this map is compared against places that have
+     * already been converted into the second of those - so it is measured in
+     * the second too. Counted in code points it would fall short of the text by
+     * one per such character, and a finding on page two would be reported on
+     * page one.
+     */
     const font = unicodeFontObjects(["𝄞"]);
     const parsed = await parsePdf(
       buildPdf([font.page([0, 0, 0]), font.page([0])], {
@@ -140,7 +144,12 @@ describe("PDF", () => {
 
     const spans = parsed.pages ?? [];
     expect(spans).toHaveLength(2);
-    expect(spans.at(-1)?.to).toBe([...parsed.extracted.text].length);
+    expect(spans.at(-1)?.to).toBe(parsed.extracted.text.length);
+    // And the two units genuinely differ on this document, so the assertion
+    // above is not the same statement written twice.
+    expect(parsed.extracted.text.length).toBeGreaterThan(
+      [...parsed.extracted.text].length,
+    );
   });
 
   it("cannot read Chinese without the copied character maps", () => {

@@ -1,5 +1,6 @@
 import { countCodePoints } from "@/lib/docs";
 import {
+  asCpOffset,
   type Anchor,
   type Artifact,
   type BiblioRecord,
@@ -63,10 +64,6 @@ export function toIssue(w: WireIssue, issueId: string = w.issueId): Issue {
     anchors: w.anchors.map(toAnchor),
     evidence: (w.evidence ?? []).map(toEvidence),
     actions: (w.actions ?? []).map(toAction),
-    // Nothing sets it yet. The field is here from the start because a field
-    // added to the domain later drags the mapper, the schema and the wire
-    // types along with it.
-    stale: false,
     ...(w.cite === undefined ? {} : { cite: toCiteBlock(w.cite) }),
   };
 }
@@ -100,8 +97,8 @@ export function toAnchor(w: WireAnchor): Anchor {
       return {
         kind: "range",
         ...(a.docId === undefined ? {} : { docId: a.docId }),
-        from: a.from,
-        to: a.to,
+        from: asCpOffset(a.from),
+        to: asCpOffset(a.to),
         quote: a.quote,
         ...(a.prefix === undefined ? {} : { prefix: a.prefix }),
         ...(a.suffix === undefined ? {} : { suffix: a.suffix }),
@@ -116,7 +113,7 @@ export function toAnchor(w: WireAnchor): Anchor {
         quote: a.quote,
         ...(a.prefix === undefined ? {} : { prefix: a.prefix }),
         ...(a.suffix === undefined ? {} : { suffix: a.suffix }),
-        ...(a.near === undefined ? {} : { near: a.near }),
+        ...(a.near === undefined ? {} : { near: asCpOffset(a.near) }),
       };
     }
     case "point": {
@@ -124,7 +121,7 @@ export function toAnchor(w: WireAnchor): Anchor {
       return {
         kind: "point",
         ...(a.docId === undefined ? {} : { docId: a.docId }),
-        at: a.at,
+        at: asCpOffset(a.at),
         ...(a.prefix === undefined ? {} : { prefix: a.prefix }),
         ...(a.suffix === undefined ? {} : { suffix: a.suffix }),
       };

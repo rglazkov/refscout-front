@@ -33,12 +33,6 @@ describe("a module result becomes findings the cards can draw", () => {
     expect(result.issues[0]?.severity).toBe("critical");
   });
 
-  it("every finding starts un-stale, and the field is in the domain from the start", () => {
-    // Nothing sets it yet. Added later it would drag the mapper, the schema
-    // and the wire types with it.
-    expect(result.issues.every((issue) => issue.stale === false)).toBe(true);
-  });
-
   it("the optional collections arrive as empty arrays rather than as undefined", () => {
     // A card that has to branch on undefined before it can map over a list is a
     // card that will forget to, once.

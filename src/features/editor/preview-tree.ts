@@ -1,4 +1,5 @@
-import { countCodePoints, lineStarts } from "@/lib/docs";
+import { lineStarts } from "@/lib/docs";
+import { asDocOffset, type DocOffset } from "@/lib/domain";
 
 /**
  * A markdown document turned into a tree of elements to draw, and a map saying
@@ -90,8 +91,9 @@ export type PreviewNode =
 
 /**
  * Where one block of the drawing sits in the text it was built from. The lines
- * are the token's own; the offsets are those lines counted in code points,
- * which is the unit every position in this product is measured in.
+ * are the token's own; the offsets are those lines counted in the units a
+ * string is made of, which is what every map beside the text is counted in and
+ * what a resolved place is compared against.
  *
  * A block, not a phrase. The token map is per block, so a place found this way
  * marks a paragraph and not a range inside it - and that is the accuracy this
@@ -101,8 +103,8 @@ export type PreviewNode =
 export type PreviewBlock = {
   readonly fromLine: number;
   readonly toLine: number;
-  readonly from: number;
-  readonly to: number;
+  readonly from: DocOffset;
+  readonly to: DocOffset;
 };
 
 export type Preview = {
@@ -173,7 +175,7 @@ type Frame = {
 
 export function buildPreview(tokens: readonly MarkdownToken[], text: string): Preview {
   const starts = lineStarts(text);
-  const total = countCodePoints(text);
+  const total = text.length;
   const blocks: PreviewBlock[] = [];
   const root: PreviewNode[] = [];
   const stack: Frame[] = [];
@@ -195,10 +197,10 @@ export function buildPreview(tokens: readonly MarkdownToken[], text: string): Pr
     blocks.push({
       fromLine,
       toLine,
-      from: starts[fromLine] ?? total,
+      from: asDocOffset(starts[fromLine] ?? total),
       // The map ends on the line after the block, which for the last block of a
       // document is a line that does not exist.
-      to: toLine < starts.length ? (starts[toLine] ?? total) : total,
+      to: asDocOffset(toLine < starts.length ? (starts[toLine] ?? total) : total),
     });
     return blocks.length - 1;
   };

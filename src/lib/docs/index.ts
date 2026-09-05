@@ -43,8 +43,19 @@ export {
   clearSnapshots,
   forgetSnapshot,
   recordSnapshot,
+  snapshotDocIds,
   snapshotOf,
   type TextSnapshot,
 } from "./snapshot";
+export {
+  clearEdits,
+  editedWithin,
+  forgetEdits,
+  hasEdits,
+  movedBy,
+  projectOffset,
+  recordEdits,
+  type TextEdit,
+} from "./edits";
 export { buildSubmission, withCompanions, type Submission } from "./submission";
 export { countCodePoints, countWords, sha256Hex } from "./units";

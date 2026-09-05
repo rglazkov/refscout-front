@@ -1,4 +1,5 @@
 import { type ModuleId, type Severity } from "./ids";
+import { type CpOffset } from "./offsets";
 
 /**
  * One finding, in the shape the card that draws it needs. The domain is
@@ -29,28 +30,28 @@ export type Issue = {
   readonly anchors: readonly Anchor[];
   readonly evidence: readonly Evidence[];
   readonly actions: readonly IssueAction[];
-  /**
-   * The text moved under this finding and the place is no longer trustworthy.
-   * Nothing sets it yet, and it is in the type from the start because a field
-   * added later drags the mapper, the schema and the wire types with it.
-   */
-  readonly stale: boolean;
   readonly cite?: CiteBlock;
 };
 
 export type Params = Readonly<Record<string, string | number>>;
 
 /**
- * A place in a document. The unfamiliar branch is not a defect of the mapper: a
- * `kind` this version does not define arrives, parses, and costs the finding
- * its jump target rather than costing the response.
+ * A place in a document as a module addressed it - what arrived, not where it
+ * ended up. Every offset here is counted in code points, which is the unit of
+ * the wire and not the unit the browser works in, and the type says so: the
+ * resolver turns one of these into a place on the live text, and nothing else
+ * in the product is allowed to treat these numbers as positions in a string.
+ *
+ * The unfamiliar branch is not a defect of the mapper: a `kind` this version
+ * does not define arrives, parses, and costs the finding its jump target rather
+ * than costing the response.
  */
 export type Anchor =
   | {
       readonly kind: "range";
       readonly docId?: string;
-      readonly from: number;
-      readonly to: number;
+      readonly from: CpOffset;
+      readonly to: CpOffset;
       readonly quote: string;
       readonly prefix?: string;
       readonly suffix?: string;
@@ -68,12 +69,12 @@ export type Anchor =
       readonly quote: string;
       readonly prefix?: string;
       readonly suffix?: string;
-      readonly near?: number;
+      readonly near?: CpOffset;
     }
   | {
       readonly kind: "point";
       readonly docId?: string;
-      readonly at: number;
+      readonly at: CpOffset;
       readonly prefix?: string;
       readonly suffix?: string;
     }

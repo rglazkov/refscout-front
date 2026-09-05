@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
  * The four claims the product makes about the editor and about downloading
@@ -128,6 +128,35 @@ test.describe("the fade at the edges of the text", () => {
     await expect(page.getByTestId("document-card")).toContainText("characters");
     await page.getByRole("button", { name: "long.tex", exact: true }).click();
     await expect(page.getByTestId("editor")).toBeVisible();
+    // The faces the field is set in arrive after it is drawn, and every line
+    // moves by a fraction of a pixel when they land. Anything measured off the
+    // screen below is measured once that has happened.
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+  }
+
+  /**
+   * A rectangle that has stopped moving. Read once, the caret's box can be the
+   * one it had a frame ago - and a picture taken from that box is a picture of
+   * the line above the caret rather than of the caret.
+   */
+  async function settled(target: Locator): Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> {
+    let previous = "";
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const box = await target.boundingBox();
+      if (box === null) throw new Error("the caret is on screen but has no box");
+      const seen = `${box.x}:${box.y}:${box.height}`;
+      if (seen === previous) return box;
+      previous = seen;
+      await target.page().waitForTimeout(50);
+    }
+    throw new Error("the caret never stopped moving");
   }
 
   /** The two distances the mask is drawn from, as the scroller carries them. */
@@ -179,17 +208,24 @@ test.describe("the fade at the edges of the text", () => {
      * style and pale in every pixel, because a mask above it took the colour
      * away after the fact.
      */
-    const box = await caret.boundingBox();
-    if (box === null) throw new Error("the caret is on screen but has no box");
+    const box = await settled(caret);
+    /*
+     * The window is taken in the units it was measured in. A phone's screen has
+     * two and a half device pixels to one of these, so a picture taken in the
+     * screen's own units would make a row of it a third of the row being
+     * reasoned about - and the first of those thirds is as likely to be the gap
+     * above the caret as the caret. It also starts on the first whole pixel
+     * inside the caret rather than on the last one outside it.
+     */
     const clip = {
       x: Math.floor(box.x) - 2,
-      y: Math.floor(box.y),
+      y: Math.ceil(box.y),
       width: 6,
-      height: Math.round(box.height),
+      height: Math.floor(box.height),
     };
-    const shot = (await page.screenshot({ animations: "disabled", clip })).toString(
-      "base64",
-    );
+    const shot = (
+      await page.screenshot({ animations: "disabled", clip, scale: "css" })
+    ).toString("base64");
     const rows = await page.evaluate(async (data) => {
       const image = new Image();
       image.src = `data:image/png;base64,${data}`;
@@ -230,10 +266,11 @@ test.describe("editing after the check has run", () => {
   }) => {
     /*
      * Correcting the text here is the point of the screen - the corrected file
-     * is what Download gives back. But the findings were written against the
-     * text as it was sent, and recomputing their places is not built yet. Until
-     * then the document says so, because a line number that is quietly wrong
-     * looks exactly like one that is right.
+     * is what Download gives back - and the places follow the correction. What
+     * does not follow it is the check itself: the findings were written against
+     * the text as it was sent, so the document says that it has moved on since,
+     * because a verdict about characters that have been replaced looks exactly
+     * like one about the characters that are there.
      */
     await page.goto("/");
     await dropManuscript(page);
@@ -249,6 +286,35 @@ test.describe("editing after the check has run", () => {
     await expect(page.getByTestId("edited-after-run")).toContainText(
       "edited since the check ran",
     );
+  });
+
+  test("correcting the text starts no check of its own", async ({ page }) => {
+    /*
+     * The invariant the results screen is built around, checked from the other
+     * end: an edit changes what will be downloaded and nothing else. A new
+     * check is something a person asks for, from an empty buffer, and never
+     * something that happens because they corrected a sentence.
+     */
+    const submissions: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && /\/jobs$/.test(request.url())) {
+        submissions.push(request.url());
+      }
+    });
+
+    await page.goto("/");
+    await dropManuscript(page);
+    await page.getByTestId("run").click();
+    await expect(page.getByTestId("results-totals")).toBeVisible({ timeout: 15_000 });
+    expect(submissions).toHaveLength(1);
+
+    await page.getByTestId("document-name-open").click();
+    await page.getByTestId("editor").getByRole("textbox").click();
+    await page.keyboard.type("% a paragraph corrected after the results arrived\n");
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByTestId("edited-after-run")).toBeVisible();
+    expect(submissions).toHaveLength(1);
   });
 
   test("a text typed and put back exactly as it was is not edited", async ({ page }) => {

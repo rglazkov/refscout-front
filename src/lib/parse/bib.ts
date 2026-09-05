@@ -1,7 +1,7 @@
 import { plugins } from "@citation-js/core";
 import "@citation-js/plugin-bibtex";
 
-import { type BibSpan, type LocalFinding } from "@/lib/domain";
+import { asDocOffset, type BibSpan, type LocalFinding } from "@/lib/domain";
 
 import { type Reading, emptyReading, unreadable } from "./reading";
 
@@ -99,7 +99,7 @@ function spansOf(text: string, keys: ReadonlySet<string>): readonly BibSpan[] {
     const opening = text.indexOf("{", from);
     const to = closingBrace(text, opening);
     if (to === -1) continue;
-    spans.push({ key, from, to });
+    spans.push({ key, from: asDocOffset(from), to: asDocOffset(to) });
   }
   return spans;
 }

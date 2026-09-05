@@ -8,8 +8,7 @@ import {
 import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 
 import { canonicalise } from "@/lib/docs/canonical";
-import { countCodePoints } from "@/lib/docs/units";
-import { type DocMeta, type PageSpan } from "@/lib/domain";
+import { asDocOffset, type DocMeta, type PageSpan } from "@/lib/domain";
 
 import { ParseFailure } from "./failure";
 import { isBlank } from "./quality";
@@ -139,19 +138,23 @@ async function readPages(pdf: PDFDocumentProxy, options: PdfOptions): Promise<Pa
       pageText = "";
     }
 
-    if (number > 1) offset += countCodePoints(PAGE_SEPARATOR);
+    if (number > 1) offset += PAGE_SEPARATOR.length;
     /*
      * Every page gets a span, empty ones included: a finding on page 40 has to
      * find page 40 in the map whether or not page 39 held any text.
      *
-     * Measured in code points, because that is the unit every offset in an
-     * answer is counted in. `String.length` counts UTF-16 units, and one
-     * emoji or one character above the basic plane earlier in the document
-     * would then shift every page boundary past it - so a finding would be
-     * reported on the page before the one it is on.
+     * Measured in the units a JavaScript string is made of, like every other
+     * map built while a document is read. What the map is compared against is a
+     * place that has already been converted out of the unit the wire counts in,
+     * and holding this one in that other unit would shift every page boundary
+     * past the first formula in the document.
      */
-    const pageChars = countCodePoints(pageText);
-    pages.push({ page: number, from: offset, to: offset + pageChars });
+    const pageChars = pageText.length;
+    pages.push({
+      page: number,
+      from: asDocOffset(offset),
+      to: asDocOffset(offset + pageChars),
+    });
     offset += pageChars;
     parts.push(pageText);
 

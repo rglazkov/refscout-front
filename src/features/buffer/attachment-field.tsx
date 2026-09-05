@@ -129,7 +129,7 @@ function Filled({
         variant="outline"
         size="xs"
         data-testid={`attachment-open-${slot}`}
-        onClick={() => openOverlay({ docId: attached.id, mode: "edit" })}
+        onClick={() => openOverlay({ docId: attached.id })}
       >
         <PencilIcon aria-hidden="true" />
         {t("open")}

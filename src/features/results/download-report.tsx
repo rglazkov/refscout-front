@@ -62,6 +62,9 @@ export function DownloadReportButton({
         ignored: report("ignored"),
         replacement: report("replacement"),
         unanchored: report("unanchored"),
+        editedAfterRun: report("editedAfterRun"),
+        edited: report("edited"),
+        lost: report("lost"),
         counts: (counts: Counts) =>
           report("counts", { critical: counts.critical, warning: counts.warning }),
         nothing: report("nothing"),

@@ -1,6 +1,13 @@
 import { lineAt, lineStarts, pageOf } from "@/lib/docs";
-import { type Anchor, type Counts, type PageSpan, type Severity } from "@/lib/domain";
-import { type PlacedIssue } from "@/lib/normalize";
+import {
+  isResolved,
+  type Counts,
+  type Issue,
+  type ModuleId,
+  type PageSpan,
+  type Place,
+  type Severity,
+} from "@/lib/domain";
 
 /**
  * The findings report in Markdown. In this first section it is the main thing
@@ -25,13 +32,34 @@ export type ReportInput = {
   readonly labels: ReportLabels;
 };
 
+/**
+ * One finding as the report needs it: what it says, and where it ended up on
+ * the text the browser holds. The places are the resolver's answer rather than
+ * the module's offsets, so a line number in the report is a line the reader can
+ * count to in the file they downloaded beside it.
+ */
+export type ReportIssue = {
+  readonly docId: string;
+  readonly module: ModuleId;
+  readonly issue: Issue;
+  readonly places: readonly Place[];
+};
+
 export type ReportDocument = {
   readonly docId: string;
   readonly name: string;
   readonly counts: Counts;
   readonly text?: string;
   readonly pages?: readonly PageSpan[];
-  readonly issues: readonly PlacedIssue[];
+  /**
+   * The text was corrected after the checks read it. The numbers below then
+   * describe where things were at the moment of the check, and the reader is
+   * told so once, under the name of the document: a line number that has
+   * quietly moved is worse than no line number, because it looks exactly like
+   * one that is right.
+   */
+  readonly editedAfterRun?: boolean;
+  readonly issues: readonly ReportIssue[];
   /** The keys of the findings the person marked as dealt with. */
   readonly fixed: ReadonlySet<string>;
   /** The keys of the findings the person turned down. */
@@ -58,15 +86,15 @@ export type ReportLabels = {
   readonly replacement: string;
   /** Says that a check read a different version of this document. */
   readonly unanchored: string;
+  /** Says that the text was corrected after the checks read it. */
+  readonly editedAfterRun: string;
+  /** Says that this particular fragment has been edited since. */
+  readonly edited: string;
+  /** Says that the place would not resolve at all. */
+  readonly lost: string;
   readonly counts: (counts: Counts) => string;
   readonly nothing: string;
 };
-
-function offsetOf(anchor: Anchor): number | null {
-  if (anchor.kind === "range") return anchor.from;
-  if (anchor.kind === "point") return anchor.at;
-  return null;
-}
 
 /**
  * What a module offers to put in place of what is there. It is written into the
@@ -74,15 +102,13 @@ function offsetOf(anchor: Anchor): number | null {
  * editor with the manuscript open, and the replacement beside the finding is
  * the difference between reading about a problem and fixing it.
  */
-function replacementOf(issue: PlacedIssue["issue"]): string | null {
+function replacementOf(issue: Issue): string | null {
   const action = issue.actions.find((candidate) => candidate.kind === "replace");
   return action === undefined ? null : action.value;
 }
 
-function quoteOf(anchor: Anchor): string | null {
-  if (anchor.kind === "range" || anchor.kind === "quote") return anchor.quote;
-  if (anchor.kind === "bibkey") return anchor.bibkey;
-  return null;
+function quoteOf(place: Place): string | null {
+  return place.quote ?? place.bibkey ?? null;
 }
 
 /**
@@ -132,6 +158,17 @@ export function buildIssueReport(input: ReportInput): string {
       "",
     );
 
+    /*
+     * Said once, at the top of the document it is about. Somebody who corrected
+     * their manuscript and then took the report away has a file in one hand and
+     * a set of line numbers in the other, and the two describe different
+     * moments; that is worth a sentence, and it is worth it before the numbers
+     * rather than after them.
+     */
+    if (document.editedAfterRun === true) {
+      lines.push(`_${input.labels.editedAfterRun}_`, "");
+    }
+
     if (document.issues.length === 0) {
       lines.push(input.labels.nothing, "");
       continue;
@@ -172,17 +209,29 @@ export function buildIssueReport(input: ReportInput): string {
         lines.push(`  - _${input.labels.unanchored}_`);
       }
 
-      for (const anchor of issue.anchors) {
-        const offset = anchored ? offsetOf(anchor) : null;
+      for (const resolved of placed.places) {
+        const offset =
+          anchored && isResolved(resolved) && resolved.edited !== true
+            ? (resolved.anchor ?? null)
+            : null;
         const place: string[] = [];
         if (offset !== null && starts !== undefined) {
           place.push(`${input.labels.line} ${lineAt(starts, offset)}`);
           const page = pageOf(document.pages, offset);
           if (page !== null) place.push(`${input.labels.page} ${page}`);
         }
+        /*
+         * A place that could not be worked out, and one whose text has been
+         * corrected since, are both said in words rather than left as a finding
+         * with nothing beside it. The reader can tell the difference between
+         * "we could not find this" and "you have already changed this", and
+         * they mean different things about what to do next.
+         */
+        if (anchored && resolved.edited === true) place.push(input.labels.edited);
+        else if (anchored && resolved.status === "lost") place.push(input.labels.lost);
         if (place.length > 0) lines.push(`  - ${place.join(" · ")}`);
 
-        const quote = quoteOf(anchor);
+        const quote = quoteOf(resolved);
         if (quote !== null && quote !== "") lines.push(`  ${asQuote(quote)}`);
       }
 

@@ -7,7 +7,7 @@ import { BlockedButton } from "@/components/ui/blocked-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CodeMirror } from "@/features/editor/code-mirror";
-import { useVisualViewportHeight } from "@/features/editor/use-visual-viewport";
+import { useVisualViewportFrame } from "@/features/editor/use-visual-viewport";
 
 /**
  * Text typed or pasted into one of the slots on a document's card - the
@@ -17,8 +17,9 @@ import { useVisualViewportHeight } from "@/features/editor/use-visual-viewport";
  * It is the same editor a document is read in rather than a text area, and it
  * is the same size: what goes in here is a bibliography or a section of a
  * thesis, and a box three lines tall makes a person scroll a thousand entries
- * through a letterbox. The height comes from the visual viewport so the
- * keyboard on a phone cannot cover the button that accepts it.
+ * through a letterbox. It is sized and placed against the visible part of the
+ * screen, so the keyboard on a phone neither covers the button that accepts it
+ * nor pushes the top of the field down towards itself.
  */
 export function PasteInEditor({
   open,
@@ -36,7 +37,7 @@ export function PasteInEditor({
   readonly onClose: () => void;
   readonly onDone: (text: string) => void | Promise<void>;
 }) {
-  const height = useVisualViewportHeight();
+  const frame = useVisualViewportFrame();
 
   return (
     <Dialog
@@ -46,7 +47,7 @@ export function PasteInEditor({
       }}
     >
       <DialogContent
-        style={{ "--overlay-height": height } as React.CSSProperties}
+        style={frame}
         className="flex h-[var(--overlay-height)] max-w-none flex-col gap-3 rounded-none p-4 sm:h-[calc(var(--overlay-height)-1rem)] sm:max-w-3xl sm:rounded-lg"
       >
         <DialogHeader>

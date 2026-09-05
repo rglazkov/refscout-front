@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Segmented } from "@/components/ui/segmented";
 import { CodeMirror } from "@/features/editor/code-mirror";
 import { detectedSyntax, draftSyntaxKind, useSyntax } from "@/features/editor/syntax";
-import { useVisualViewportHeight } from "@/features/editor/use-visual-viewport";
+import { useVisualViewportFrame } from "@/features/editor/use-visual-viewport";
 import { type IntakeDraft, type SourceFormat } from "@/lib/domain";
 import { useIntakeDraftStore } from "@/stores";
 
@@ -67,7 +67,7 @@ export function PasteOverlay({
   const setText = useIntakeDraftStore((state) => state.setText);
   const setSyntax = useIntakeDraftStore((state) => state.setSyntax);
   const clear = useIntakeDraftStore((state) => state.clear);
-  const height = useVisualViewportHeight();
+  const frame = useVisualViewportFrame();
   // The switch above the field is not decoration: the text is shown as what it
   // is while it is being written, the same way a document of the buffer is
   // shown as what it is when it is opened.
@@ -77,13 +77,13 @@ export function PasteOverlay({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         /*
-         * On a phone the overlay is the whole screen. On anything wider it
-         * leaves only 0.5rem above and below, maximising the text that stays
-         * visible while retaining the overlay's established width. The height
-         * travels as a custom property because an inline `height` could not
-         * then be narrowed by a breakpoint.
+         * On a phone the overlay is the whole screen, sized and placed against
+         * the visible part of it so the keyboard neither covers the field nor
+         * pushes the top of the overlay down towards itself. On anything wider
+         * it leaves only 0.5rem above and below, maximising the text that stays
+         * visible while retaining the overlay's established width.
          */
-        style={{ "--overlay-height": height } as React.CSSProperties}
+        style={frame}
         className="flex h-[var(--overlay-height)] max-w-none flex-col gap-3 rounded-none p-4 sm:h-[calc(var(--overlay-height)-1rem)] sm:max-w-3xl sm:rounded-lg"
       >
         <DialogHeader>

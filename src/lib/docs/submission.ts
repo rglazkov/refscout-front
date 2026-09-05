@@ -4,9 +4,12 @@ import {
   type SubmitJobRequest,
 } from "@/lib/domain";
 
+import { astralIndex } from "@/lib/anchor/units";
+
+import { forgetEdits } from "./edits";
 import { docRegistry } from "./registry";
 import { recordSnapshot } from "./snapshot";
-import { countCodePoints, sha256Hex } from "./units";
+import { sha256Hex } from "./units";
 
 /**
  * Assembling what will be sent. It lives here because this is where the text
@@ -53,14 +56,26 @@ export async function buildSubmission(
     ];
 
     const textSha256 = await sha256Hex(content.text);
-    const cpLength = countCodePoints(content.text);
+    /*
+     * One walk of the text answers both questions. The index says where the
+     * characters that take two units of a string are, which is what an answer's
+     * offsets are converted through; the length in code points is the length of
+     * the string less the number of those characters, and the subtraction is
+     * only right because canonicalisation has already been through the text and
+     * left no unpaired halves in it.
+     */
+    const astral = astralIndex(content.text);
+    const cpLength = content.text.length - (astral?.length ?? 0);
     /*
      * Kept before the request is built, and kept for every document that goes
      * out. When the answer comes back declaring what the server counted over,
      * this is the only thing left to compare it with: the text itself may have
      * been corrected since, and its hash then answers a different question.
      */
-    recordSnapshot(item.id, { textSha256, cpLength });
+    recordSnapshot(item.id, { textSha256, cpLength, astral });
+    // And the counting of what is typed from here on starts over: what has to
+    // be caught up with is the edits made after this text left, not before.
+    forgetEdits(item.id);
 
     documents.push({
       docId: item.id,

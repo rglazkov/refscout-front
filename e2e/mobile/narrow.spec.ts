@@ -145,3 +145,62 @@ test("a stacked dialogue gives every button the same width", async ({ page }) =>
   expect(widths.length).toBe(3);
   expect(new Set(widths).size).toBe(1);
 });
+
+test("a check card lands on the height it flew to", async ({ page }) => {
+  /*
+   * The findings unfold in one motion or they do not, and on a phone is where
+   * the difference shows. A row of the list stands at the height the list
+   * declares for a folded row until the browser decides the row is worth
+   * drawing, and on a narrow screen a real row wraps onto three lines - so a
+   * card measured before that decision is measured short, flies to the short
+   * height and then steps to its real one. Nothing reports it but somebody
+   * watching the card open twice, so the two heights are compared.
+   */
+  await page.goto("/");
+  await page.getByTestId("file-input").setInputFiles({
+    name: "paper.tex",
+    mimeType: "text/plain",
+    buffer: Buffer.from(MANUSCRIPT, "utf8"),
+  });
+  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await page.getByTestId("run").click();
+  await expect(page.getByTestId("results-totals")).toBeVisible({ timeout: 15_000 });
+
+  const opening = page.getByRole("button", { name: /Open \(/ }).first();
+  await expect(opening).toBeVisible();
+  await opening.scrollIntoViewIfNeeded();
+
+  const flight = await opening.evaluate(async (button: HTMLElement) => {
+    const card = button.closest("[data-testid=check-card]");
+    if (card === null) return null;
+    const heights: { readonly height: number; readonly flying: boolean }[] = [];
+    let stop = false;
+    const sample = () => {
+      heights.push({
+        height: Math.round(card.getBoundingClientRect().height),
+        // While it is in flight the card is taken out of the page and moved
+        // between the two rectangles; landing puts it back.
+        flying: getComputedStyle(card).position === "fixed",
+      });
+      if (!stop) requestAnimationFrame(sample);
+    };
+    button.click();
+    sample();
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    stop = true;
+    const flown = heights.filter((frame) => frame.flying);
+    return {
+      folded: heights[0]?.height ?? 0,
+      arrived: flown.at(-1)?.height ?? 0,
+      settled: heights.at(-1)?.height ?? 0,
+    };
+  });
+
+  expect(flight).not.toBeNull();
+  // It opened at all, and by more than a rounding error.
+  expect(flight?.settled ?? 0).toBeGreaterThan((flight?.folded ?? 0) + 20);
+  // And the last height of the flight is the height it keeps.
+  expect(Math.abs((flight?.arrived ?? 0) - (flight?.settled ?? 0))).toBeLessThanOrEqual(
+    1,
+  );
+});

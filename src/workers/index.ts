@@ -1,3 +1,9 @@
+/*
+ * From the module itself rather than through its door, and for the same reason
+ * the resolver's own worker does it: the door also opens onto the projection,
+ * which reaches the registry of texts and would be dragged in here by a type.
+ */
+import { type ResolveRequest, type ResolveResult } from "@/lib/anchor/resolve";
 import { type DiffResult } from "@/lib/diff/text";
 import { type Reading } from "@/lib/parse/reading";
 import { type ParseRequest, type Parsed, type PdfResources } from "@/lib/parse/types";
@@ -12,6 +18,7 @@ import {
   diffCall,
   parseCall,
   readCall,
+  resolveCall,
   type AssembleRequest,
   type ReadRequest,
 } from "./protocol";
@@ -62,6 +69,8 @@ const GZIP_WORKER = publicPath("/workers/gzip.worker.js");
 
 const DIFF_WORKER = publicPath("/workers/diff.worker.js");
 
+const RESOLVE_WORKER = publicPath("/workers/resolve.worker.js");
+
 /**
  * The same two, built as classic scripts with nothing to import. They are only
  * reached when the module worker above will not start: everything is in the one
@@ -74,6 +83,8 @@ const CLASSIC_PARSE_WORKER = publicPath("/workers/classic/parse.worker.js");
 const CLASSIC_GZIP_WORKER = publicPath("/workers/classic/gzip.worker.js");
 
 const CLASSIC_DIFF_WORKER = publicPath("/workers/classic/diff.worker.js");
+
+const CLASSIC_RESOLVE_WORKER = publicPath("/workers/classic/resolve.worker.js");
 
 /**
  * The workers of the product and the only way in to any of them. Callers see
@@ -129,6 +140,14 @@ const comparator = createWorkerClient<DiffRequest, DiffResult>(
     () => new Worker(CLASSIC_DIFF_WORKER),
   ],
   diffCall,
+);
+
+const resolver = createWorkerClient<ResolveRequest, ResolveResult>(
+  [
+    () => new Worker(RESOLVE_WORKER, { type: "module" }),
+    () => new Worker(CLASSIC_RESOLVE_WORKER),
+  ],
+  resolveCall,
 );
 
 /**
@@ -225,4 +244,18 @@ export function compressBody(
   options: RunOptions = {},
 ): Promise<CompressResult> {
   return compressor.run({ json }, options);
+}
+
+/**
+ * Works out where each place of an answer falls on the live text. It is one
+ * call per module answer and one more each time the text settles after being
+ * edited, and the whole of it - the index over the document, the three passes,
+ * the checking of the neighbouring text - happens off the thread the editor is
+ * drawn on.
+ */
+export function resolvePlaces(
+  request: ResolveRequest,
+  options: RunOptions = {},
+): Promise<ResolveResult> {
+  return resolver.run(request, options);
 }

@@ -69,3 +69,12 @@ export const compressCall = "compress" as const;
 
 /** The name of the call the comparison worker answers. */
 export const diffCall = "diff" as const;
+
+/**
+ * The name of the call the resolver answers. It has a worker of its own rather
+ * than sharing the parsers': it runs after an answer arrives, while the parsers
+ * may still be reading the next document a person has dropped, and the two
+ * queueing behind one another would leave a person watching a highlight wait
+ * for somebody else's PDF.
+ */
+export const resolveCall = "resolve" as const;

@@ -18,6 +18,7 @@ import {
   moduleIds,
   resultKey,
 } from "@/lib/domain";
+import { resolveBody } from "@/lib/anchor";
 import { reportAnchoring, verifyCounts, verifyWording } from "@/lib/normalize";
 import { type JobHandle } from "@/stores";
 
@@ -214,6 +215,13 @@ export function useJob(handle: JobHandle | null): {
         // has just arrived.
         reportAnchoring(body);
         verifyWording(moduleId, body);
+        /*
+         * And the places are worked out, once per body. It is started here
+         * rather than where a card is drawn because it is work rather than a
+         * question: a pass over the document in a worker, whose answer arrives
+         * later and reaches every screen that shows this finding at once.
+         */
+        resolveBody(body);
       }
     }
   }, [job]);

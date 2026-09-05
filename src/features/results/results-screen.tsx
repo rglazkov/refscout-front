@@ -195,7 +195,7 @@ function DocumentResults({
   const counts = documentCounts(document.modules);
   const notRun = notRunCount(document);
   const openDocument = React.useCallback(
-    () => openOverlay({ docId: document.docId, mode: "edit" }),
+    () => openOverlay({ docId: document.docId }),
     [document.docId, openOverlay],
   );
 

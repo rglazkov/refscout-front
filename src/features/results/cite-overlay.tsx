@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/cn";
 import { toBibtex } from "@/lib/export";
 import { type CiteCandidate, type Issue, type ModuleResult } from "@/lib/domain";
-import { useVisualViewportHeight } from "@/features/editor/use-visual-viewport";
+import { useVisualViewportFrame } from "@/features/editor/use-visual-viewport";
 import { useIntake } from "@/features/intake/use-intake";
 import { useWording } from "@/lib/i18n";
 import { acceptedKey, useJobStore, useUiStore } from "@/stores";
@@ -55,7 +55,7 @@ export function CiteOverlay({
 }) {
   const t = useTranslations("results.cite");
   const format = useFormatter();
-  const height = useVisualViewportHeight();
+  const frame = useVisualViewportFrame();
   const openOverlay = useUiStore((state) => state.openOverlay);
   const accepted = useJobStore((state) => state.accepted);
   const { adoptArtifact } = useIntake();
@@ -81,7 +81,7 @@ export function CiteOverlay({
     >
       <DialogContent
         data-testid="cite-overlay"
-        style={{ "--overlay-height": height } as React.CSSProperties}
+        style={frame}
         className="flex h-[var(--overlay-height)] max-w-none flex-col gap-0 rounded-none p-0 sm:h-[calc(var(--overlay-height)-1rem)] sm:max-w-5xl sm:rounded-lg"
       >
         <div className="flex flex-wrap items-center gap-3 border-b p-4">
@@ -114,7 +114,7 @@ export function CiteOverlay({
               type="button"
               variant="outlineOnCard"
               size="sm"
-              onClick={() => openOverlay({ docId, mode: "edit" })}
+              onClick={() => openOverlay({ docId })}
             >
               <PencilIcon aria-hidden="true" />
               {t("openText")}
@@ -169,7 +169,7 @@ export function CiteOverlay({
                 name: `${documentName.replace(/\.[A-Za-z0-9]+$/, "")}-sources.bib`,
                 format: "bib",
                 text: toBibtex(acceptedRecords),
-              }).then((id) => openOverlay({ docId: id, mode: "edit" }));
+              }).then((id) => openOverlay({ docId: id }));
             }}
           >
             <PencilIcon aria-hidden="true" />

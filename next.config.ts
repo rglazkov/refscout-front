@@ -83,9 +83,13 @@ const nextConfig: NextConfig = {
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 
 /**
- * Long pages are MDX files in content/. Title and description come from the
- * front matter: a plugin turns it into a `frontmatter` export instead of us
- * parsing it by hand.
+ * Long pages are MDX files in content/. The block at the top of such a file is
+ * front matter, not text: `remark-frontmatter` recognises it and keeps it out
+ * of the rendered page. Both delimiters are accepted - `---` around a YAML
+ * block, `+++` around a TOML one - so that whichever an author writes is read
+ * the same way here and by the code that takes the title and description from
+ * the file on disk, which is how a page's metadata is known without compiling
+ * the page.
  *
  * MDX compiles to components at build time, so no HTML strings appear here and
  * dangerouslySetInnerHTML is not needed.
@@ -94,8 +98,7 @@ const withMDX = createMDXPlugin({
   extension: /\.mdx?$/,
   options: {
     remarkPlugins: [
-      ["remark-frontmatter", ["yaml"]],
-      ["remark-mdx-frontmatter", { name: "frontmatter" }],
+      ["remark-frontmatter", ["yaml", "toml"]],
       // Tables and footnotes: without them the legal pages and the check
       // descriptions with their source links would have to be marked up by hand.
       "remark-gfm",

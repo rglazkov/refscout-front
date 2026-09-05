@@ -1,4 +1,5 @@
-import { docRegistry } from "@/lib/docs";
+import { placesOfIssue } from "@/lib/anchor";
+import { docRegistry, hasEdits } from "@/lib/docs";
 import { type Job, moduleIds, resultKey } from "@/lib/domain";
 import { anchoringOf, documentCounts, issuesOf } from "@/lib/normalize";
 
@@ -43,9 +44,18 @@ export function buildJobReport(input: {
         counts: documentCounts(document.modules),
         ...(content === undefined ? {} : { text: content.text }),
         ...(content?.pages === undefined ? {} : { pages: content.pages }),
+        // Whether anything has been typed into this document since it was sent.
+        // The report owes the reader that sentence: they are about to work from
+        // line numbers that describe the document as the check read it, beside
+        // a file that has moved on.
+        editedAfterRun: hasEdits(document.docId),
         issues: moduleIds.flatMap((module) => {
           const result = input.job.results[resultKey(document.docId, module)];
-          return result === undefined ? [] : issuesOf(result);
+          if (result === undefined) return [];
+          return issuesOf(result).map((placed) => ({
+            ...placed,
+            places: placesOfIssue(document.docId, module, placed.issue.issueId),
+          }));
         }),
         fixed: input.fixed,
         ignored: input.ignored,

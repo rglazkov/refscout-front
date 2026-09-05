@@ -109,6 +109,33 @@ about page 4 quietly appears on page 5 and is read as our work rather than as a
 defect. A list without places is a useful result; a place that is wrong costs
 the trust in every place beside it.
 
+**From there the finding lands on the text, and the text can be corrected under
+it.** `src/lib/anchor/` turns each place a module sent into a place on the live
+document: the offsets change unit once, at one boundary, from the code points of
+the wire into the units a JavaScript string is made of; they catch up with
+whatever was typed while the check ran; and then the text at them is compared
+with the fragment the module quoted. Where it matches, that is the place. Where
+it does not, the fragment is looked up by its own words and the neighbours that
+came with it - as they are, composed, and with everything a text pipeline
+flattens flattened - over an index of the document rather than by scanning it,
+because a body can carry hundreds of thousands of places and a manuscript three
+million characters. The whole pass runs in a worker. What comes back is a place
+with a status, so a failure to find one is a card saying so rather than a
+highlight in the wrong paragraph, and the share of relocated and lost places per
+module is a number in telemetry rather than a letter to support.
+
+**The findings are drawn over the text and the text stays editable.** The
+highlights are a layer - the document is not changed by a character - and they
+move with it: a paragraph inserted above a hundred findings shifts all hundred
+by exactly its length, and an edit across one takes that highlight off, because
+the module judged characters that are no longer there. The card stays, says so,
+and keeps its way back to the place. Beside the text is the list of its
+findings, walked with the arrows, and a press on either side selects the other.
+Where a module sent a replacement there is a button that applies it as an
+ordinary edit, so undo takes it back the way it takes back typing; where nothing
+could be placed there is a way to point at the place by hand. None of this
+starts a check: correcting the text changes only what will be downloaded.
+
 **Connecting a module is its codes in the dictionary and one renderer of its
 details** (`src/features/results/details/`), and that is enforced rather than
 asserted: a test fails on the name of a module appearing in the code the four of

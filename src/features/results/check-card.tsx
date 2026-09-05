@@ -313,13 +313,7 @@ export function CheckCard({
          */
         <ul className="border-t [&>li]:[contain-intrinsic-size:auto_2.25rem] [&>li]:[content-visibility:auto]">
           {issues.slice(0, drawn).map((issue) => (
-            <IssueRow
-              key={issue.issueId}
-              docId={docId}
-              module={module}
-              issue={issue}
-              anchored={anchoring.anchored}
-            />
+            <IssueRow key={issue.issueId} docId={docId} module={module} issue={issue} />
           ))}
         </ul>
       ) : null}
@@ -373,7 +367,7 @@ function OpenArtifactButton({
           name: `${baseName(documentName)}-${module}.${artifact.kind}`,
           format: artifact.kind,
           text: artifact.content,
-        }).then((id) => openOverlay({ docId: id, mode: "edit" }));
+        }).then((id) => openOverlay({ docId: id }));
       }}
     >
       <PencilIcon aria-hidden="true" />
@@ -536,24 +530,7 @@ function useCardMorph(open: boolean, commit: () => void) {
       commit();
     });
 
-    const cardAfter = card.getBoundingClientRect();
-    const siblingAnimations = moving.flatMap((element, index) => {
-      const oldRect = before[index];
-      if (oldRect === undefined) return [];
-      const newRect = element.getBoundingClientRect();
-      const x = oldRect.left - newRect.left;
-      const y = oldRect.top - newRect.top;
-      if (Math.abs(x) < 0.5 && Math.abs(y) < 0.5) return [];
-      return [
-        element.animate(
-          [{ transform: `translate(${x}px, ${y}px)` }, { transform: "none" }],
-          {
-            duration: motionMs.morph,
-            easing: motionEasing.morph,
-          },
-        ),
-      ];
-    });
+    let cardAfter = card.getBoundingClientRect();
 
     const placeholder = document.createElement("div");
     placeholder.setAttribute("aria-hidden", "true");
@@ -562,7 +539,7 @@ function useCardMorph(open: boolean, commit: () => void) {
     if (!open) placeholder.style.gridColumn = "1 / -1";
     card.parentElement?.insertBefore(placeholder, card);
 
-    Object.assign(card.style, {
+    const flying = {
       position: "fixed",
       insetInlineStart: "0px",
       top: "0px",
@@ -571,7 +548,17 @@ function useCardMorph(open: boolean, commit: () => void) {
       margin: "0px",
       zIndex: "3",
       overflow: "hidden",
-    });
+    };
+    const landed = {
+      position: "",
+      insetInlineStart: "",
+      top: "",
+      width: "",
+      height: "",
+      margin: "",
+      overflow: "",
+    };
+    Object.assign(card.style, flying);
 
     // Containment can change the origin of a fixed descendant. Measure that
     // origin rather than assuming it is the viewport.
@@ -580,40 +567,104 @@ function useCardMorph(open: boolean, commit: () => void) {
       x: cardBefore.left - origin.left,
       y: cardBefore.top - origin.top,
     };
-    const to = {
-      x: cardAfter.left - origin.left,
-      y: cardAfter.top - origin.top,
-    };
     card.style.insetInlineStart = `${from.x}px`;
     card.style.top = `${from.y}px`;
 
-    const cardAnimation = card.animate(
-      [
+    /** Aims the card and everything it displaces at `cardAfter`, from `at`. */
+    const fly = (at: number) => {
+      const to = {
+        x: cardAfter.left - origin.left,
+        y: cardAfter.top - origin.top,
+      };
+      const cardAnimation = card.animate(
+        [
+          {
+            insetInlineStart: `${from.x}px`,
+            top: `${from.y}px`,
+            width: `${cardBefore.width}px`,
+            height: `${cardBefore.height}px`,
+          },
+          {
+            insetInlineStart: `${to.x}px`,
+            top: `${to.y}px`,
+            width: `${cardAfter.width}px`,
+            height: `${cardAfter.height}px`,
+          },
+        ],
         {
+          duration: motionMs.morph,
+          easing: motionEasing.morph,
+        },
+      );
+      const siblingAnimations = moving.flatMap((element, index) => {
+        const oldRect = before[index];
+        if (oldRect === undefined) return [];
+        const newRect = element.getBoundingClientRect();
+        const x = oldRect.left - newRect.left;
+        const y = oldRect.top - newRect.top;
+        if (Math.abs(x) < 0.5 && Math.abs(y) < 0.5) return [];
+        return [
+          element.animate(
+            [{ transform: `translate(${x}px, ${y}px)` }, { transform: "none" }],
+            {
+              duration: motionMs.morph,
+              easing: motionEasing.morph,
+            },
+          ),
+        ];
+      });
+      for (const animation of [cardAnimation, ...siblingAnimations]) {
+        animation.currentTime = at;
+      }
+
+      run.current = { card: cardAnimation, siblings: siblingAnimations, placeholder };
+      cardAnimation.onfinish = () => {
+        siblingAnimations.forEach((animation) => animation.cancel());
+        clearRun(false);
+        setMorphing(false);
+      };
+    };
+
+    fly(0);
+
+    /*
+     * The rectangle the card has just been aimed at is not the one it lands on.
+     * A row of the list that has only this moment been put into the document is
+     * skipped for layout until the browser decides it is worth drawing, and
+     * until then it stands at the height the list declares for a folded row -
+     * so the card was measured short, by as much as the difference between that
+     * height and a row that wraps onto three lines, which is what a row does on
+     * a phone. The decision is made two frames later; here the card is measured
+     * again with it made, and the flight re-aimed from where it has got to.
+     *
+     * Without this the card flies to the short rectangle, is put back into the
+     * document at its real height, and steps to it - one opening seen as two.
+     */
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const active = run.current;
+        if (active === null || active.placeholder !== placeholder) return;
+        const at = Number(active.card.currentTime ?? 0);
+        active.card.cancel();
+        active.siblings.forEach((animation) => animation.cancel());
+
+        // Read where the card lands, standing where it lands: out of the
+        // flight, out of the fixed box, and with its own cell given back to it.
+        Object.assign(card.style, landed);
+        placeholder.style.display = "none";
+        const settled = card.getBoundingClientRect();
+        placeholder.style.display = "";
+        placeholder.style.width = `${settled.width}px`;
+        placeholder.style.height = `${settled.height}px`;
+        Object.assign(card.style, flying, {
           insetInlineStart: `${from.x}px`,
           top: `${from.y}px`,
-          width: `${cardBefore.width}px`,
-          height: `${cardBefore.height}px`,
-        },
-        {
-          insetInlineStart: `${to.x}px`,
-          top: `${to.y}px`,
-          width: `${cardAfter.width}px`,
-          height: `${cardAfter.height}px`,
-        },
-      ],
-      {
-        duration: motionMs.morph,
-        easing: motionEasing.morph,
-      },
-    );
+        });
 
-    run.current = { card: cardAnimation, siblings: siblingAnimations, placeholder };
-    cardAnimation.onfinish = () => {
-      siblingAnimations.forEach((animation) => animation.cancel());
-      clearRun(false);
-      setMorphing(false);
-    };
+        cardAfter = settled;
+        fly(at);
+      }),
+    );
   };
 
   return [ref, morphing, toggle] as const;

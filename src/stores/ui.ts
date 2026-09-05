@@ -16,10 +16,24 @@ import { type Marks } from "./job";
  */
 export type WorkspaceMode = "buffer" | "scout" | "diff";
 
-/** Which text the overlay is showing, and whether it can be edited. */
+/**
+ * Which text the overlay is showing, and which finding it should open on.
+ *
+ * There is no read-only mode here. Every text in the product is editable from
+ * the moment it is open, before a check and after one: correcting a manuscript
+ * in the light of what a check said is the work, not a special mode with an
+ * entrance of its own. The one thing that only draws is the markdown preview,
+ * and that is a view of a document rather than the document.
+ */
 export type OverlayTarget = {
   readonly docId: string;
-  readonly mode: "edit" | "read";
+  /**
+   * The place to open at, as a finding, its module and which of its places -
+   * set when the overlay is opened from a row of results. It is what makes
+   * "show me this in the text" one step rather than a journey: the text opens
+   * scrolled to the line, with that finding selected in the list beside it.
+   */
+  readonly focus?: string;
 };
 
 /**

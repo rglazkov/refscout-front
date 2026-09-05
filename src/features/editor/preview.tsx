@@ -4,7 +4,9 @@ import * as React from "react";
 import { FileTextIcon, LoaderIcon } from "lucide-react";
 
 import { cn } from "@/lib/cn";
+import { type Severity } from "@/lib/domain";
 
+import { type PanelFinding } from "./findings-model";
 import {
   buildPreview,
   type Preview,
@@ -18,28 +20,64 @@ import {
  * person actually asked for: they brought a document with headings, lists and
  * tables, and this is where they see one instead of a wall of hashes and pipes.
  *
- * It draws and does nothing else. The page is read-only, and deliberately so: a
- * markdown rendering that could be typed into is a second editor with a second
- * set of defects, while the document itself is one string of text and there is
- * one place to change it. Nothing is measured here either - not an offset, not
- * a line number, not a character count - because the drawing and the source are
- * different strings, and a number taken off the drawing is a number that is
- * wrong by the length of the markup above it.
+ * It draws, and it is read-only: a markdown rendering that could be typed into
+ * is a second editor with a second set of defects, while the document itself is
+ * one string of text and there is one place to change it. Nothing is measured
+ * off the drawing either, because the drawing and the source are different
+ * strings and a number taken off the page is wrong by the length of the markup
+ * above it. The one thing it does mark is a paragraph that holds a finding, and
+ * the position for that comes from the source through the map the tree was
+ * built with - so it is as precise as a block and no more, which is why the
+ * press on it goes to the source, where the exact fragment is.
  */
 export function MarkdownPreview({
   text,
   label,
   loadingLabel,
+  findings = NO_FINDINGS,
+  onOpenFinding,
   note,
 }: {
   readonly text: string;
   /** Names the page for a screen reader, since it is a region and not a field. */
   readonly label: string;
   readonly loadingLabel: string;
+  /**
+   * The findings placed in this document. A paragraph that holds one is marked
+   * here, which is as precise as this page can be: the position comes from the
+   * token's own map, so it names a block and not a phrase inside it.
+   */
+  readonly findings?: readonly PanelFinding[];
+  readonly onOpenFinding?: (issueKey: string) => void;
   /** Said under the page where a format was converted to get here. */
   readonly note?: string;
 }) {
   const preview = usePreview(text);
+  const marks = useMarks(preview, findings);
+  const page = React.useRef<HTMLElement>(null);
+
+  /*
+   * A press on a marked paragraph goes to the source at the exact fragment,
+   * which is where a correction is made. The listener is attached to the page
+   * rather than a control being put on each paragraph: a paragraph is prose and
+   * not a button, and the keyboard path to the same findings is the list beside
+   * the text, where every one of them is a labelled control.
+   */
+  React.useEffect(() => {
+    const element = page.current;
+    if (element === null || onOpenFinding === undefined) return;
+    const pressed = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const key = target.closest("[data-finding]")?.getAttribute("data-finding");
+      if (key === null || key === undefined) return;
+      // Somebody selecting a sentence to copy is not asking to go anywhere.
+      if (window.getSelection()?.isCollapsed === false) return;
+      onOpenFinding(key);
+    };
+    element.addEventListener("click", pressed);
+    return () => element.removeEventListener("click", pressed);
+  }, [onOpenFinding, preview, marks]);
 
   return (
     <div
@@ -55,8 +93,11 @@ export function MarkdownPreview({
           {loadingLabel}
         </p>
       ) : (
-        <article className="mx-auto flex max-w-[44rem] flex-col gap-3.5 rounded-lg border bg-card px-8 py-10 font-serif shadow-md sm:px-13">
-          <Nodes nodes={preview.nodes} />
+        <article
+          ref={page}
+          className="mx-auto flex max-w-[44rem] flex-col gap-3.5 rounded-lg border bg-card px-8 py-10 font-serif shadow-md sm:px-13"
+        >
+          <Nodes nodes={preview.nodes} marks={marks} />
           {note === undefined ? null : (
             <p className="flex items-center justify-center gap-2 pt-2 text-center font-sans text-[0.8125rem] text-muted-foreground">
               <FileTextIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -69,12 +110,46 @@ export function MarkdownPreview({
   );
 }
 
+const NO_FINDINGS: readonly PanelFinding[] = [];
+
+/** Which block each finding falls in, and what it is called there. */
+type BlockMark = { readonly issueKey: string; readonly severity: Severity };
+
+function useMarks(
+  preview: Preview | null,
+  findings: readonly PanelFinding[],
+): ReadonlyMap<number, BlockMark> {
+  return React.useMemo(() => {
+    const marks = new Map<number, BlockMark>();
+    if (preview === null) return marks;
+    for (const finding of findings) {
+      for (const placed of finding.places) {
+        const range = placed.place.range;
+        if (range === undefined) continue;
+        // The innermost block that contains it: a list item rather than the
+        // list around it, which is the smallest true thing this map can say.
+        for (let at = preview.blocks.length - 1; at >= 0; at -= 1) {
+          const block = preview.blocks[at];
+          if (block === undefined) continue;
+          if (range.from < block.from || range.from >= block.to) continue;
+          if (!marks.has(at)) {
+            marks.set(at, { issueKey: finding.issueKey, severity: finding.severity });
+          }
+          break;
+        }
+      }
+    }
+    return marks;
+  }, [preview, findings]);
+}
+
 /**
  * The tree for one text, and the parser fetched on the way to it.
  *
- * The map of where each block came from travels with the tree and is not read
- * here: this page draws, and marking a paragraph is something to draw only once
- * the findings have places in the text to be marked at.
+ * The map of where each block came from travels with the tree, and it is what
+ * puts a finding on a paragraph: the offsets in it are the source's, so the
+ * mark lands where the module was looking rather than where the markup happened
+ * to end up on the page.
  */
 function usePreview(text: string): Preview | null {
   const [preview, setPreview] = React.useState<Preview | null>(null);
@@ -128,14 +203,47 @@ const CLASSES: Readonly<Record<PreviewTag, string>> = {
   br: "",
 };
 
-function Nodes({ nodes }: { readonly nodes: readonly PreviewNode[] }) {
-  return nodes.map((node, index) => <Node key={index} node={node} />);
+/**
+ * How a marked block is drawn: a bar down its edge in the colour of the
+ * severity, and a pointer over it. Colour and a border it always has room for,
+ * never a change of size - a paragraph that grew when a finding landed on it
+ * would move the line the person was reading.
+ */
+const MARK_CLASSES: Readonly<Record<Severity, string>> = {
+  critical: "border-s-critical bg-critical-soft",
+  warning: "border-s-warning bg-warning-soft",
+  info: "border-s-muted-foreground bg-muted",
+};
+
+function Nodes({
+  nodes,
+  marks,
+}: {
+  readonly nodes: readonly PreviewNode[];
+  readonly marks: ReadonlyMap<number, BlockMark>;
+}) {
+  return nodes.map((node, index) => <Node key={index} node={node} marks={marks} />);
 }
 
-function Node({ node }: { readonly node: PreviewNode }): React.ReactNode {
+function Node({
+  node,
+  marks,
+}: {
+  readonly node: PreviewNode;
+  readonly marks: ReadonlyMap<number, BlockMark>;
+}): React.ReactNode {
   if (node.kind === "text") return node.text;
 
-  const className = CLASSES[node.tag];
+  const mark = node.block === undefined ? undefined : marks.get(node.block);
+  const className = cn(
+    CLASSES[node.tag],
+    mark !== undefined &&
+      cn(
+        "cursor-pointer rounded-e-sm border-s-[3px] ps-2.5",
+        MARK_CLASSES[mark.severity],
+      ),
+  );
+  const marked = mark === undefined ? {} : { "data-finding": mark.issueKey };
 
   /*
    * The one element that leaves the page: a new tab, and no handle back to this
@@ -146,7 +254,7 @@ function Node({ node }: { readonly node: PreviewNode }): React.ReactNode {
   if (node.tag === "a") {
     return (
       <a href={node.href} target="_blank" rel="noopener noreferrer" className={className}>
-        <Nodes nodes={node.children} />
+        <Nodes nodes={node.children} marks={marks} />
       </a>
     );
   }
@@ -157,20 +265,20 @@ function Node({ node }: { readonly node: PreviewNode }): React.ReactNode {
   if (node.tag === "table") {
     return (
       <div className="overflow-x-auto">
-        <table className={className}>
-          <Nodes nodes={node.children} />
+        <table className={className} {...marked}>
+          <Nodes nodes={node.children} marks={marks} />
         </table>
       </div>
     );
   }
 
   if (node.tag === "hr" || node.tag === "br") {
-    return React.createElement(node.tag, { className: cn(className) });
+    return React.createElement(node.tag, { className });
   }
 
   return React.createElement(
     node.tag,
-    { className: cn(className) },
-    <Nodes nodes={node.children} />,
+    { className, ...marked },
+    <Nodes nodes={node.children} marks={marks} />,
   );
 }

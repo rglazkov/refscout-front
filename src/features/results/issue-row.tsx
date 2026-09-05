@@ -7,14 +7,16 @@ import {
   ChevronRightIcon,
   CopyIcon,
   ExternalLinkIcon,
+  PencilIcon,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Collapse } from "@/components/motion/collapse";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { placeKey, useIssuePlaces } from "@/lib/anchor";
 import { placesOf } from "@/lib/docs";
-import { type Issue, type ModuleId } from "@/lib/domain";
+import { isResolved, type Issue, type ModuleId } from "@/lib/domain";
 import { useWording } from "@/lib/i18n";
 import { fixedKey, useJobStore, useUiStore } from "@/stores";
 
@@ -29,18 +31,10 @@ export function IssueRow({
   docId,
   module,
   issue,
-  anchored,
 }: {
   readonly docId: string;
   readonly module: ModuleId;
   readonly issue: Issue;
-  /**
-   * Whether the body this finding came in was counted over the text we hold.
-   * When it was not, the finding keeps its words and loses its numbers: a page
-   * worked out from coordinates for another version of the text is a confident
-   * answer to the wrong question.
-   */
-  readonly anchored: boolean;
 }) {
   const t = useTranslations("results");
   const format = useFormatter();
@@ -48,6 +42,7 @@ export function IssueRow({
   const key = fixedKey(docId, module, issue.issueId);
   const open = useUiStore((state) => state.openIssues[key] === true);
   const toggleIssue = useUiStore((state) => state.toggleIssue);
+  const openOverlay = useUiStore((state) => state.openOverlay);
   const marked = useJobStore((state) => state.fixed[key] === true);
   const ignored = useJobStore((state) => state.ignored[key] === true);
   const toggleFixed = useJobStore((state) => state.toggleFixed);
@@ -60,16 +55,16 @@ export function IssueRow({
         : t("severityName.info");
 
   /*
-   * The places, worked out from our own maps: the module sends offsets over the
-   * text it was given, and which page one of them falls on is a question only
-   * the browser can answer. It is recomputed when the finding or the verdict on
-   * its body changes, and not on every render of a list that can be thousands
-   * of rows long.
+   * Where this finding ended up on the live text, and what that is worth
+   * saying: the page it falls on, the entry of a bibliography it names, the
+   * sentence the module quoted, and whether it could be placed at all. The
+   * resolver works it out in a worker when the answer arrives and again when
+   * the text settles after being edited; here it is only read.
    */
-  const places = React.useMemo(
-    () => placesOf(docId, issue.anchors, { anchored }),
-    [docId, issue.anchors, anchored],
-  );
+  const resolved = useIssuePlaces(docId, module, issue.issueId);
+  const places = React.useMemo(() => placesOf(resolved), [resolved]);
+  /** The first place that can actually be jumped to, if any. */
+  const target = resolved.find((place) => isResolved(place) && place.range !== undefined);
 
   return (
     <li className="border-b last:border-b-0">
@@ -138,6 +133,20 @@ export function IssueRow({
             {t("place.occurrences", { count: places.count })}
           </span>
         ) : null}
+
+        {/* What became of the address, in words. A finding whose place could
+            not be worked out keeps its card and says so, because the
+            alternative - a page number beside it that came from somewhere else -
+            reads exactly like a page number that is right. */}
+        {places.edited ? (
+          <span className="shrink-0 text-xs text-warning" data-testid="issue-edited">
+            {t("place.edited")}
+          </span>
+        ) : places.lost > 0 && places.resolved === 0 ? (
+          <span className="shrink-0 text-xs text-warning" data-testid="issue-lost">
+            {t("place.lost")}
+          </span>
+        ) : null}
       </button>
 
       <Collapse open={open}>
@@ -204,18 +213,46 @@ export function IssueRow({
                   );
                 }
                 /*
-                 * A replacement the module proposes is not offered as a button
-                 * here. Applying one means putting characters at an offset, and
-                 * until the places are resolved against the live text there is
-                 * no offset to apply it at; a button that asked to be trusted
-                 * with that would be the half-working kind. It travels in the
-                 * report instead, beside the finding it belongs to, which is
-                 * where a person is working when they act on it.
+                 * A replacement the module proposes is not applied from here.
+                 * Applying one changes the manuscript, and a change to the
+                 * manuscript is made where the manuscript is - in the editor,
+                 * inside the undo history, with the person looking at the
+                 * sentence it lands in. The button that takes them there is
+                 * below, and it is the same one that takes them to the place.
+                 * It travels in the report as well, beside the finding, for
+                 * somebody working in their own editor.
                  */
                 // An action of a kind this version does not define is simply
                 // not offered; the rest of the card is shown.
                 return null;
               })}
+
+              {/* One step to the place in the text, and one step back: the
+                  overlay opens scrolled to the fragment with this finding
+                  selected beside it, and closing it returns here with the card
+                  still open. Offered only where there is somewhere to go. */}
+              {target === undefined ? null : (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outlineOnCard"
+                  data-testid="show-in-text"
+                  onClick={() =>
+                    openOverlay({
+                      docId: target.docId,
+                      focus: placeKey(
+                        docId,
+                        module,
+                        issue.issueId,
+                        resolved.indexOf(target),
+                      ),
+                    })
+                  }
+                >
+                  <PencilIcon aria-hidden="true" />
+                  {t("showInText")}
+                </Button>
+              )}
 
               {/* Two marks, and they mean different things: "I have dealt with
                   this" and "the check is right and I do not want it". Each is a

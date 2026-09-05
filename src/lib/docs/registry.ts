@@ -1,5 +1,6 @@
 import { type BibSpan, type DocContent } from "@/lib/domain";
 
+import { clearEdits, forgetEdits } from "./edits";
 import { clearSnapshots, forgetSnapshot } from "./snapshot";
 import { releaseAllSourceFiles, releaseSourceFile } from "./sources";
 
@@ -91,8 +92,10 @@ export function clearAllDocuments(): void {
   adapter.clear();
   releaseAllSourceFiles();
   // What was sent goes with what was kept: a snapshot outliving its document
-  // describes a text nothing on screen can reach any more.
+  // describes a text nothing on screen can reach any more, and so does a record
+  // of what was typed into it.
   clearSnapshots();
+  clearEdits();
 }
 
 /**
@@ -106,4 +109,5 @@ export function forgetDocument(docId: string): void {
   // reference to somebody's manuscript that no card can reach any more.
   releaseSourceFile(docId);
   forgetSnapshot(docId);
+  forgetEdits(docId);
 }

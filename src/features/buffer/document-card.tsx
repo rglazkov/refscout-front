@@ -109,7 +109,7 @@ export function DocumentCard({
                not offered - a person has to discover it by putting the pointer
                on it, which on a touch screen never happens. */
             className="h-auto min-w-0 flex-1 justify-start p-0 text-left font-mono font-medium break-all text-foreground underline decoration-foreground/25 underline-offset-[3px] hover:decoration-primary"
-            onClick={() => openOverlay({ docId: item.id, mode: "edit" })}
+            onClick={() => openOverlay({ docId: item.id })}
           >
             {item.name}
           </Button>
@@ -264,7 +264,7 @@ export function DocumentCard({
               onUnlock={(password) => void intake.reread(item.id, { password })}
               onChooseAgain={(file) => void intake.chooseAgain(item.id, file)}
               onCancel={() => intake.cancel(item.id)}
-              onOpenText={() => openOverlay({ docId: item.id, mode: "edit" })}
+              onOpenText={() => openOverlay({ docId: item.id })}
             />
           ) : null}
 

@@ -16,6 +16,11 @@ import {
 const files = readSources();
 const graph = buildGraph(files);
 
+/** The code alone, for the rules that are about what runs rather than what is said. */
+function withoutComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 /** Modules outside the listed directories that refer to the target. */
 function importersOutside(target: RegExp, allowed: readonly string[]): string[] {
   const offenders: string[] = [];
@@ -35,22 +40,73 @@ describe("layer boundaries", () => {
     expect(importersOutside(/lib\/api\/wire/, ["src/lib/api/", "src/test/"])).toEqual([]);
   });
 
-  it("the text registry is reachable only from intake, the editor, storage, export and the API", () => {
-    // lib/export is the fifth, and it earns its place by destination rather
-    // than by layer: the file handed back to the person is assembled from the
-    // text, and the line numbers in the report are counted over it. It writes a
-    // Blob and touches no network, so letting a screen ask it for a download
-    // keeps the text out of the screen.
+  it("the text registry is reachable only from intake, the editor, storage, export, the API and the resolver", () => {
+    /*
+     * lib/export earns its place by destination rather than by layer: the file
+     * handed back to the person is assembled from the text, and the line
+     * numbers in the report are counted over it. It writes a Blob and touches
+     * no network, so letting a screen ask it for a download keeps the text out
+     * of the screen.
+     *
+     * lib/anchor is the sixth and needs the texts by nature: a place a module
+     * sent is checked against the words at it, and where the comparison fails
+     * the fragment is searched for. It hands the text to a worker and keeps
+     * nothing of it.
+     */
     expect(
       importersOutside(/lib\/docs\/registry/, [
         "src/features/intake/",
         "src/features/editor/",
+        "src/lib/anchor/",
         "src/lib/storage/",
         "src/lib/export/",
         "src/lib/api/",
         "src/lib/docs/",
       ]),
     ).toEqual([]);
+  });
+
+  it("the two units of an offset are converted in one module and nowhere else", () => {
+    /*
+     * A code-point offset becoming a position in a string is the one arithmetic
+     * in the product that is invisibly wrong on English text and wrong by a
+     * character per emoji on everything else. The compiler keeps the two units
+     * apart by their types; this keeps the crossing itself in one file, so that
+     * there is one place to read, one place to test and one place to fix.
+     */
+    const offenders = files
+      .filter(
+        (file) =>
+          file.path !== "src/lib/anchor/units.ts" && !file.path.startsWith("src/test/"),
+      )
+      .filter((file) => /\btoDocOffset\s*\(|\btoCpOffset\s*\(/.test(file.text))
+      .map((file) => file.path)
+      // The projection and the mock stand where the crossing is used rather
+      // than where it is done: both call the one function above.
+      .filter(
+        (path) =>
+          path !== "src/lib/anchor/project.ts" && path !== "src/test/msw/handlers.ts",
+      );
+    expect(offenders).toEqual([]);
+  });
+
+  it("nothing walks a document into an array of characters", () => {
+    /*
+     * `Array.from(text)` and `[...text]` are each a string per character on the
+     * heap, and the documents here run to three million of them. The slow path
+     * of the conversion exists precisely for the texts where this would happen -
+     * a page of mathematics is astral from end to end - so the one module that
+     * could reach for it is the one module that must not.
+     */
+    const spread =
+      /Array\.from\(\s*(?:text|document|standing)\b|\[\s*\.\.\.\s*(?:text|document|standing)\s*\]/;
+    const offenders = files
+      .filter((file) => file.path.startsWith("src/lib/anchor/"))
+      // The rule is about what the code does, and the module that must not do
+      // it is the one that says so in its own comments.
+      .filter((file) => spread.test(withoutComments(file.text)))
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
   });
 
   it("telemetry cannot reach the text registry, not even through a re-export", () => {

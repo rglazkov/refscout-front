@@ -270,7 +270,6 @@
     "done": "Done",
     "download": "Download .{extension}",
     "volume": "{chars} characters · {words} words",
-    "readOnlyReason": "Read-only here: an edit would move the findings, and recomputing where they point comes later. Edit before a run, or download the text.",
     "fieldLabel": "The text of {name}",
     "docxNote": "Rebuilt from the text: headings, lists, tables and footnotes are kept, the original layout and pictures are not.",
     "downloadFailed": "The file could not be assembled. Your text here is unchanged — try again.",
@@ -281,7 +280,52 @@
     },
     "previewLabel": "{name}, drawn as a document",
     "previewLoading": "Drawing the document",
-    "previewNote": "This is the markdown the Word file was read into. The original layout and its pictures are not part of it."
+    "previewNote": "This is the markdown the Word file was read into. The original layout and its pictures are not part of it.",
+    "apply": "Apply",
+    "face": {
+      "label": "How the text is set",
+      "mono": "Monospaced",
+      "prose": "Prose"
+    },
+    "findings": {
+      "label": "Findings in this document",
+      "heading": "{count, plural, =0 {No findings here} one {# finding} other {# findings}}",
+      "none": "Nothing left to show. Everything here is marked as dealt with.",
+      "previous": "Previous finding",
+      "next": "Next finding",
+      "nextOccurrence": "Next place",
+      "occurrence": "{index} of {count}",
+      "hideSettled": "Hide settled"
+    },
+    "place": {
+      "line": "line {line}",
+      "relocated": "found by its text",
+      "derived": "from the bibliography",
+      "manual": "placed by you",
+      "edited": "you have edited this fragment",
+      "lost": "could not be placed in the text",
+      "point": "Point at it",
+      "pointHint": "Select the fragment in the text, then confirm.",
+      "anchorHere": "Anchor here",
+      "changeManual": "Change the place",
+      "removeManual": "Remove the place"
+    },
+    "search": {
+      "find": "Find",
+      "next": "next",
+      "previous": "previous",
+      "all": "all",
+      "matchCase": "match case",
+      "byWord": "whole words",
+      "regexp": "regexp",
+      "replace": "replace",
+      "replaceAll": "replace all",
+      "close": "close",
+      "currentMatch": "current match",
+      "onLine": "on line",
+      "goToLine": "go to line",
+      "go": "go"
+    }
   },
   "plan": {
     "heading": "Check plan",
@@ -402,8 +446,11 @@
     "scoreOutOf": "Score: {score} out of 100",
     "place": {
       "pages": "{count, plural, one {p. {pages}} other {pp. {pages}}}",
-      "occurrences": "{count, plural, other {# places}}"
-    }
+      "occurrences": "{count, plural, other {# places}}",
+      "edited": "fragment edited",
+      "lost": "place not found"
+    },
+    "showInText": "Show in text"
   },
   "record": {
     "citedBy": "Citations {count}",
@@ -541,7 +588,10 @@
       "critical": "Critical",
       "warning": "Warning",
       "info": "Note"
-    }
+    },
+    "editedAfterRun": "This document was corrected after the checks read it, so the line and page numbers below describe it as it was at the moment of the check.",
+    "edited": "fragment edited since",
+    "lost": "place not found"
   },
   "errors": {
     "unknown": "Something on the server refused this request.",

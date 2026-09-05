@@ -4,6 +4,7 @@ import * as React from "react";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 import {
   EditorView,
@@ -16,22 +17,54 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
+import { type TextEdit } from "@/lib/docs";
+
 /**
- * The editor core, in its minimal configuration. Virtualised rendering so that
- * a hundred pages do not lay the tab down, line numbers in the gutter, editing,
- * and undo in steps. There is no search, no syntax highlighting and no font
- * switch here yet.
+ * The editor core. Virtualised rendering so that a hundred pages do not lay the
+ * tab down, line numbers in the gutter, editing, undo in steps, search over the
+ * whole document, syntax colouring for the formats that have any, and a choice
+ * of face.
  *
- * It is written from the start as one component with modes rather than as a
- * viewer that will be replaced later. Each further mode arrives as a set of
- * extensions, while the behaviour - scrolling, selection, the keyboard, what a
- * phone does - is written and fixed once.
+ * It is one component with modes rather than a viewer that is replaced later.
+ * Each mode arrives as a set of extensions, while the behaviour - scrolling,
+ * selection, the keyboard, what a phone does - is written and fixed once.
  */
+export type EditorFace = "mono" | "prose";
+
 export type CodeMirrorProps = {
   readonly value: string;
   readonly readOnly?: boolean;
   readonly onChange?: (value: string) => void;
+  /**
+   * What each edit did, in the coordinates of the text before it. The whole
+   * string says what the document now is; this says what moved, which is what
+   * lets a place counted over the text that was sent be found again in the text
+   * that is here now without recomputing the list on every keystroke.
+   */
+  readonly onEdits?: (edits: readonly TextEdit[]) => void;
+  /**
+   * The editor itself, once there is one, and `null` when it goes. Jumping to a
+   * finding, scrolling to it and applying a replacement are all one transaction
+   * against this - the same path a keystroke takes, so that undo takes them
+   * back the way it takes back typing.
+   */
+  readonly onReady?: (view: EditorView | null) => void;
   readonly ariaLabel: string;
+  /**
+   * Which face the document is set in. A bibliography and a `.tex` are read
+   * character by character and line up in columns, so they are monospaced;
+   * prose pulled out of a PDF is read for an hour at a time, which a
+   * monospaced face makes measurably harder. The switch beside it is there
+   * because the document decides badly often enough to be worth overruling.
+   */
+  readonly face?: EditorFace;
+  /**
+   * The words the editor's own panels use, out of the dictionary. The search
+   * panel is the library's markup and it carries English inside it; handed
+   * these, it says what everything else on the screen says, in the language
+   * being read.
+   */
+  readonly phrases?: Readonly<Record<string, string>>;
   /**
    * The language of this document, once it has been fetched. It arrives after
    * the editor is already on screen and is swapped in through a compartment,
@@ -332,10 +365,67 @@ export const editorSurface = EditorView.theme({
   ".cm-content ::selection": { backgroundColor: "var(--editor-selection)" },
   ".cm-cursor": { borderLeftColor: "var(--foreground)" },
   "&.cm-focused": { outline: "none" },
+
+  /*
+   * The search panel. It is the library's own markup, so it is dressed here
+   * rather than rebuilt: what it has to do is stop looking like a browser
+   * dialogue that wandered onto the page. The controls take the same surfaces
+   * and the same rules the rest of the product uses, and a field with something
+   * typed in it sits a visible step off the panel behind it.
+   */
+  ".cm-panels": {
+    backgroundColor: "color-mix(in srgb, var(--muted) 45%, var(--card))",
+    color: "var(--foreground)",
+    borderBottom: "1px solid var(--border)",
+    fontFamily: "var(--stack-sans)",
+    fontSize: "0.8125rem",
+  },
+  ".cm-panels input[type=text], .cm-panels input[type=search]": {
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
+    border: "1px solid var(--border)",
+    borderRadius: "0.375rem",
+    padding: "0.25rem 0.5rem",
+  },
+  ".cm-panels input:focus-visible, .cm-panels button:focus-visible": {
+    outline: "2px solid var(--ring)",
+    outlineOffset: "1px",
+  },
+  ".cm-panels button": {
+    backgroundColor: "var(--card)",
+    backgroundImage: "none",
+    color: "var(--foreground)",
+    border: "1px solid var(--border)",
+    borderRadius: "0.375rem",
+    padding: "0.25rem 0.5rem",
+    transition: "background-color var(--motion-fast) var(--ease-out)",
+  },
+  ".cm-panels button:hover": { backgroundColor: "var(--accent-bg)" },
+  ".cm-searchMatch": {
+    backgroundColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+  },
+  ".cm-searchMatch-selected": {
+    backgroundColor: "color-mix(in srgb, var(--primary) 40%, transparent)",
+  },
+  ".cm-selectionMatch": {
+    backgroundColor: "color-mix(in srgb, var(--primary) 14%, transparent)",
+  },
 });
 
 /** This editor fills the overlay it is opened in. */
 const fillsItsBox = EditorView.theme({ "&": { height: "100%" } });
+
+/**
+ * The two faces, as a theme each. Which one a document gets is decided where
+ * the document is known; here they are only two declarations, so that no screen
+ * has to name a font stack of its own.
+ */
+const faces: Readonly<Record<EditorFace, Extension>> = {
+  mono: EditorView.theme({ ".cm-content": { fontFamily: "var(--stack-mono)" } }),
+  prose: EditorView.theme({
+    ".cm-content": { fontFamily: "var(--stack-sans)", lineHeight: "1.6" },
+  }),
+};
 
 /** The palette, as an extension, so both arrangements colour alike. */
 export const editorHighlighting = syntaxHighlighting(highlightStyle);
@@ -346,7 +436,11 @@ export function CodeMirror({
   value,
   readOnly = false,
   onChange,
+  onEdits,
+  onReady,
   ariaLabel,
+  face = "mono",
+  phrases,
   language = null,
   extensions = NO_EXTENSIONS,
   className,
@@ -354,11 +448,16 @@ export function CodeMirror({
   const host = React.useRef<HTMLDivElement | null>(null);
   const view = React.useRef<EditorView | null>(null);
   const notify = React.useRef(onChange);
+  const notifyEdits = React.useRef(onEdits);
+  const handOver = React.useRef(onReady);
   const languageSlot = React.useRef(new Compartment());
   const extensionSlot = React.useRef(new Compartment());
+  const faceSlot = React.useRef(new Compartment());
   React.useEffect(() => {
     notify.current = onChange;
-  }, [onChange]);
+    notifyEdits.current = onEdits;
+    handOver.current = onReady;
+  }, [onChange, onEdits, onReady]);
 
   React.useEffect(() => {
     const parent = host.current;
@@ -374,7 +473,17 @@ export function CodeMirror({
         highlightActiveLineGutter(),
         edgeFade,
         tabMovesFocus,
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        /*
+         * Search over the whole document. On a manuscript of a hundred pages it
+         * is not an ornament: a finding that says a term is defined twice is of
+         * no use without a way to reach the second definition, and the person
+         * reading it is in the text rather than in a browser's own find bar,
+         * which cannot see the lines the editor has not drawn.
+         */
+        search({ top: true }),
+        highlightSelectionMatches(),
+        EditorState.phrases.of(phrases ?? {}),
+        keymap.of([...searchKeymap, ...defaultKeymap, ...historyKeymap]),
         languageSlot.current.of(language ?? []),
         editorHighlighting,
         plainTextPaste,
@@ -396,9 +505,22 @@ export function CodeMirror({
           tabindex: "0",
         }),
         editorSurface,
+        faceSlot.current.of(faces[face]),
         fillsItsBox,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) notify.current?.(update.state.doc.toString());
+          if (!update.docChanged) return;
+          notify.current?.(update.state.doc.toString());
+          /*
+           * What moved, as well as what the text now is. Both are needed and
+           * they answer different questions: the string is the document, and
+           * this is how to find in it a place that was counted over the text as
+           * it stood when the check was started.
+           */
+          const edits: TextEdit[] = [];
+          update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+            edits.push({ from: fromA, to: toA, length: inserted.length });
+          });
+          notifyEdits.current?.(edits);
         }),
         extensionSlot.current.of([...extensions]),
       ],
@@ -406,9 +528,11 @@ export function CodeMirror({
 
     const created = new EditorView({ state, parent });
     view.current = created;
+    handOver.current?.(created);
     created.focus();
 
     return () => {
+      handOver.current?.(null);
       created.destroy();
       view.current = null;
     };
@@ -445,6 +569,15 @@ export function CodeMirror({
       effects: extensionSlot.current.reconfigure([...extensions]),
     });
   }, [extensions]);
+
+  // The face is swapped the same way, so that changing it keeps the scroll
+  // position and the caret: a person who switches to read prose comfortably
+  // does not want to find the document back at the top.
+  React.useEffect(() => {
+    const created = view.current;
+    if (created === null) return;
+    created.dispatch({ effects: faceSlot.current.reconfigure(faces[face]) });
+  }, [face]);
 
   return <div ref={host} className={className} data-testid="editor" />;
 }

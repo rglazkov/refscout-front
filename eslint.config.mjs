@@ -203,6 +203,31 @@ export default tseslint.config(
   },
 
   {
+    /*
+     * Where a finding is placed on the text, and the two things that must not
+     * happen there. Walking a document into an array of characters is a string
+     * per character on a heap holding three million of them, and this is the
+     * one module that would be tempted: the slow path of the unit conversion
+     * exists for exactly the texts where it would hurt. Counting characters
+     * with `String.length` is the other - that number is UTF-16 units, which is
+     * the wrong unit for a limit and for the wire, and `countCodePoints` is the
+     * one that answers the question being asked.
+     */
+    files: ["src/lib/anchor/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.name='Array'][callee.property.name='from'][arguments.0.type='Identifier']",
+          message:
+            "A document is not walked into an array of characters: convert the offset instead.",
+        },
+      ],
+    },
+  },
+
+  {
     // The MDX markup table: the content arrives from the page file through
     // children, so rules of the "a heading must have text" kind see nothing
     // here and fire for no reason.
