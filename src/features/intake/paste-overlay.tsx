@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { BlockedButton } from "@/components/ui/blocked-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Segmented } from "@/components/ui/segmented";
 import { CodeMirror } from "@/features/editor/code-mirror";
 import { detectedSyntax, draftSyntaxKind, useSyntax } from "@/features/editor/syntax";
 import { useVisualViewportHeight } from "@/features/editor/use-visual-viewport";
@@ -89,19 +90,19 @@ export function PasteOverlay({
           <DialogTitle className="text-base">{t("title")}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-2">
-          {SYNTAXES.map((syntax) => (
-            <Button
-              key={syntax}
-              type="button"
-              size="xs"
-              variant={draft.syntax === syntax ? "default" : "outline"}
-              onClick={() => setSyntax(syntax)}
-            >
-              {t(`syntax.${syntax}`)}
-            </Button>
-          ))}
-        </div>
+        {/* One question with four answers, so it is one control: a track with
+            the chosen syntax sitting on it. Four buttons standing apart read as
+            four things to do rather than as four positions of a switch. */}
+        <Segmented
+          className="self-start"
+          label={t("syntaxLabel")}
+          value={draft.syntax}
+          onChange={setSyntax}
+          options={SYNTAXES.map((syntax) => ({
+            value: syntax,
+            label: t(`syntax.${syntax}`),
+          }))}
+        />
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-lg border">
           <CodeMirror

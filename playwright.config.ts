@@ -8,6 +8,16 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
+  /*
+   * Longer than a test's own longest wait, which is a minute: several of them
+   * wait that long for a document to be read, because the second engine takes
+   * the fallback path for workers and a dissertation-shaped fixture is slow on
+   * it. At the default of thirty seconds the test was killed before its own
+   * wait could elapse - so the wait was decoration, and the failure it produced
+   * named the assertion rather than the slowness. Reached only when something
+   * has genuinely stalled; a passing run is nowhere near it.
+   */
+  timeout: 90_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
@@ -46,20 +56,24 @@ export default defineConfig({
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
       /*
-       * Three files, and all three are about the engine. The first asks whether
-       * a worker starts here and reads every kind of document. The second asks
+       * Four files, and all four are about the engine. The first asks whether a
+       * worker starts here and reads every kind of document. The second asks
        * whether the two panes of a comparison stay level, which rests on how
        * the browser measures text - the one part of the layout that is a
        * different answer in a different engine. The third is the reporting of
        * problems, and it belongs here for the same reason as the first: what it
        * rests on - a batch delivered while the tab is closing, a queue in
        * IndexedDB, a key combination read by its code - differs between engines,
-       * and every one of its failures is silent by design. What the rest of the
-       * suite asks - contrast, wording, the shape of the flow - does not turn on
-       * the engine, and running it twice would buy re-tuned assertions rather
-       * than confidence.
+       * and every one of its failures is silent by design. The fourth is the
+       * preview, where the editor is taken off the screen while the drawn page
+       * stands in front of it and put back afterwards: whether it measures
+       * itself again on the way back is the browser's answer and not ours, and
+       * an editor that came back mismeasured would be a blank field where a
+       * manuscript was. What the rest of the suite asks - contrast, wording, the
+       * shape of the flow - does not turn on the engine, and running it twice
+       * would buy re-tuned assertions rather than confidence.
        */
-      testMatch: /(worker-start|diff-alignment|report)\.spec\.ts/,
+      testMatch: /(worker-start|diff-alignment|report|preview)\.spec\.ts/,
     },
     {
       name: "mobile",

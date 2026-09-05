@@ -203,6 +203,35 @@ describe("dynamic loading of features", () => {
    * embed - a hundred kilobytes to colour a `<br>` in somebody's manuscript.
    * `markdownLanguage` is the same GFM grammar without them.
    */
+  /**
+   * The markdown parser, which the preview draws a document from. Most
+   * documents in this product are a PDF, a `.tex` or a bibliography, none of
+   * which has a preview at all, so it is fetched when a markdown document is
+   * opened and looked at rather than travelling in the chunk the editor arrives
+   * in. The reader of a bibliography should not carry a markdown parser they
+   * will never run.
+   *
+   * The exception is the folder where documents are read and written, which
+   * runs inside a worker: that build is made separately and does not share a
+   * chunk with anything a page loads.
+   */
+  it("the markdown parser reaches a screen only through import()", () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      if (file.path.startsWith("src/test/")) continue;
+      if (file.path.startsWith("src/lib/parse/")) continue;
+      // The one module that names the library, and the one that is fetched.
+      if (file.path === "src/features/editor/markdown.ts") continue;
+      for (const specifier of file.valueImports) {
+        const resolved = resolveSpecifier(file.path, specifier) ?? specifier;
+        if (specifier === "markdown-it" || resolved === "src/features/editor/markdown") {
+          offenders.push(`${file.path} -> ${specifier}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("the HTML, JavaScript and CSS parsers are reached by nothing", () => {
     const unwanted = [
       "@codemirror/lang-html",
@@ -385,6 +414,7 @@ describe("what a marketing page costs to open", () => {
     "fflate",
     "@codemirror/",
     "codemirror-lang-bib",
+    "markdown-it",
     /*
      * And the query library, which belongs to the screens that hold the
      * server's state. A page of text asks the server nothing until somebody

@@ -112,10 +112,13 @@ test.describe("the draft is not lost", () => {
     await page.getByRole("button", { name: "Paste text" }).click();
     const reopened = page.getByRole("dialog");
     await expect(reopened).toContainText("Half a paragraph");
-    // And the syntax the person chose, which is part of what they typed.
+    // And the syntax the person chose, which is part of what they typed. Read
+    // off the state the control reports rather than off how it is painted: the
+    // switch says which position it is in, and that is the same answer a screen
+    // reader is given.
     await expect(reopened.getByRole("button", { name: "LaTeX" })).toHaveAttribute(
-      "data-variant",
-      "default",
+      "aria-pressed",
+      "true",
     );
   });
 

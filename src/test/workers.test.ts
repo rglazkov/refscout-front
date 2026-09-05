@@ -96,6 +96,12 @@ describe("the workers", () => {
     // Both directions are on this list, because the folder holds both: the same
     // worker reads a Word file and writes one back, and a library that only
     // exists on the way out would otherwise be free to be imported anywhere.
+    //
+    // markdown-it is the exception, and it has exactly one: the preview draws a
+    // document from the same library's tokens, which happens where the document
+    // is on screen rather than in a worker. That is one further module, named
+    // below, and it is fetched when a markdown document is opened.
+    const previewParser = "src/features/editor/markdown.ts";
     const libraries = [
       "pdfjs-dist",
       "mammoth",
@@ -115,6 +121,7 @@ describe("the workers", () => {
         continue;
       }
       for (const specifier of [...file.imports, ...file.dynamicImports]) {
+        if (file.path === previewParser && specifier === "markdown-it") continue;
         if (libraries.some((library) => specifier.startsWith(library))) {
           offenders.push(`${file.path} -> ${specifier}`);
         }
@@ -141,10 +148,12 @@ describe("the workers", () => {
       for (const specifier of file.imports) {
         if (heavy.some((library) => specifier.startsWith(library))) {
           // The modules themselves are the leaves that `import()` reaches: one
-          // per format on the way in, and the assembler on the way out.
+          // per format on the way in, the assembler on the way out, and the
+          // tokeniser the preview fetches when a markdown document is opened.
           if (/^src\/lib\/parse\/(pdf|docx|bib|latex|assemble)\.ts$/.test(file.path)) {
             continue;
           }
+          if (file.path === "src/features/editor/markdown.ts") continue;
           offenders.push(`${file.path} -> ${specifier}`);
         }
       }

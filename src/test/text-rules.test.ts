@@ -67,6 +67,27 @@ describe("grep rules over the source", () => {
   });
 
   /**
+   * The markdown parser has two halves, and only one of them may be used to
+   * show a document. Its tokens become elements directly, so there is no string
+   * of markup anywhere on the way to the screen and nothing for a sanitiser to
+   * sanitise; its renderer builds HTML, and that half exists for one purpose -
+   * the Word file a person downloads, whose assembler reads HTML and which
+   * reaches no DOM at any point.
+   *
+   * Written as a grep because the failure is invisible: a preview built by
+   * rendering to a string and setting it looks exactly like this one until the
+   * day somebody's manuscript has a `<script>` in it.
+   */
+  it("the markdown renderer is used where a file is written and nowhere else", () => {
+    const rendering = /\.render(?:Inline)?\(/;
+    const offenders = sources
+      .filter((file) => !file.path.endsWith("/lib/parse/assemble.ts"))
+      .filter((file) => rendering.test(file.text))
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
+
+  /**
    * A module sends a dictionary key and its substitutions, never a ready-made
    * sentence, so every one of those keys is someone else's data - and a key
    * this release has no wording for is an ordinary thing to receive, since the

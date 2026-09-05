@@ -1,10 +1,10 @@
 {
   "comment": "Recorded sizes, not aspirations: each number is what that page actually cost when it was last measured. `npm run build` checks them and says by how much a page went over, along with the command that records a new size. Raising a number here is therefore a line in a diff somebody can ask about, rather than a limit quietly widened to fit.",
-  "measuredAt": "2026-09-03",
+  "measuredAt": "2026-09-04",
   "headroomKb": 24,
   "routes": {
     "/": 236.8,
     "/privacy/": 236,
-    "on demand": 3421.6
+    "on demand": 3470.2
   }
 }

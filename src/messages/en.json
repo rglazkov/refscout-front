@@ -87,6 +87,7 @@
       "close": "Close",
       "add": "Add to buffer",
       "nothingTyped": "There is nothing to add yet — type or paste some text first.",
+      "syntaxLabel": "How to read what you type",
       "syntax": {
         "auto": "Auto",
         "latex": "LaTeX",
@@ -272,7 +273,15 @@
     "readOnlyReason": "Read-only here: an edit would move the findings, and recomputing where they point comes later. Edit before a run, or download the text.",
     "fieldLabel": "The text of {name}",
     "docxNote": "Rebuilt from the text: headings, lists, tables and footnotes are kept, the original layout and pictures are not.",
-    "downloadFailed": "The file could not be assembled. Your text here is unchanged — try again."
+    "downloadFailed": "The file could not be assembled. Your text here is unchanged — try again.",
+    "view": {
+      "label": "How the document is shown",
+      "code": "Code",
+      "preview": "Preview"
+    },
+    "previewLabel": "{name}, drawn as a document",
+    "previewLoading": "Drawing the document",
+    "previewNote": "This is the markdown the Word file was read into. The original layout and its pictures are not part of it."
   },
   "plan": {
     "heading": "Check plan",

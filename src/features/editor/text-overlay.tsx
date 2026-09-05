@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon, LoaderIcon } from "lucide-react";
+import { CodeIcon, DownloadIcon, FileTextIcon, LoaderIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Segmented } from "@/components/ui/segmented";
+import { cn } from "@/lib/cn";
 import {
   docRegistry,
   countCodePoints,
@@ -27,6 +29,7 @@ import { useBufferStore, useUiStore } from "@/stores";
 import { readStructureOf } from "@/workers";
 
 import { CodeMirror } from "./code-mirror";
+import { MarkdownPreview } from "./preview";
 import { syntaxKindOf, useSyntax } from "./syntax";
 import { useVisualViewportHeight } from "./use-visual-viewport";
 
@@ -80,9 +83,20 @@ function OverlayBody({
 
   // Asked for by what the document is, and fetched while the overlay opens. The
   // hook is called before the early return below, because a hook is.
-  const language = useSyntax(
-    item === undefined ? null : syntaxKindOf(item.sourceFormat, item.detected),
-  );
+  const kind = item === undefined ? null : syntaxKindOf(item.sourceFormat, item.detected);
+  const language = useSyntax(kind);
+
+  /*
+   * Which of the two the overlay is showing. A document has a preview exactly
+   * when it is markdown - a Word file, which is markdown from the moment it was
+   * read, an `.md`, or text typed as markdown - and the same question decides
+   * how the source is coloured, so it is asked once and answered once. Text out
+   * of a PDF, a `.tex` and a bibliography have no preview because there is
+   * nothing in them to preview.
+   */
+  const previewable = kind === "markdown";
+  const [view, setView] = React.useState<"code" | "preview">("code");
+  const shown = previewable ? view : "code";
 
   const content = docRegistry.get(docId);
   const initial = content?.text ?? "";
@@ -244,18 +258,79 @@ function OverlayBody({
           </div>
         </div>
 
+        {previewable ? <ViewSwitch view={shown} onChange={setView} /> : null}
+
         <div className="min-h-0 flex-1 overflow-hidden rounded-lg border">
+          {/* Hidden rather than unmounted while the preview is up. The editor
+              owns the document once it has been handed one, and taking it down
+              would take the undo history and the cursor with it - so a person
+              who looked at their page and came back would find their last ten
+              corrections no longer undoable. */}
           <CodeMirror
             value={initial}
             language={language}
             readOnly={mode === "read"}
             onChange={mode === "read" ? undefined : onChange}
             ariaLabel={t("fieldLabel", { name: item.name })}
-            className="h-full overflow-auto"
+            className={cn("h-full overflow-auto", shown === "preview" && "hidden")}
           />
+          {/* Read out of the registry here rather than taken from what the
+              editor was opened with: the page shows the document as it stands
+              now, including everything typed since it was opened. */}
+          {shown === "preview" ? (
+            <MarkdownPreview
+              text={docRegistry.get(docId)?.text ?? ""}
+              label={t("previewLabel", { name: item.name })}
+              loadingLabel={t("previewLoading")}
+              note={item.sourceFormat === "docx" ? t("previewNote") : undefined}
+            />
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * The two ways of looking at a markdown document: the source it is stored as,
+ * and the page it draws.
+ *
+ * "Code" rather than "Edit", in every mode. The source is editable while the
+ * check has not run and read-only afterwards, so a switch that called it
+ * editing would be promising something the overlay sometimes refuses; what it
+ * always is, is the document's own text with its markup showing.
+ *
+ * The two are positions of one switch rather than two things to do, so they are
+ * drawn as one: a track with the chosen position sitting on it, the same
+ * control the light and dark switch in the header is. Standing apart as two
+ * buttons they read as two actions, and which of them is a state has to be
+ * worked out from the fills.
+ */
+function ViewSwitch({
+  view,
+  onChange,
+}: {
+  readonly view: "code" | "preview";
+  readonly onChange: (view: "code" | "preview") => void;
+}) {
+  const t = useTranslations("editor");
+
+  return (
+    <Segmented
+      className="self-end"
+      label={t("view.label")}
+      value={view}
+      onChange={onChange}
+      options={[
+        { value: "code", label: t("view.code"), Icon: CodeIcon, testId: "view-code" },
+        {
+          value: "preview",
+          label: t("view.preview"),
+          Icon: FileTextIcon,
+          testId: "view-preview",
+        },
+      ]}
+    />
   );
 }
 
