@@ -61,11 +61,15 @@ declare module "@turbodocx/html-to-docx/dist/html-to-docx.browser.esm.js" {
 }
 
 /**
- * citation-js, which ships no types. What is used of it is one link of its
- * input chain - the one that stops at the entries a BibTeX file holds, before
- * they are converted into a shape for producing citations in a style - so that
- * is what is declared, and a call to anything else is a type error rather than
- * `any`.
+ * citation-js, which ships no types. Two things are used of it and both are its
+ * input chain, so those are what is declared and a call to anything else is a
+ * type error rather than `any`.
+ *
+ * `chainLink` stops at the entries a BibTeX file holds, before they are
+ * converted into anything: it is what answers "where are the entries and what
+ * are they called". `chain` runs the whole of it and gives the entries back in
+ * CSL, which is the shape that has the fields in it - and that is what a
+ * conversion into another bibliographic format needs.
  */
 declare module "@citation-js/core" {
   export const plugins: {
@@ -73,6 +77,14 @@ declare module "@citation-js/core" {
       readonly chainLink: (
         input: string,
         options?: { readonly forceType?: string },
+      ) => unknown;
+      readonly chain: (
+        input: string,
+        options?: {
+          readonly forceType?: string;
+          readonly generateGraph?: boolean;
+          readonly strict?: boolean;
+        },
       ) => unknown;
     };
   };

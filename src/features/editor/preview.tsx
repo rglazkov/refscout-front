@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileTextIcon, LoaderIcon } from "lucide-react";
+import { LoaderIcon } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { type Severity } from "@/lib/domain";
@@ -13,6 +13,18 @@ import {
   type PreviewNode,
   type PreviewTag,
 } from "./preview-tree";
+import { EDGE_FADE_MASK, useEdgeFade } from "./use-edge-fade";
+
+/**
+ * The face a drawn page is set in.
+ *
+ * A manuscript is read at length and set in the face it will be printed in, so
+ * the page is serifed by default: read that way it is a text rather than the
+ * contents of a field. The other position is there for the same reason the
+ * source has one - the guess is worth overruling, and somebody proofing on a
+ * small screen may simply read a grotesque more easily.
+ */
+export type PageFace = "serif" | "sans";
 
 /**
  * The document as a document. A manuscript that came out of Word is markdown by
@@ -34,14 +46,16 @@ export function MarkdownPreview({
   text,
   label,
   loadingLabel,
+  face = "serif",
   findings = NO_FINDINGS,
   onOpenFinding,
-  note,
 }: {
   readonly text: string;
   /** Names the page for a screen reader, since it is a region and not a field. */
   readonly label: string;
   readonly loadingLabel: string;
+  /** Which of the two reading faces the page is set in. */
+  readonly face?: PageFace;
   /**
    * The findings placed in this document. A paragraph that holds one is marked
    * here, which is as precise as this page can be: the position comes from the
@@ -49,12 +63,11 @@ export function MarkdownPreview({
    */
   readonly findings?: readonly PanelFinding[];
   readonly onOpenFinding?: (issueKey: string) => void;
-  /** Said under the page where a format was converted to get here. */
-  readonly note?: string;
 }) {
   const preview = usePreview(text);
   const marks = useMarks(preview, findings);
   const page = React.useRef<HTMLElement>(null);
+  const fade = useEdgeFade();
 
   /*
    * A press on a marked paragraph goes to the source at the exact fragment,
@@ -81,11 +94,17 @@ export function MarkdownPreview({
 
   return (
     <div
+      ref={fade}
       role="region"
       aria-label={label}
       aria-busy={preview === null}
       data-testid="preview"
-      className="h-full overflow-auto bg-background px-4 pt-6 pb-10"
+      /* The page stands on the same surface the source does. The field is one
+         thing in two views, and a view that took the colour of the panel behind
+         it would leave the manuscript separated from the screen by a hairline
+         where a moment ago it had stood a clear step off it. */
+      style={{ maskImage: EDGE_FADE_MASK }}
+      className="h-full overflow-auto bg-card"
     >
       {preview === null ? (
         <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -95,15 +114,12 @@ export function MarkdownPreview({
       ) : (
         <article
           ref={page}
-          className="mx-auto flex max-w-[44rem] flex-col gap-3.5 rounded-lg border bg-card px-8 py-10 font-serif shadow-md sm:px-13"
+          className={cn(
+            "flex flex-col gap-3.5 px-3 py-4 sm:px-6 sm:py-6",
+            face === "serif" ? "font-serif" : "font-sans",
+          )}
         >
           <Nodes nodes={preview.nodes} marks={marks} />
-          {note === undefined ? null : (
-            <p className="flex items-center justify-center gap-2 pt-2 text-center font-sans text-[0.8125rem] text-muted-foreground">
-              <FileTextIcon className="size-4 shrink-0" aria-hidden="true" />
-              {note}
-            </p>
-          )}
         </article>
       )}
     </div>
@@ -170,10 +186,13 @@ function usePreview(text: string): Preview | null {
 }
 
 /**
- * How each element is set. A manuscript is read at length, so the page is
- * serifed throughout and the measure is the same one a printed page uses; the
- * two faces that are not serifed are the two that are not prose - a span of
- * code and the note under the page.
+ * How each element is set. The page takes one face throughout, and it is set
+ * across the whole of the field rather than on a sheet drawn inside it: the
+ * field is already a bounded region with a border of its own, and a second
+ * frame inside the first takes width from the text without adding anything -
+ * most of all on a phone, where the two paddings and the two borders together
+ * are a third of the screen. The one face named here is the one thing on the
+ * page that is not prose, a span of code, which stays monospaced in both.
  */
 const CLASSES: Readonly<Record<PreviewTag, string>> = {
   p: "text-lg/[1.75]",

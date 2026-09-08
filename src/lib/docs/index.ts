@@ -35,7 +35,12 @@ export {
   refuseByVolume,
   type IntakeRefusal,
 } from "./limits";
-export { downloadExtensionOf, downloadName, sanitizeDocumentName } from "./names";
+export {
+  downloadExtensionOf,
+  downloadFormatsOf,
+  downloadName,
+  sanitizeDocumentName,
+} from "./names";
 export { roleFromChecks, selfKind, type SelfKind } from "./role";
 export { placesOf, type PlaceSummary } from "./places";
 export { bibSpanOf, lineAt, lineOf, lineStarts, pageOf } from "./spans";

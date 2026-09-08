@@ -171,7 +171,11 @@ export function IssueRow({
                 pages and no bibliography keys. */}
             {places.quote === undefined ? null : (
               <p
-                className="border-s-2 ps-2.5 font-mono text-xs break-words text-muted-foreground"
+                /* A sentence out of the manuscript, so it is set in the serif:
+                   the face follows what the text is and not the panel it is
+                   standing in. It is the same quote the card in the editor
+                   shows, and it is set the same way there. */
+                className="border-s-2 ps-2.5 font-serif text-sm break-words text-muted-foreground"
                 data-testid="issue-quote"
               >
                 {places.quote}

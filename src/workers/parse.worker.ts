@@ -1,6 +1,8 @@
+import { type CitationRecord } from "@/lib/domain";
 import {
   isParseFailure,
   parseDocument,
+  readBibliography,
   readStructure,
   writeDocx,
   type ParseRequest,
@@ -10,10 +12,12 @@ import {
 
 import {
   assembleCall,
+  citationsCall,
   type parseCall,
   readCall,
   readyReply,
   type AssembleRequest,
+  type CitationsRequest,
   type ReadRequest,
   type WorkerReply,
 } from "./protocol";
@@ -24,11 +28,12 @@ import {
  * what comes back, so that the work can be run and tested without a worker at
  * all while still never running outside one in the product.
  *
- * Three calls rather than three workers. Reading a Word file and writing one
- * back need the same kind of library and much of the same weight, and a
- * bibliography is read again the moment it is edited - splitting those across
- * workers would mean shipping the same code twice and starting a second script
- * to do half of one job.
+ * Four calls rather than four workers. Reading a Word file and writing one back
+ * need the same kind of library and much of the same weight; a bibliography is
+ * read again the moment it is edited, and read a second way when it is written
+ * out in another format - both by citation-js. Splitting those across workers
+ * would mean shipping the same code twice and starting a second script to do
+ * half of one job.
  *
  * There is no DOM here and no network - an architectural test says so. That is
  * a requirement of the threat model rather than an optimisation: a whole class
@@ -38,9 +43,10 @@ import {
 type Work =
   | { readonly type: typeof parseCall; readonly payload: ParseRequest }
   | { readonly type: typeof readCall; readonly payload: ReadRequest }
-  | { readonly type: typeof assembleCall; readonly payload: AssembleRequest };
+  | { readonly type: typeof assembleCall; readonly payload: AssembleRequest }
+  | { readonly type: typeof citationsCall; readonly payload: CitationsRequest };
 
-type Answer = Parsed | Reading | Uint8Array<ArrayBuffer>;
+type Answer = Parsed | Reading | Uint8Array<ArrayBuffer> | readonly CitationRecord[];
 
 type Scope = {
   readonly addEventListener: (
@@ -78,6 +84,11 @@ scope.addEventListener("message", (event) => {
 
   if (event.data.type === assembleCall) {
     void writeDocx(event.data.payload.text).then(done, failed);
+    return;
+  }
+
+  if (event.data.type === citationsCall) {
+    void readBibliography(event.data.payload.text).then(done, failed);
     return;
   }
 

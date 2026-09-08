@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * The two modes of the working screen: a search, and a comparison of two
  * versions.
@@ -153,8 +155,9 @@ test.describe("comparing two versions", () => {
     await page.keyboard.type("x");
     await expect(right).toContainText("x");
 
-    const download = page.waitForEvent("download");
     await page.getByTestId("diff-export").click();
+    const download = page.waitForEvent("download");
+    await page.getByTestId("download-as-tex").click();
     expect((await download).suggestedFilename()).toBe("paper_v7.tex");
 
     expect(apiCalls(requests)).toEqual([]);
@@ -167,7 +170,9 @@ test.describe("comparing two versions", () => {
       mimeType: "text/plain",
       buffer: Buffer.from(MANUSCRIPT, "utf8"),
     });
-    await expect(page.getByTestId("document-card")).toContainText("characters");
+    await expect(page.getByTestId("document-card")).toContainText("characters", {
+      timeout: READING_MS,
+    });
 
     // With a document in the buffer the two entries are gone: the person came
     // to check a manuscript, and a control that replaces the working area

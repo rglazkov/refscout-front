@@ -7,6 +7,7 @@ export * from "./ids";
 export * from "./offsets";
 export * from "./document";
 export * from "./issue";
+export * from "./citation";
 export * from "./place";
 export * from "./options";
 export * from "./job";

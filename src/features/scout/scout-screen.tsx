@@ -4,7 +4,6 @@ import * as React from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   CopyIcon,
-  DownloadIcon,
   MinusIcon,
   PlusIcon,
   SearchIcon,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
+import { DownloadMenu } from "@/features/editor/download-menu";
 import { BiblioRecordCard } from "@/features/records/record-card";
 import { Collapse } from "@/components/motion/collapse";
 import { ModeHeader } from "@/components/mode-header";
@@ -35,7 +35,7 @@ import {
   type ScoutVote,
   type SearchLimit,
 } from "@/lib/domain";
-import { downloadText, toBibtex } from "@/lib/export";
+import { downloadText, risFromRecords, toBibtex } from "@/lib/export";
 import { useWording } from "@/lib/i18n";
 
 import {
@@ -46,6 +46,13 @@ import {
   type Filters,
   type SortOrder,
 } from "./filters";
+
+/**
+ * What a list of kept records is offered as. Two entries and no more, because
+ * these are records rather than a document: there is no format they arrived in,
+ * and the only question is which of the two files somebody's own tools read.
+ */
+const exportFormats = ["bib", "ris"] as const;
 
 /**
  * Scout: ten bibliographic databases behind one query string.
@@ -251,19 +258,29 @@ export function ScoutScreen({ onBack }: { readonly onBack: () => void }) {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                type="button"
-                size="sm"
-                data-testid="scout-export"
-                aria-disabled={chosen.length === 0}
-                onClick={() => {
-                  if (chosen.length === 0) return;
-                  downloadText(toBibtex(chosen), t("exportName"), "", "bib");
+              {/* The kept records, in the format the person's own tools read.
+                  Two of them, and the choice is not decoration: BibTeX is the
+                  file for somebody writing in LaTeX, and RIS is what Zotero,
+                  Mendeley and EndNote import - which is how a dissertation
+                  written in Word is cited. Neither row is "as it came in":
+                  nothing came in, the records are what a search found. */}
+              <DownloadMenu
+                formats={exportFormats}
+                brought={false}
+                inactive={chosen.length === 0}
+                testId="scout-export"
+                variant="default"
+                label={t("export", { count: chosen.length })}
+                onDownload={(extension) => {
+                  downloadText(
+                    extension === "ris" ? risFromRecords(chosen) : toBibtex(chosen),
+                    t("exportName"),
+                    "",
+                    extension,
+                  );
+                  return Promise.resolve();
                 }}
-              >
-                <DownloadIcon aria-hidden="true" />
-                {t("export", { count: chosen.length })}
-              </Button>
+              />
             </div>
           </div>
 

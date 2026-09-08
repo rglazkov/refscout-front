@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * Pasting, and the draft that must not be lost.
  *
@@ -45,7 +47,9 @@ test.describe("bringing text in without a file", () => {
 
     // An element of the buffer like any other: a name, a volume, ticks of its
     // own, and the same road to the server.
-    await expect(page.getByTestId("document-card")).toContainText("characters");
+    await expect(page.getByTestId("document-card")).toContainText("characters", {
+      timeout: READING_MS,
+    });
     await expect(page.getByTestId("check-presubmit")).toHaveAttribute(
       "data-state",
       "checked",
@@ -72,7 +76,9 @@ test.describe("bringing text in without a file", () => {
       file: "\\documentclass{article}\nBrought in through the clipboard.",
     });
 
-    await expect(page.getByTestId("document-card")).toContainText("characters");
+    await expect(page.getByTestId("document-card")).toContainText("characters", {
+      timeout: READING_MS,
+    });
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
@@ -134,7 +140,9 @@ test.describe("the draft is not lost", () => {
       mimeType: "text/plain",
       buffer: Buffer.from("\\documentclass{article}\nA dropped manuscript.\n", "utf8"),
     });
-    await expect(page.getByTestId("document-card")).toContainText("characters");
+    await expect(page.getByTestId("document-card")).toContainText("characters", {
+      timeout: READING_MS,
+    });
 
     // The two paths are independent: there is a document, and the draft is
     // still what it was.

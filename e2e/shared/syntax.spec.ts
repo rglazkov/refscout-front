@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { buildDocx, bullet, paragraph, table } from "../../src/test/corpus";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * The three formats that carry markup are highlighted, and the ones that do not
  * are left alone.
@@ -37,7 +39,9 @@ async function open(page: Page, name: string, body: string): Promise<void> {
   });
   // The card exists before its text does - reading happens in a worker now -
   // and the volume is what says the text has arrived.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
   await page.getByRole("button", { name, exact: true }).click();
   await expect(page.getByTestId("editor")).toBeVisible();
 }

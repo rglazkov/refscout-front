@@ -40,12 +40,48 @@ function available(): boolean {
 
 let db: Promise<IDBPDatabase> | null = null;
 
+/**
+ * The open connection, kept between writes - and given up the moment it stops
+ * being one.
+ *
+ * Holding the promise is the point: opening a database per event would be a
+ * round trip per event. Holding it for ever is the defect, and it has two
+ * halves. A connection is not ours to keep: the browser force-closes it when a
+ * frozen tab's storage is reclaimed, and another tab deleting the database
+ * closes it too - after which the handle is still an object, every transaction
+ * on it throws, and the cache hands that same dead handle to every later call
+ * for the life of the page. And a failed open cached as a rejected promise is
+ * the same wound: one bad moment, and the queue is unwritable until a reload.
+ *
+ * So both endings clear the cache and the next call opens again. Nothing is
+ * retried here - a write that lost its connection is lost, and it is one
+ * telemetry event - but the connection after it comes back.
+ */
 function database(): Promise<IDBPDatabase> {
   db ??= openDB(DATABASE, VERSION, {
     upgrade(created) {
       created.createObjectStore(STORE, { keyPath: "id" });
     },
-  });
+    // The browser ended it without being asked. This is the one that fires
+    // when a tab comes back from being frozen and reclaimed.
+    terminated() {
+      db = null;
+    },
+  }).then(
+    (open) => {
+      // `terminated` covers the abnormal ending and this covers the rest of
+      // them, including the close that follows another tab deleting the
+      // database.
+      open.addEventListener("close", () => {
+        db = null;
+      });
+      return open;
+    },
+    (cause: unknown) => {
+      db = null;
+      throw cause;
+    },
+  );
   return db;
 }
 

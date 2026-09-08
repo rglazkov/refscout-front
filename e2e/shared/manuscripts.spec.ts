@@ -110,19 +110,19 @@ test.describe("PDF and Word arrive like any other document", () => {
     await expect(editor).toContainText("# On the estimation of variance");
     await expect(editor).toContainText("The footnote that proves footnotes survive.");
 
-    // You get back the format you brought, and the file is assembled here from
-    // the markdown the person has been reading.
-    await expect(page.getByTestId("download-document")).toContainText(".docx");
-    // Said where the person presses rather than in a help page: somebody who
-    // brought a typeset manuscript would otherwise learn that its layout is
-    // gone by opening what they had just saved.
-    await expect(page.getByRole("dialog")).toContainText(
-      "the original layout and pictures are not",
-    );
+    /*
+     * You get back the format you brought, and the file is assembled here from
+     * the markdown the person has been reading. A Word document is also the one
+     * kind the product genuinely converts, so the list holds the markdown it
+     * became and plain text beside it - and the format it came in stands first.
+     */
+    await page.getByTestId("download-document").click();
+    const rows = page.locator("[data-testid^=download-as-]");
+    await expect(rows).toHaveText([/\.docx/, /\.md/, /\.txt/]);
 
     const [saved] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByTestId("download-document").click(),
+      page.getByTestId("download-as-docx").click(),
     ]);
     expect(saved.suggestedFilename()).toBe("thesis.docx");
 

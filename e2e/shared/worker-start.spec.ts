@@ -78,9 +78,10 @@ test("a worker starts here, reads every format and writes one back", async ({ pa
    * would show up as a button answering a press with nothing.
    */
   await page.getByRole("button", { name: "thesis.docx", exact: true }).click();
+  await page.getByTestId("download-document").click();
   const [saved] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByTestId("download-document").click(),
+    page.getByTestId("download-as-docx").click(),
   ]);
   expect(saved.suggestedFilename()).toBe("thesis.docx");
   const stream = await saved.createReadStream();

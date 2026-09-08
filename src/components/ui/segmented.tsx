@@ -35,6 +35,7 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  compact = false,
   className,
 }: {
   /** Names the group for a screen reader: the question the positions answer. */
@@ -42,6 +43,15 @@ export function Segmented<T extends string>({
   readonly value: T;
   readonly options: ReadonlyArray<SegmentedOption<T>>;
   readonly onChange: (value: T) => void;
+  /**
+   * Narrow screens get the icons alone. The words are still there and still
+   * read out - they are taken out of the picture, not out of the control - and
+   * they come back at the first breakpoint that has room for them. It is for
+   * the switches that share a line with something whose width belongs to the
+   * document: a dissertation's own measurement is half a phone wide, and a
+   * switch that will not give way pushes it onto a line of its own.
+   */
+  readonly compact?: boolean;
   readonly className?: string;
 }) {
   return (
@@ -66,7 +76,7 @@ export function Segmented<T extends string>({
           )}
         >
           {Icon === undefined ? null : <Icon className="size-3.5" aria-hidden="true" />}
-          {text}
+          <span className={cn(compact && "sr-only sm:not-sr-only")}>{text}</span>
         </button>
       ))}
     </div>

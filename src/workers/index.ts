@@ -4,6 +4,7 @@
  * which reaches the registry of texts and would be dragged in here by a type.
  */
 import { type ResolveRequest, type ResolveResult } from "@/lib/anchor/resolve";
+import { type CitationRecord } from "@/lib/domain";
 import { type DiffResult } from "@/lib/diff/text";
 import { type Reading } from "@/lib/parse/reading";
 import { type ParseRequest, type Parsed, type PdfResources } from "@/lib/parse/types";
@@ -14,12 +15,14 @@ import { type DiffRequest } from "./diff.worker";
 import { type CompressRequest, type CompressResult } from "./gzip";
 import {
   assembleCall,
+  citationsCall,
   compressCall,
   diffCall,
   parseCall,
   readCall,
   resolveCall,
   type AssembleRequest,
+  type CitationsRequest,
   type ReadRequest,
 } from "./protocol";
 
@@ -214,6 +217,23 @@ export function assembleDocxFile(
 ): Promise<Uint8Array<ArrayBuffer>> {
   return parser.ask<AssembleRequest, Uint8Array<ArrayBuffer>>(
     assembleCall,
+    request,
+    options,
+  );
+}
+
+/**
+ * Reads a bibliography into its entries and their fields, for writing the file
+ * out in another bibliographic format. It goes to the parsers' pool because it
+ * is the parsers' library doing it, and because a file being converted is a
+ * file that was read by that same worker minutes ago.
+ */
+export function readBibliographyOf(
+  request: CitationsRequest,
+  options: RunOptions = {},
+): Promise<readonly CitationRecord[]> {
+  return parser.ask<CitationsRequest, readonly CitationRecord[]>(
+    citationsCall,
     request,
     options,
   );

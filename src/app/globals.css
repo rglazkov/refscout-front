@@ -107,6 +107,13 @@
   padding-top: calc(var(--spacing) * 5);
 }
 
+/* A dialogue opens as one movement. The two surfaces keep their different jobs -
+   the ground only darkens, the panel rises and settles onto it - but they take
+   the same time over the same curve: two durations are what a dialogue that
+   looks slightly broken is made of, because the panel arrives while the ground
+   behind it is still settling and the eye reads a second animation where one
+   thing was meant to be happening. Leaving is shorter and travels less far, as
+   everywhere else here: what is on its way out is no longer being watched. */
 @keyframes dialog-scrim-in {
   from {
     opacity: 0;
@@ -248,8 +255,24 @@
     backdrop-filter: blur(2px);
   }
 
+  /*
+   * Both halves are given a layer of their own for as long as they are moving.
+   * Without it the panel's own contents are drawn again at every step of the
+   * scale, and the largest panel in the product holds a manuscript: a hundred
+   * pages of laid-out text, a gutter and a list of findings, repainted twenty
+   * times on the way in. Declared only on the two animating states, so the
+   * layer is taken back the moment the dialogue has settled rather than being
+   * held for the life of the page.
+   */
+  .dialog-overlay[data-state="open"],
+  .dialog-overlay[data-state="closed"],
+  .dialog-panel[data-state="open"],
+  .dialog-panel[data-state="closed"] {
+    will-change: opacity, transform;
+  }
+
   .dialog-overlay[data-state="open"] {
-    animation: dialog-scrim-in var(--motion) var(--ease-out) both;
+    animation: dialog-scrim-in var(--motion-slow) var(--ease-out) both;
   }
 
   .dialog-overlay[data-state="closed"] {

@@ -266,13 +266,29 @@
       "BIB_UNREADABLE": "This file did not read as a bibliography, so nothing was checked here before the run. Open the text to see where it breaks — it is sent and checked as it is."
     }
   },
+  "download": {
+    "open": "Download",
+    "action": "Download .{extension}",
+    "menuLabel": "The formats this document can be saved as",
+    "native": "as it came in",
+    "formats": {
+      "docx": "Word document",
+      "md": "Markdown",
+      "tex": "LaTeX",
+      "gls": "LaTeX glossary",
+      "bib": "BibTeX",
+      "ris": "for Zotero, Mendeley, EndNote",
+      "txt": "plain text"
+    },
+    "notes": {
+      "ris": "The entries are read and written out again in the other format's fields, so this file is your bibliography rather than your file."
+    },
+    "failed": "The file could not be made. Your text here is unchanged — try again."
+  },
   "editor": {
     "done": "Done",
-    "download": "Download .{extension}",
     "volume": "{chars} characters · {words} words",
     "fieldLabel": "The text of {name}",
-    "docxNote": "Rebuilt from the text: headings, lists, tables and footnotes are kept, the original layout and pictures are not.",
-    "downloadFailed": "The file could not be assembled. Your text here is unchanged — try again.",
     "view": {
       "label": "How the document is shown",
       "code": "Code",
@@ -280,22 +296,26 @@
     },
     "previewLabel": "{name}, drawn as a document",
     "previewLoading": "Drawing the document",
-    "previewNote": "This is the markdown the Word file was read into. The original layout and its pictures are not part of it.",
     "apply": "Apply",
     "face": {
       "label": "How the text is set",
       "mono": "Monospaced",
-      "prose": "Prose"
+      "prose": "Prose",
+      "serif": "Serif"
     },
     "findings": {
       "label": "Findings in this document",
       "heading": "{count, plural, =0 {No findings here} one {# finding} other {# findings}}",
+      "position": "Finding {index} of {count}",
       "none": "Nothing left to show. Everything here is marked as dealt with.",
       "previous": "Previous finding",
       "next": "Next finding",
+      "close": "Close this finding",
+      "offered": "Offered in its place:",
       "nextOccurrence": "Next place",
       "occurrence": "{index} of {count}",
-      "hideSettled": "Hide settled"
+      "hideSettled": "Hide settled",
+      "pick": "Pick a finding in the text, or step through them with the arrows."
     },
     "place": {
       "line": "line {line}",
@@ -540,10 +560,6 @@
     "highlight": "Highlight changes",
     "overLimit": "These panes hold {left} and {right} lines, and comparison works up to {limit} lines a pane. Nothing has been cut — compare the parts you need instead.",
     "copyModified": "Copy the modified text",
-    "formatLabel": "Download as",
-    "formatAuto": "Auto (.{extension})",
-    "formatNamed": ".{extension}",
-    "export": "Download .{extension}",
     "panesNote": "Both panes take the formats the buffer takes, and the modified one comes back in the format it arrived in. Panes hold up to {limit} lines each."
   },
   "access": {
@@ -715,7 +731,7 @@
     "presubmit": "PreSubmit — venue-readiness checks",
     "glossary": "Glossary — LaTeX acronym handling",
     "diffchecker": "DiffChecker — compare two LaTeX versions",
-    "download": "Download in the format you brought: Word, BibTeX, LaTeX, Markdown, plain text"
+    "download": "Download in the format you brought — Word, BibTeX, LaTeX, Markdown, plain text — and a bibliography as RIS for Zotero, Mendeley and EndNote"
   },
   "account": {
     "title": "Your account",

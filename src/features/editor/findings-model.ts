@@ -1,5 +1,6 @@
 import { placeKey, type PlacedFinding } from "@/lib/anchor";
 import {
+  type Evidence,
   type Issue,
   type ModuleId,
   type ModuleResult,
@@ -37,6 +38,13 @@ export type PanelFinding = {
   readonly code: string;
   readonly params?: Params;
   readonly detail?: string;
+  /**
+   * The typed facts the module answered with - a DOI, an address, a date, a
+   * count, a named source. They travel with the finding because the card under
+   * the line is where a finding is read, and a finding read without them is a
+   * title and a line number.
+   */
+  readonly evidence: readonly Evidence[];
   /** Its places inside the document being read, in the order they occur in it. */
   readonly places: readonly FindingPlace[];
   /** What the module offers to put in the text, and at which of its places. */
@@ -93,6 +101,7 @@ export function panelFindings(
       code: issue.code,
       ...(issue.params === undefined ? {} : { params: issue.params }),
       ...(issue.detail === undefined ? {} : { detail: issue.detail }),
+      evidence: issue.evidence,
       places: [place],
       ...(replace === undefined
         ? {}
@@ -106,3 +115,18 @@ export function panelFindings(
     return finding === undefined ? [] : [finding];
   });
 }
+
+/**
+ * Which finding is being read, and at which of its places.
+ *
+ * One value rather than two, because a finding with three places is one thing
+ * the person is looking at and the place is which of its three they are
+ * standing on: keeping them apart lets a press on a row leave the ordinal of
+ * the previous finding behind and open the fourth place of a finding that has
+ * one.
+ */
+export type PanelSelection = {
+  readonly issueKey: string;
+  /** Which of this finding's places in this document is the current one. */
+  readonly at: number;
+};

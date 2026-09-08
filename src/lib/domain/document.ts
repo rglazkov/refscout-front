@@ -57,13 +57,18 @@ export const extractFailureCodes = [
   "WORKER_CRASHED",
   "CANCELLED",
   /**
-   * The one code here about the way back out rather than the way in: the Word
-   * file could not be assembled from the text. It shares this enumeration
-   * because a worker's refusal travels as one code whichever direction it was
-   * working in, and a second enumeration for a single value would be two lists
-   * to keep in step.
+   * The two codes here about the way back out rather than the way in: the Word
+   * file could not be assembled from the text, and the bibliography could
+   * not be read closely enough to be written out in another bibliographic
+   * format. The second is named apart from the `BIB_UNREADABLE` a card carries:
+   * that one says a file has something wrong with it and the check runs anyway,
+   * while this one says a conversion was asked for and did not happen.
+   * They share this enumeration because a worker's refusal travels as one code
+   * whichever direction it was working in, and a second enumeration for two
+   * values would be two lists to keep in step.
    */
   "DOCX_BUILD_FAILED",
+  "BIB_CONVERT_FAILED",
 ] as const;
 
 export type ExtractFailureCode = (typeof extractFailureCodes)[number];

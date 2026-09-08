@@ -1,5 +1,5 @@
 import { sha256Hex } from "@/lib/docs/units";
-import { isTextFormat, type SourceFormat } from "@/lib/domain";
+import { isTextFormat, type CitationRecord, type SourceFormat } from "@/lib/domain";
 
 import { ParseFailure } from "./failure";
 import { measure } from "./quality";
@@ -112,6 +112,17 @@ export async function readStructure(
     return readLatex(text);
   }
   return emptyReading();
+}
+
+/**
+ * The entries of a bibliography with their fields, for a conversion into
+ * another bibliographic format. Reached from here so that the whole of
+ * citation-js's chain arrives with the download that asked for it, and never
+ * with the reading that runs on every edit.
+ */
+export async function readBibliography(text: string): Promise<readonly CitationRecord[]> {
+  const { readCitations } = await import("./bib");
+  return readCitations(text);
 }
 
 /**

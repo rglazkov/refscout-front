@@ -6,9 +6,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CopyIcon,
-  DownloadIcon,
   HighlighterIcon,
-  LoaderIcon,
   Trash2Icon,
   TypeIcon,
   UploadIcon,
@@ -17,18 +15,12 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { ModeHeader } from "@/components/mode-header";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/cn";
-import { detectKind, downloadExtensionOf, releaseSourceFile } from "@/lib/docs";
+import { detectKind, downloadFormatsOf, releaseSourceFile } from "@/lib/docs";
 import { type DetectedKind, type SourceFormat } from "@/lib/domain";
 import { saveDocument } from "@/lib/export";
 import { newId } from "@/lib/webcrypto";
+import { DownloadMenu } from "@/features/editor/download-menu";
 import { syntaxKindOf, useSyntax } from "@/features/editor/syntax";
 import { acceptFile } from "@/features/intake/intake";
 import { PasteOverlay } from "@/features/intake/paste-overlay";
@@ -75,22 +67,14 @@ const emptyPane: Pane = {
 };
 
 /**
- * What the modified pane is handed back as. "Auto" is the product's own rule -
- * the format it was brought in, and for text that was typed or pasted, whatever
- * the text turned out to be - and the rest of the list is there for the times
- * that rule guesses wrong, which is why it can be overridden at all.
+ * What the modified pane may be handed back as. It is the same question the
+ * buffer asks and the same answer, worked out from what the pane holds: the
+ * format it was brought in first, then whatever the product genuinely converts
+ * that into. A pane of text that was pasted rather than brought has no format
+ * to go back to, so the rule reads the text itself.
  */
-const exportFormats = ["auto", "docx", "tex", "bib", "md", "txt"] as const;
-
-type ExportFormat = (typeof exportFormats)[number];
-
-function extensionFor(pane: Pane, chosen: ExportFormat): string {
-  if (chosen !== "auto") return chosen;
-  if (pane.format !== "typed") return downloadExtensionOf(pane.format);
-  if (pane.detected === "bibtex") return "bib";
-  if (pane.detected === "latex") return "tex";
-  if (pane.detected === "markdown") return "md";
-  return "txt";
+function formatsFor(pane: Pane): readonly string[] {
+  return downloadFormatsOf(pane.format, pane.detected);
 }
 
 export function DiffScreen({ onBack }: { readonly onBack: () => void }) {
@@ -126,14 +110,6 @@ export function DiffScreen({ onBack }: { readonly onBack: () => void }) {
   const [stopped, setStopped] = React.useState(false);
   const [highlight, setHighlight] = React.useState(true);
   const [position, setPosition] = React.useState<Position>({ current: 0, total: 0 });
-  const [exportAs, setExportAs] = React.useState<ExportFormat>("auto");
-  /**
-   * Whether the file is being built. One of the formats is a container rather
-   * than text and is assembled in a worker, which takes a moment on a long
-   * document - and a button that answers a press with nothing is a defect here
-   * as anywhere else.
-   */
-  const [saving, setSaving] = React.useState(false);
   const [pasteInto, setPasteInto] = React.useState<Side | null>(null);
   const handle = React.useRef<PanesHandle | null>(null);
   const holdPanes = React.useCallback((panes: PanesHandle | null) => {
@@ -397,49 +373,19 @@ export function DiffScreen({ onBack }: { readonly onBack: () => void }) {
               {t("copyModified")}
             </Button>
             {/* The changed pane comes back in the format it was brought in -
-                the same rule the buffer downloads by - and the list beside the
-                button is for a text that was pasted rather than brought, where
-                that rule has only the text itself to read. */}
-            <Select
-              value={exportAs}
-              onValueChange={(value) => setExportAs(value as ExportFormat)}
-            >
-              <SelectTrigger size="sm" className="w-36" aria-label={t("formatLabel")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {exportFormats.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option === "auto"
-                      ? t("formatAuto", { extension: extensionFor(right, "auto") })
-                      : t("formatNamed", { extension: option })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid="diff-export"
-              aria-busy={saving}
-              onClick={() => {
-                if (saving) return;
-                setSaving(true);
-                void saveDocument({
+                the same rule the buffer downloads by - and the menu beside the
+                button holds whatever else that format genuinely converts to. */}
+            <DownloadMenu
+              testId="diff-export"
+              formats={formatsFor(right)}
+              onDownload={(extension) =>
+                saveDocument({
                   text: right.text,
                   documentName: right.name,
-                  extension: extensionFor(right, exportAs),
-                }).finally(() => setSaving(false));
-              }}
-            >
-              {saving ? (
-                <LoaderIcon className="animate-spin" aria-hidden="true" />
-              ) : (
-                <DownloadIcon aria-hidden="true" />
-              )}
-              {t("export", { extension: extensionFor(right, exportAs) })}
-            </Button>
+                  extension,
+                })
+              }
+            />
             <span className="text-[0.8125rem] text-muted-foreground">
               {t("panesNote", { limit: format.number(diffLimits.maxLines) })}
             </span>

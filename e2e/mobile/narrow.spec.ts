@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * What the narrow screen gets that the wide one does not.
  *
@@ -24,7 +26,9 @@ test("the card indents its heading, not the whole of itself", async ({ page }) =
   });
   // The card appears before its text does and fills in as the worker reads it,
   // so the measurement waits for the finished card.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
 
   /*
    * The icon belongs to the heading. Indenting the body past it as well costs
@@ -58,7 +62,9 @@ test("the editor keeps its margins narrow", async ({ page }) => {
   });
   // The card appears before its text does and fills in as the worker reads it,
   // so the measurement waits for the finished card.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
   await page.getByRole("button", { name: "paper.tex", exact: true }).click();
   await expect(page.getByTestId("editor")).toBeVisible();
 
@@ -83,7 +89,9 @@ test("the line numbers are cells, and the one being edited is lit", async ({ pag
   });
   // The card appears before its text does and fills in as the worker reads it,
   // so the measurement waits for the finished card.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
   await page.getByRole("button", { name: "paper.tex", exact: true }).click();
   await expect(page.getByTestId("editor")).toBeVisible();
 
@@ -129,7 +137,9 @@ test("a stacked dialogue gives every button the same width", async ({ page }) =>
   });
   // The card appears before its text does and fills in as the worker reads it,
   // so the measurement waits for the finished card.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
   await page.getByTestId("run").click();
   await expect(page.getByTestId("results-totals")).toBeVisible({ timeout: 15_000 });
 
@@ -162,7 +172,9 @@ test("a check card lands on the height it flew to", async ({ page }) => {
     mimeType: "text/plain",
     buffer: Buffer.from(MANUSCRIPT, "utf8"),
   });
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
   await page.getByTestId("run").click();
   await expect(page.getByTestId("results-totals")).toBeVisible({ timeout: 15_000 });
 

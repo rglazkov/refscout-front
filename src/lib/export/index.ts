@@ -15,3 +15,4 @@ export {
   type ReportLabels,
 } from "./report";
 export { toBibtex } from "./bibtex";
+export { risFromRecords, toRis } from "./ris";

@@ -32,7 +32,15 @@ export function useVisualViewportFrame(): React.CSSProperties {
     readonly bottom: string;
   }>({ height: "100dvh", top: "0px", bottom: "0px" });
 
-  React.useEffect(() => {
+  /*
+   * Measured before the browser paints rather than after. The overlay opens
+   * with an animation, and a measurement that landed a frame later restyled the
+   * panel in the middle of it: the height changed from a keyword to a number of
+   * pixels while the panel was moving, and the whole of a manuscript was laid
+   * out again mid-movement. Here the first frame drawn is already the right
+   * one, and nothing about the panel changes while it is on its way in.
+   */
+  React.useLayoutEffect(() => {
     const viewport = window.visualViewport;
     if (viewport === null || viewport === undefined) return;
 

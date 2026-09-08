@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * The preview: a markdown document drawn as a document rather than as the
  * markup it is stored in. This is the point of reading a Word file into
@@ -49,7 +51,7 @@ async function drop(page: Page, name: string, body: string): Promise<void> {
    * takes the fallback path rather than the module one.
    */
   await expect(page.getByTestId("document-card")).toContainText("characters", {
-    timeout: 60_000,
+    timeout: READING_MS,
   });
 }
 
@@ -97,6 +99,50 @@ test("only a markdown document offers the switch", async ({ page }) => {
   // PDF to preview: what would be drawn is the text that is already on screen.
   await open(page, "paper.tex", MANUSCRIPT);
   await expect(page.getByTestId("view-preview")).toHaveCount(0);
+});
+
+test("the page is the field in another view, not another surface", async ({ page }) => {
+  /*
+   * Two things that are invisible in a screenshot of a short document and
+   * obvious in a hundred-page one. The page stands on the field's own fill
+   * rather than on the panel behind it, which is what keeps the manuscript a
+   * step off the screen instead of a hairline away from it; and it ends at its
+   * edges the way the source does, dissolving where there is more to see and
+   * flush where there is not.
+   */
+  const LONG = Array.from(
+    { length: 25 },
+    (_, at) => `Paragraph ${at + 1} of a page long enough to scroll.`,
+  );
+  await open(page, "notes.md", [MARKDOWN, ...LONG].join("\n\n"));
+  await page.getByTestId("view-preview").click();
+  const preview = page.getByTestId("preview");
+  await expect(preview).toBeVisible();
+
+  const surfaces = await page.evaluate(() => {
+    const fill = (selector: string) => {
+      const element = document.querySelector(selector);
+      return element === null ? "" : getComputedStyle(element).backgroundColor;
+    };
+    return { page: fill("[data-testid=preview]"), panel: fill(".dialog-panel") };
+  });
+  expect(surfaces.page).not.toBe(surfaces.panel);
+
+  const fade = async () =>
+    await preview.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        top: style.getPropertyValue("--fade-top").trim(),
+        bottom: style.getPropertyValue("--fade-bottom").trim(),
+      };
+    });
+
+  // Nothing is above the first line, so the top edge has nothing to say.
+  await expect.poll(fade).toEqual({ top: "0px", bottom: "20px" });
+  await preview.evaluate((node) => {
+    node.scrollTop = Math.round(node.scrollHeight / 2);
+  });
+  await expect.poll(fade).toEqual({ top: "20px", bottom: "20px" });
 });
 
 test("going to the page and back keeps what the editor knows", async ({ page }) => {

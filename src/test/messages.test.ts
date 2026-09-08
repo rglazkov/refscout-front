@@ -96,6 +96,9 @@ const dynamicKeys: readonly RegExp[] = [
   // What reading a bibliography in the browser found, looked up by the code of
   // the finding rather than written out.
   /^buffer\.local\./,
+  // The menu of formats a document can be saved as: each row names its format
+  // and the two conversions say what they cost, both looked up by extension.
+  /^download\.(formats|notes)\./,
   /^plan\.(reason|missing)\./,
   /^intake\.paste\.syntax\./,
   /^job\.state\./,

@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * The four claims the product makes about the editor and about downloading
  * that nothing else checks.
@@ -27,7 +29,9 @@ async function dropManuscript(page: Page): Promise<void> {
   });
   // The card exists before its text does - reading happens in a worker - so the
   // volume is what says the document is ready to be opened.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
 }
 
 test.describe("the text overlay", () => {
@@ -105,6 +109,51 @@ test.describe("the text overlay", () => {
  * readily as it dims the letters - and the caret starts life on the first line,
  * which is the one edge that never hides anything.
  */
+test.describe("the face the text is set in", () => {
+  /*
+   * One switch in one place, answering one question - what the text is set in -
+   * and the view decides which two faces are worth offering. In the source they
+   * are the monospaced one and the prose one, because what is on screen is
+   * markup and its columns line up. On the drawn page there is no column to
+   * line up, so a monospaced position would say nothing there; the two are the
+   * face a manuscript is printed in and the face the rest of the screen is set
+   * in. Nothing here turns on the engine - it is which control is on the
+   * screen and which of its positions is on.
+   */
+  const NOTES = ["# Method", "", "A paragraph of a drawn document.", ""].join("\n");
+
+  test("each view offers the faces that mean something in it", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("file-input").setInputFiles({
+      name: "notes.md",
+      mimeType: "text/plain",
+      buffer: Buffer.from(NOTES, "utf8"),
+    });
+    await expect(page.getByTestId("document-card")).toContainText("characters", {
+      timeout: READING_MS,
+    });
+    await page.getByRole("button", { name: "notes.md", exact: true }).click();
+    await expect(page.getByTestId("editor")).toBeVisible();
+
+    await expect(page.getByTestId("face-mono")).toBeVisible();
+
+    await page.getByTestId("view-preview").click();
+    await expect(page.getByTestId("preview")).toBeVisible();
+    await expect(page.getByTestId("face-mono")).toHaveCount(0);
+    // The page is serifed until the reader says otherwise: it is a manuscript,
+    // and it is set in the face it will be printed in.
+    await expect(page.getByTestId("page-serif")).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByTestId("page-sans").click();
+    await expect(page.getByTestId("page-sans")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("page-serif")).toHaveAttribute("aria-pressed", "false");
+
+    // And the source keeps its own two, in the same place in the row.
+    await page.getByTestId("view-code").click();
+    await expect(page.getByTestId("face-mono")).toBeVisible();
+  });
+});
+
 test.describe("the fade at the edges of the text", () => {
   /** Long enough that the field scrolls and the bottom edge does hide text. */
   const LONG = [
@@ -125,7 +174,9 @@ test.describe("the fade at the edges of the text", () => {
       mimeType: "text/plain",
       buffer: Buffer.from(LONG, "utf8"),
     });
-    await expect(page.getByTestId("document-card")).toContainText("characters");
+    await expect(page.getByTestId("document-card")).toContainText("characters", {
+      timeout: READING_MS,
+    });
     await page.getByRole("button", { name: "long.tex", exact: true }).click();
     await expect(page.getByTestId("editor")).toBeVisible();
     // The faces the field is set in arrive after it is drawn, and every line
@@ -159,13 +210,18 @@ test.describe("the fade at the edges of the text", () => {
     throw new Error("the caret never stopped moving");
   }
 
-  /** The two distances the mask is drawn from, as the scroller carries them. */
+  /**
+   * The two distances the mask is drawn from, as the scroller carries them.
+   * The names are not the editor's own: the drawn page fades at its edges the
+   * same way and carries the same two properties, so that the two surfaces of
+   * one document cannot end at an edge differently.
+   */
   async function fade(page: Page): Promise<{ top: string; bottom: string }> {
     return await page.locator(".cm-scroller").evaluate((node) => {
       const style = getComputedStyle(node);
       return {
-        top: style.getPropertyValue("--cm-fade-top").trim(),
-        bottom: style.getPropertyValue("--cm-fade-bottom").trim(),
+        top: style.getPropertyValue("--fade-top").trim(),
+        bottom: style.getPropertyValue("--fade-bottom").trim(),
       };
     });
   }
@@ -367,9 +423,13 @@ test.describe("downloading", () => {
     expect(sent).toContain("% edited by­hand");
 
     await page.getByTestId("document-name-open").click();
+    // A LaTeX source can be saved as itself or as plain text, so the button
+    // opens the list and the format is chosen in it. The first row is the one
+    // the rule chose, and it is the format the file was brought in.
+    await page.getByTestId("download-document").click();
     const [saved] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByTestId("download-document").click(),
+      page.getByTestId("download-as-tex").click(),
     ]);
     expect(saved.suggestedFilename()).toBe("paper.tex");
 
@@ -413,13 +473,25 @@ test.describe("downloading", () => {
       await artifacts.nth(index).click();
       const overlay = page.getByRole("dialog");
       await expect(overlay).toBeVisible();
+      /*
+       * Whatever the file is, the first row of the list is the format the check
+       * wrote it in - so the walk is the same for every artifact and what is
+       * being read is which format that turns out to be.
+       */
+      await page.getByTestId("download-document").click();
       const [file] = await Promise.all([
         page.waitForEvent("download"),
-        page.getByTestId("download-document").click(),
+        overlay.locator("[data-testid^=download-as-]").first().click(),
       ]);
       saved.push(file.suggestedFilename());
-      // Waited for rather than assumed: the next press lands on the button
-      // behind the overlay if the overlay is still playing its exit.
+      /*
+       * Waited for rather than assumed, and twice over. The list closes itself
+       * once the file is written, and Escape belongs to whatever is open at the
+       * moment it is pressed - pressed while the list is still up it closes the
+       * list and leaves the overlay standing. Then the overlay's own exit has
+       * to finish, or the next press lands on the button behind it.
+       */
+      await expect(page.locator("[data-testid^=download-as-]")).toHaveCount(0);
       await page.keyboard.press("Escape");
       await expect(overlay).toBeHidden();
     }

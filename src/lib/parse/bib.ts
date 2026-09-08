@@ -1,8 +1,14 @@
 import { plugins } from "@citation-js/core";
 import "@citation-js/plugin-bibtex";
 
-import { asDocOffset, type BibSpan, type LocalFinding } from "@/lib/domain";
+import {
+  asDocOffset,
+  type BibSpan,
+  type CitationRecord,
+  type LocalFinding,
+} from "@/lib/domain";
 
+import { ParseFailure } from "./failure";
 import { type Reading, emptyReading, unreadable } from "./reading";
 
 /**
@@ -125,3 +131,146 @@ function closingBrace(text: string, opening: number): number {
   }
   return -1;
 }
+
+/**
+ * The entries of a bibliography with their fields, for writing the file out in
+ * another bibliographic format.
+ *
+ * It is a second reading of the same file rather than a widening of the first,
+ * and the two are wanted at different moments. `readBibtex` runs on every parse
+ * and after every edit, and it deliberately stops at the entries: what it needs
+ * is where they are and what they are called. This runs once, when somebody
+ * asks for the file as `.ris`, and it needs the opposite - not where the entry
+ * is, but everything inside it - so it runs the whole of citation-js's chain
+ * and gets CSL back, which is the shape that has the fields.
+ *
+ * A file that will not read gives nothing rather than half of itself. Half a
+ * bibliography written out as a file is worse than a refusal: the person gets
+ * a file, imports it, and finds out which entries are missing when they are
+ * missing from their manuscript.
+ */
+export function readCitations(text: string): readonly CitationRecord[] {
+  let items: readonly CslItem[];
+  try {
+    items = plugins.input.chain(text, {
+      forceType: "@biblatex/text",
+      // The graph is citation-js's record of which format the entry came
+      // through, for turning it back into that format. Nothing here goes back.
+      generateGraph: false,
+    }) as readonly CslItem[];
+  } catch {
+    throw new ParseFailure("BIB_CONVERT_FAILED");
+  }
+  return items.map(citation);
+}
+
+/**
+ * What is read out of one CSL entry. Every field is checked as it is taken
+ * rather than trusted from the shape above: the declaration is our description
+ * of a library that ships no types, and a description is not a guarantee.
+ */
+function citation(item: CslItem): CitationRecord {
+  const issued = item.issued;
+  const year =
+    issued?.["date-parts"]?.[0]?.[0] ?? text(issued?.literal) ?? text(issued?.raw);
+
+  return {
+    type: text(item.type) ?? "document",
+    ...field("title", item.title),
+    authors: names(item.author),
+    editors: names(item.editor),
+    ...(year === undefined ? {} : { year: String(year) }),
+    ...field("container", item["container-title"]),
+    ...field("volume", item.volume),
+    ...field("issue", item.issue),
+    ...field("pages", item.page),
+    ...field("publisher", item.publisher),
+    ...field("place", item["publisher-place"]),
+    ...field("edition", item.edition),
+    ...field("issn", item.ISSN),
+    ...field("isbn", item.ISBN),
+    ...field("doi", item.DOI),
+    ...field("url", item.URL),
+    ...field("abstract", item.abstract),
+    // CSL keeps them as one string with commas in it, which is one keyword as
+    // far as a reader is concerned.
+    keywords: (text(item.keyword) ?? "")
+      .split(",")
+      .map((keyword) => keyword.trim())
+      .filter((keyword) => keyword !== ""),
+    ...field("note", item.note),
+  };
+}
+
+/**
+ * A name put back together from its parts, in the order a bibliographic format
+ * expects it. The parts are what the entry itself separated, so this is not a
+ * rearrangement of somebody's name - it is the entry's own answer to which part
+ * is the family name. An entry that gave the name as one string kept it as one
+ * string, and so do we.
+ */
+function names(list: readonly CslName[] | undefined): readonly string[] {
+  if (list === undefined) return [];
+  return list
+    .map((name) => {
+      const literal = text(name.literal);
+      if (literal !== undefined) return literal;
+      const family = [text(name["non-dropping-particle"]), text(name.family)]
+        .filter((part) => part !== undefined)
+        .join(" ");
+      const given = text(name.given);
+      if (family === "") return given ?? "";
+      return given === undefined ? family : `${family}, ${given}`;
+    })
+    .filter((name) => name !== "");
+}
+
+/** A value that is a non-empty string, or nothing at all. */
+function text(value: unknown): string | undefined {
+  if (typeof value === "number") return String(value);
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+/** The field, or no field - never a field holding an empty string. */
+function field<K extends string>(
+  name: K,
+  value: unknown,
+): Partial<Record<K, string>> | Record<string, never> {
+  const kept = text(value);
+  return kept === undefined ? {} : ({ [name]: kept } as Record<K, string>);
+}
+
+type CslName = {
+  readonly family?: unknown;
+  readonly given?: unknown;
+  readonly literal?: unknown;
+  readonly "non-dropping-particle"?: unknown;
+};
+
+type CslItem = {
+  readonly type?: unknown;
+  readonly title?: unknown;
+  readonly author?: readonly CslName[];
+  readonly editor?: readonly CslName[];
+  readonly issued?: {
+    readonly "date-parts"?: readonly (readonly (number | string)[])[];
+    readonly literal?: unknown;
+    readonly raw?: unknown;
+  };
+  readonly "container-title"?: unknown;
+  readonly volume?: unknown;
+  readonly issue?: unknown;
+  readonly page?: unknown;
+  readonly publisher?: unknown;
+  readonly "publisher-place"?: unknown;
+  readonly edition?: unknown;
+  readonly ISSN?: unknown;
+  readonly ISBN?: unknown;
+  readonly DOI?: unknown;
+  readonly URL?: unknown;
+  readonly abstract?: unknown;
+  readonly keyword?: unknown;
+  readonly note?: unknown;
+};

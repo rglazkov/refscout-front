@@ -40,10 +40,11 @@ export type WorkerReply<R = unknown> =
 export const readyReply: WorkerReply<never> = { id: "", type: "ready" };
 
 /**
- * The names of the calls a document worker answers. Three, because the format
- * that is a container rather than text is read and written by the same worker:
- * its libraries belong together, and a second worker for the way out would ship
- * them twice.
+ * The names of the calls a document worker answers. Four, because the ways out
+ * of a format belong with the way in: a Word file is read and written by the
+ * same libraries, and a bibliography is read for its places and read again for
+ * its fields by one library. A second worker for either way out would ship it
+ * twice.
  */
 export const parseCall = "parse" as const;
 
@@ -57,6 +58,17 @@ export const readCall = "read" as const;
 
 /** Writing a Word file back out of the markdown it became. */
 export const assembleCall = "assemble" as const;
+
+/**
+ * Reading a bibliography closely enough to write it out in another
+ * bibliographic format. It is not `read`: that one stops at where the entries
+ * are, which is what a card and a highlight need, while this one wants what is
+ * inside them, which is what a conversion needs. Both are here because both are
+ * citation-js, and it arrives once.
+ */
+export const citationsCall = "citations" as const;
+
+export type CitationsRequest = { readonly text: string };
 
 export type ReadRequest = {
   readonly text: string;

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { READING_MS } from "../support/reading";
+
 /**
  * The path the product exists to produce: a manuscript, a buffer, the
  * bibliography brought in on the manuscript's own card, the text opened and
@@ -32,7 +34,9 @@ async function dropManuscript(page: Page, name = "paper.tex"): Promise<void> {
   });
   // The card appears the moment the file is dropped and fills in as the text is
   // read, so the volume is what says the reading has finished.
-  await expect(page.getByTestId("document-card")).toContainText("characters");
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: READING_MS,
+  });
 }
 
 /**

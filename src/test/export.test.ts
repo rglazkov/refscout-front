@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { downloadExtensionOf, downloadName } from "@/lib/docs";
+import { downloadExtensionOf, downloadFormatsOf, downloadName } from "@/lib/docs";
 import { fromBytes } from "@/lib/docs/canonical";
 import { mediaTypeFor, withFileForm } from "@/lib/export";
 import { sourceFormats } from "@/lib/domain";
@@ -113,5 +113,69 @@ describe("the name the file is offered under", () => {
     // `download (3).bib`.
     expect(downloadName("refs.bib", "", "bib")).toBe("refs.bib");
     expect(downloadName("thesis.docx", "", "docx")).toBe("thesis.docx");
+  });
+});
+
+/**
+ * Which formats a document is offered in, which is a different question from
+ * which one it comes back in by default. The rule is asked directly here for
+ * the same reason as the one above: the editor and a comparison both read it
+ * from one place, and a list that drifts in either screen is a person handed a
+ * file their own tools cannot open.
+ */
+describe("the formats a document may be saved as", () => {
+  it("names the format it came in first, always", () => {
+    // The first row of the menu is the one labelled "as it came in", so the
+    // order is not a presentational detail: it is the rule itself.
+    for (const format of sourceFormats) {
+      const offered = downloadFormatsOf(format);
+      expect(offered[0]).toBe(downloadExtensionOf(format));
+    }
+  });
+
+  it.each([
+    ["docx", ["docx", "md", "txt"]],
+    ["md", ["md", "docx", "txt"]],
+    ["tex", ["tex", "txt"]],
+    ["gls", ["gls", "txt"]],
+    ["bib", ["bib", "ris", "txt"]],
+    ["pdf", ["txt"]],
+    ["txt", ["txt"]],
+  ] as const)("a %s is offered as %j", (format, offered) => {
+    expect(downloadFormatsOf(format)).toEqual(offered);
+  });
+
+  it("never offers a conversion the product cannot perform", () => {
+    /*
+     * The whole point of deriving the list. A LaTeX source saved as `.docx`
+     * would be its own markup run through a markdown renderer, and a Word
+     * document saved as `.tex` would be hashes and asterisks under an extension
+     * that promises commands - and in both cases the person finds out by
+     * opening the file in the program the extension named.
+     */
+    expect(downloadFormatsOf("tex")).not.toContain("docx");
+    expect(downloadFormatsOf("bib")).not.toContain("docx");
+    expect(downloadFormatsOf("docx")).not.toContain("tex");
+    // And RIS is offered where there are entries to read, and nowhere else.
+    for (const format of sourceFormats) {
+      if (format === "bib") continue;
+      expect(downloadFormatsOf(format)).not.toContain("ris");
+    }
+  });
+
+  it("reads the text itself when there was never a file", () => {
+    // Pasted text has no format to go back to, so what it turned out to be is
+    // the only thing there is to read.
+    expect(downloadFormatsOf("typed", "bibtex")).toEqual(["bib", "ris", "txt"]);
+    expect(downloadFormatsOf("typed", "latex")).toEqual(["tex", "txt"]);
+    expect(downloadFormatsOf("typed", "markdown")).toEqual(["md", "docx", "txt"]);
+    expect(downloadFormatsOf("typed", "unknown")).toEqual(["txt"]);
+  });
+
+  it("offers no format twice", () => {
+    for (const format of sourceFormats) {
+      const offered = downloadFormatsOf(format);
+      expect(new Set(offered).size).toBe(offered.length);
+    }
   });
 });

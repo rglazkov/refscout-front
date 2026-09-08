@@ -1,6 +1,8 @@
 import { docRegistry, downloadName } from "@/lib/docs";
 import { type Eol } from "@/lib/docs/canonical";
-import { assembleDocxFile } from "@/workers";
+import { assembleDocxFile, readBibliographyOf } from "@/workers";
+
+import { toRis } from "./ris";
 
 /**
  * One mechanism for every download in the product. The contents into a Blob
@@ -36,6 +38,7 @@ export function download(content: BlobPart, fileName: string, mediaType: string)
  */
 const MEDIA_TYPES: Readonly<Record<string, string>> = {
   bib: "application/x-bibtex;charset=utf-8",
+  ris: "application/x-research-info-systems;charset=utf-8",
   tex: "application/x-tex;charset=utf-8",
   gls: "application/x-tex;charset=utf-8",
   md: "text/markdown;charset=utf-8",
@@ -57,11 +60,17 @@ export type FileForm = { readonly hadBom: boolean; readonly eol: Eol };
  * comparison, a file a check wrote - so "you get back the format you brought"
  * is one function rather than a habit shared between screens.
  *
- * Two ways out of it, and only one of them assembles anything. `.docx` is a
+ * Three ways out of it, and only two of them make anything. `.docx` is a
  * container and is built: the markdown goes to the worker and comes back as
- * bytes. Everything else is already text and is written as it stands, because
- * printing a `.tex` back through a library would hand its author a correct file
- * with a thousand changed lines in it.
+ * bytes. `.ris` is a conversion and is written: the bibliography goes to the
+ * same worker, comes back as entries with their fields, and is written out
+ * again in the other format's tags.
+ *
+ * Everything else is already text and is written as it stands, because printing
+ * a `.tex` back through a library would hand its author a correct file with a
+ * thousand changed lines in it. That is the difference between the two lists: a
+ * conversion is asked for by name and produces another format, while the format
+ * somebody brought is handed back untouched.
  */
 export async function saveDocument(input: {
   readonly text: string;
@@ -80,6 +89,15 @@ export async function saveDocument(input: {
     return;
   }
 
+  if (input.extension === "ris") {
+    const entries = await readBibliographyOf({ text: input.text });
+    download(toRis(entries), fileName, mediaType);
+    return;
+  }
+
+  // The form the file arrived in goes back on the file that is handed back, and
+  // on nothing else: a conversion is a new file, and the line endings of the
+  // one somebody brought are not a fact about it.
   download(withFileForm(input.text, input.form), fileName, mediaType);
 }
 

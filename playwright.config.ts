@@ -69,11 +69,16 @@ export default defineConfig({
        * stands in front of it and put back afterwards: whether it measures
        * itself again on the way back is the browser's answer and not ours, and
        * an editor that came back mismeasured would be a blank field where a
-       * manuscript was. What the rest of the suite asks - contrast, wording, the
-       * shape of the flow - does not turn on the engine, and running it twice
-       * would buy re-tuned assertions rather than confidence.
+       * manuscript was. The fifth is the card standing inside the text, which
+       * rests on three things the engine decides: whether a widget the editor
+       * measures keeps its height, whether the focus survives inside a region
+       * marked as not editable, and whether the buttons in there are reachable
+       * at all - and Firefox is the engine with a history of answering the last
+       * two differently. What the rest of the suite asks - contrast, wording,
+       * the shape of the flow - does not turn on the engine, and running it
+       * twice would buy re-tuned assertions rather than confidence.
        */
-      testMatch: /(worker-start|diff-alignment|report|preview)\.spec\.ts/,
+      testMatch: /(worker-start|diff-alignment|report|preview|inline-card)\.spec\.ts/,
     },
     {
       name: "mobile",

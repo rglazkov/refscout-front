@@ -19,6 +19,8 @@ import {
 
 import { type TextEdit } from "@/lib/docs";
 
+import { EDGE_FADE_MASK, hiddenEdges, writeEdgeFade } from "./use-edge-fade";
+
 /**
  * The editor core. Virtualised rendering so that a hundred pages do not lay the
  * tab down, line numbers in the gutter, editing, undo in steps, search over the
@@ -204,22 +206,15 @@ const plainTextPaste = EditorView.domEventHandlers({
   },
 });
 
-/** How far the text dissolves at an edge that has more text behind it. */
-const FADE_PX = 20;
-
 /**
  * Fades an edge of the scrolled text only while that edge is hiding something.
  *
- * A mask dims every pixel under it, and the caret is one of them: with a fade
- * standing permanently at the top, a caret placed on the first line - which is
- * where it starts every time a document is opened - was drawn at a fraction of
- * its colour and read as a pale smear on a light background, then turned solid
- * as soon as a click moved it further down the page. The fade is there to say
- * "there is more above", so at the top of a document it says nothing and is
- * switched off; the same holds at the bottom.
- *
- * The distances are written to the scroller as custom properties, so the mask
- * itself stays one declaration in the theme.
+ * The rule, the distance and the mask itself are the editor's, not this
+ * editor's: the page the document draws as fades at its edges the same way, and
+ * the two are written in one place so they cannot drift apart. What is here is
+ * the half that belongs to a virtualised editor - the moments at which the
+ * question has to be asked again, which are not the moments an ordinary
+ * scrolling element has.
  */
 const edgeFade = ViewPlugin.fromClass(
   class {
@@ -240,8 +235,8 @@ const edgeFade = ViewPlugin.fromClass(
     update(update: ViewUpdate) {
       if (update.geometryChanged || update.docChanged) {
         this.view.requestMeasure({
-          read: () => this.hidden(),
-          write: (at) => this.write(at),
+          read: () => hiddenEdges(this.view.scrollDOM),
+          write: (at) => writeEdgeFade(this.view.scrollDOM, at),
         });
       }
     }
@@ -250,25 +245,8 @@ const edgeFade = ViewPlugin.fromClass(
       this.view.scrollDOM.removeEventListener("scroll", this.onScroll);
     }
 
-    /** Which edges have text behind them, and so have something to fade. */
-    private hidden() {
-      const el = this.view.scrollDOM;
-      // A pixel of slack: a fractional scroll offset or content height would
-      // otherwise leave a fade standing at an edge that is already flush.
-      return {
-        top: el.scrollTop > 1,
-        bottom: el.scrollTop + el.clientHeight < el.scrollHeight - 1,
-      };
-    }
-
-    private write(at: { readonly top: boolean; readonly bottom: boolean }) {
-      const el = this.view.scrollDOM;
-      el.style.setProperty("--cm-fade-top", at.top ? `${FADE_PX}px` : "0px");
-      el.style.setProperty("--cm-fade-bottom", at.bottom ? `${FADE_PX}px` : "0px");
-    }
-
     private sync() {
-      this.write(this.hidden());
+      writeEdgeFade(this.view.scrollDOM, hiddenEdges(this.view.scrollDOM));
     }
   },
 );
@@ -291,23 +269,24 @@ export const editorSurface = EditorView.theme({
     backgroundColor: "var(--card)",
     color: "var(--foreground)",
   },
-  ".cm-content": { fontFamily: "var(--stack-mono)", padding: "12px 0" },
+  /*
+   * The room at the end is a property rather than a number, because on a phone
+   * a card can be pinned over the foot of the text. Without that room the last
+   * lines of a manuscript can be scrolled to and never seen: where they arrive
+   * is where the card stands. A screen that pins one says how tall it is;
+   * everywhere else the property is unset and the padding is what it was.
+   */
+  ".cm-content": {
+    fontFamily: "var(--stack-mono)",
+    padding: "12px 0 calc(12px + var(--pinned-card, 0px))",
+  },
   /*
    * The scrolled text fades out at the two edges instead of being cut across a
    * line. The mask is on the scroller, so the gutter fades with the text and
-   * the two stay one surface; 20px is about one line, which is enough to read
-   * as "there is more above" without hiding a line that is still being read.
-   *
-   * Each distance is a property rather than a constant, because the mask dims
-   * everything that lies under it - the caret and the selection as much as the
-   * letters - and an edge with nothing behind it would dim them for no reason.
-   * A distance of zero puts the two gradient stops in the same place and leaves
-   * that edge fully opaque.
+   * the two stay one surface, and it is the same mask the page the document
+   * draws as is given: one document, one way of ending at an edge.
    */
-  ".cm-scroller": {
-    maskImage:
-      "linear-gradient(to bottom, transparent 0, black var(--cm-fade-top, 0px), black calc(100% - var(--cm-fade-bottom, 0px)), transparent 100%)",
-  },
+  ".cm-scroller": { maskImage: EDGE_FADE_MASK },
   /*
    * The gutter is a column of cells rather than a column of numbers: a surface
    * a step off the text, a rule between the two, and each number right-aligned
