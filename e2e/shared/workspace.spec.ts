@@ -444,11 +444,18 @@ test.describe("from a file to a downloaded report", () => {
     await expect(page.getByTestId("document-card")).toHaveCount(0);
   });
 
-  test("the interface says plainly that a reload loses the buffer", async ({ page }) => {
-    // Storage that survives a reload is not built yet. Until it exists the
-    // honest sentence is what the screen owes the person.
+  test("nothing warns about losing the buffer, because nothing is losing it", async ({
+    page,
+  }) => {
+    /*
+     * A warning is owed only where there is something to warn about. The
+     * browser is storing, so a reload keeps everything - which the persistence
+     * suite proves by reloading - and a sentence saying otherwise would be a
+     * standing lie about the one thing this product must get right.
+     */
     await page.goto("/");
     await dropManuscript(page);
-    await expect(page.getByTestId("volatile-notice")).toContainText("Reloading");
+    await expect(page.getByTestId("storage-unavailable")).toHaveCount(0);
+    await expect(page.getByTestId("storage-discarded")).toHaveCount(0);
   });
 });

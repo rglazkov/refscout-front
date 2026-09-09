@@ -1,4 +1,5 @@
 import { ApiError, setCsrfToken } from "@/lib/api";
+import { clearStores } from "@/lib/storage";
 import { breadcrumb, clearCollected } from "@/lib/telemetry";
 import {
   useBufferStore,
@@ -39,6 +40,14 @@ export function clearEverything(clearQueries: () => void): void {
   useJobStore.getState().reset();
   useIntakeDraftStore.getState().clear();
   useEntitlementsStore.getState().clear();
+  /*
+   * And the stores in the browser, asked for by name. Emptying the buffer takes
+   * the texts with it wherever the working screen has been open, but signing
+   * out is reachable from pages that never mounted it - the account page is one
+   * - and there the registry is still the one that lives in memory and has
+   * nothing to clear.
+   */
+  void clearStores();
   /*
    * The unsent events go too. They hold numbers, flags and codes and never a
    * character of a document, so there is nothing in them to protect - but

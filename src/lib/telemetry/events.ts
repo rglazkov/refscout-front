@@ -126,6 +126,18 @@ export const eventCodes = [
   "ANCHOR_BUDGET",
   /** Space used and available, and whether the origin was granted persistence. */
   "STORAGE_ESTIMATE",
+  /**
+   * The browser gave no storage at all, so the tab is working in memory. A
+   * private window is the ordinary cause and it is not a defect; the number
+   * that matters is how many sessions run this way without knowing it.
+   */
+  "STORAGE_UNAVAILABLE",
+  /** A write was refused for want of room. The one loss we can still name. */
+  "STORAGE_QUOTA",
+  /** A schema change that could not carry the stored documents forward. */
+  "STORAGE_DISCARDED",
+  /** No Web Locks here, so this tab treats itself as the only one. */
+  "LOCKS_UNAVAILABLE",
   /** What a person sent from the report form. */
   "USER_REPORT",
 ] as const;

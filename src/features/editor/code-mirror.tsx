@@ -17,7 +17,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
-import { type TextEdit } from "@/lib/docs";
+import { type TextChange } from "@/lib/domain";
 
 import { EDGE_FADE_MASK, hiddenEdges, writeEdgeFade } from "./use-edge-fade";
 
@@ -36,14 +36,22 @@ export type EditorFace = "mono" | "prose";
 export type CodeMirrorProps = {
   readonly value: string;
   readonly readOnly?: boolean;
-  readonly onChange?: (value: string) => void;
+  /**
+   * The document after a transaction, and what that transaction replaced.
+   *
+   * Both arrive in one call, and that is the point: the string is what the
+   * screens read, the changes are what gets written down - a transaction is a
+   * few dozen bytes where a manuscript is megabytes - and a caller given them
+   * separately has to hold one until the other comes.
+   */
+  readonly onChange?: (value: string, changes: readonly TextChange[]) => void;
   /**
    * What each edit did, in the coordinates of the text before it. The whole
    * string says what the document now is; this says what moved, which is what
    * lets a place counted over the text that was sent be found again in the text
    * that is here now without recomputing the list on every keystroke.
    */
-  readonly onEdits?: (edits: readonly TextEdit[]) => void;
+
   /**
    * The editor itself, once there is one, and `null` when it goes. Jumping to a
    * finding, scrolling to it and applying a replacement are all one transaction
@@ -415,7 +423,6 @@ export function CodeMirror({
   value,
   readOnly = false,
   onChange,
-  onEdits,
   onReady,
   ariaLabel,
   face = "mono",
@@ -427,16 +434,14 @@ export function CodeMirror({
   const host = React.useRef<HTMLDivElement | null>(null);
   const view = React.useRef<EditorView | null>(null);
   const notify = React.useRef(onChange);
-  const notifyEdits = React.useRef(onEdits);
   const handOver = React.useRef(onReady);
   const languageSlot = React.useRef(new Compartment());
   const extensionSlot = React.useRef(new Compartment());
   const faceSlot = React.useRef(new Compartment());
   React.useEffect(() => {
     notify.current = onChange;
-    notifyEdits.current = onEdits;
     handOver.current = onReady;
-  }, [onChange, onEdits, onReady]);
+  }, [onChange, onReady]);
 
   React.useEffect(() => {
     const parent = host.current;
@@ -488,18 +493,22 @@ export function CodeMirror({
         fillsItsBox,
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
-          notify.current?.(update.state.doc.toString());
           /*
-           * What moved, as well as what the text now is. Both are needed and
-           * they answer different questions: the string is the document, and
-           * this is how to find in it a place that was counted over the text as
-           * it stood when the check was started.
+           * What moved, before what it now is. Both are needed and they answer
+           * different questions: the string is the document, and this is how to
+           * find in it a place that was counted over the text as it stood when
+           * the check was started - and it is what gets written down, because a
+           * transaction is a few dozen bytes and the document is megabytes.
+           *
+           * The order is deliberate: the caller receives the change first and
+           * the resulting text second, so that the one call which records both
+           * has the pair in hand.
            */
-          const edits: TextEdit[] = [];
+          const changes: TextChange[] = [];
           update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-            edits.push({ from: fromA, to: toA, length: inserted.length });
+            changes.push({ from: fromA, to: toA, insert: inserted.toString() });
           });
-          notifyEdits.current?.(edits);
+          notify.current?.(update.state.doc.toString(), changes);
         }),
         extensionSlot.current.of([...extensions]),
       ],

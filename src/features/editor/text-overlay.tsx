@@ -29,6 +29,7 @@ import {
   useDocumentPlaces,
 } from "@/lib/anchor";
 import {
+  applyEdit,
   docRegistry,
   countCodePoints,
   downloadFormatsOf,
@@ -36,13 +37,17 @@ import {
   lineStarts,
   proposeChecks,
   recordEdits,
-  replaceText,
   setBibEntries,
   sha256Hex,
-  type TextEdit,
 } from "@/lib/docs";
-import { asDocOffset, hasStructure, type ModuleResult } from "@/lib/domain";
+import {
+  asDocOffset,
+  hasStructure,
+  type ModuleResult,
+  type TextChange,
+} from "@/lib/domain";
 import { downloadDocumentText } from "@/lib/export";
+import { settled } from "@/lib/storage";
 import { useBufferStore, useJobStore, useUiStore } from "@/stores";
 import { readStructureOf } from "@/workers";
 
@@ -94,6 +99,17 @@ export function TextOverlay({
   const retained = useUiStore((state) => state.retainedOverlay);
   const closeOverlay = useUiStore((state) => state.closeOverlay);
 
+  /**
+   * "Done" closes the overlay; it does not confirm anything, because there is
+   * nothing to confirm - every keystroke was applied and written as it was
+   * made. What it does wait for is the writing to have finished rather than
+   * started: this is one of the moments the product tells somebody the tab can
+   * now be closed, and it has to be true when it says so.
+   */
+  const done = React.useCallback(() => {
+    void settled().then(closeOverlay);
+  }, [closeOverlay]);
+
   const shown = overlay ?? retained;
   if (shown === null) return null;
   return (
@@ -103,7 +119,7 @@ export function TextOverlay({
       docId={shown.docId}
       results={results}
       {...(shown.focus === undefined ? {} : { focus: shown.focus })}
-      onClose={closeOverlay}
+      onClose={done}
     />
   );
 }
@@ -273,28 +289,29 @@ function OverlayBody({
    * confirm anything.
    */
   const onChange = React.useCallback(
-    (next: string) => {
-      if (replaceText(docId, next) === undefined) return;
+    (next: string, changes: readonly TextChange[]) => {
+      if (applyEdit(docId, next, changes) === undefined) return;
+
+      /*
+       * What each change moved, kept beside the text. It is what lets an answer
+       * describing the document as it was sent be applied to the document as it
+       * now is, without the whole list being recomputed on every keystroke -
+       * and no check is started by any of it: correcting the text changes only
+       * what will be downloaded.
+       */
+      const edits = changes.map((change) => ({
+        from: change.from,
+        to: change.to,
+        length: change.insert.length,
+      }));
+      recordEdits(docId, edits);
+      moveManualPlaces(docId, edits);
+
       owed.current = next;
       if (pending.current !== null) clearTimeout(pending.current);
       pending.current = setTimeout(() => settle(), RECOMPUTE_DELAY_MS);
     },
     [docId, settle],
-  );
-
-  /**
-   * What each edit moved, kept beside the text. It is what lets an answer that
-   * describes the document as it was sent be applied to the document as it now
-   * is, without the whole list being recomputed on every keystroke - and no
-   * check is started by any of it: correcting the text changes only what will
-   * be downloaded.
-   */
-  const onEdits = React.useCallback(
-    (edits: readonly TextEdit[]) => {
-      recordEdits(docId, edits);
-      moveManualPlaces(docId, edits);
-    },
-    [docId],
   );
 
   /*
@@ -548,6 +565,10 @@ function OverlayBody({
   const name = item?.name ?? "";
   const save = React.useCallback(
     async (extension: string): Promise<void> => {
+      // The file is assembled from the text as it is on disk, not as it is a
+      // few milliseconds ahead of it: taking a copy away is one of the moments
+      // the product says the work is safe.
+      await settled();
       await downloadDocumentText(docId, name, extension);
     },
     [docId, name],
@@ -715,7 +736,6 @@ function OverlayBody({
               face={face}
               phrases={searchPhrases}
               onChange={onChange}
-              onEdits={onEdits}
               onReady={(created) => {
                 editor.current = created;
                 if (created === null) return;

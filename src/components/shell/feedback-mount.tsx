@@ -21,6 +21,20 @@ const ReportProblem = dynamic(
   { ssr: false },
 );
 
+/**
+ * And the way to take everything out of this browser again. It stands beside
+ * the switch for the automatic reports because the two answer the same
+ * question - what is this site keeping about me, and how do I stop it - and a
+ * control that has to be hunted for is not one a person can be said to have.
+ */
+const DeleteSaved = dynamic(
+  () =>
+    import("@/features/storage/delete-saved").then(
+      (module) => module.DeleteSavedDocuments,
+    ),
+  { ssr: false },
+);
+
 export function FeedbackMount() {
   React.useEffect(() => {
     /*
@@ -40,5 +54,10 @@ export function FeedbackMount() {
     });
   }, []);
 
-  return <ReportProblem />;
+  return (
+    <>
+      <ReportProblem />
+      <DeleteSaved />
+    </>
+  );
 }

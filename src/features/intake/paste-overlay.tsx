@@ -11,6 +11,7 @@ import { CodeMirror } from "@/features/editor/code-mirror";
 import { detectedSyntax, draftSyntaxKind, useSyntax } from "@/features/editor/syntax";
 import { useVisualViewportFrame } from "@/features/editor/use-visual-viewport";
 import { type IntakeDraft, type SourceFormat } from "@/lib/domain";
+import { settled } from "@/lib/storage";
 import { useIntakeDraftStore } from "@/stores";
 
 /**
@@ -115,7 +116,16 @@ export function PasteOverlay({
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          {/* Closing confirms nothing and clears nothing - a draft that
+              disappeared on closing would be text the person cannot get back -
+              but it does say the draft is safe, so it waits for the writing to
+              have finished rather than started. */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void settled().then(onClose)}
+          >
             {t("close")}
           </Button>
           {draft.text.trim() === "" ? (
@@ -129,7 +139,10 @@ export function PasteOverlay({
               onClick={() => {
                 onAdd(draft.text, t("defaultName"), formatOfDraft(draft));
                 clear();
-                onClose();
+                // The overlay closes on the confirmed write and not on the
+                // press: this is one of the moments the product says the work
+                // is safe, so the sentence has to be true when it is said.
+                void settled().then(onClose);
               }}
             >
               {t("add")}

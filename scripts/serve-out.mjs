@@ -11,15 +11,28 @@ const OUT = "out";
 const PORT = Number(process.env.PORT ?? 4173);
 
 /**
- * The reference is re-read on every request instead of being cached at start-up:
- * inline script hashes change with every build, and this server outlives a
- * rebuild (playwright reuses an already running one). Cached hashes would mean
- * every page suddenly violating the CSP for a reason that cannot be found
- * anywhere in the code.
+ * The reference is re-read when it changes rather than once at start-up: inline
+ * script hashes change with every build, and this server outlives a rebuild
+ * (playwright reuses an already running one). Hashes cached for the life of the
+ * process would mean every page suddenly violating the CSP for a reason that
+ * cannot be found anywhere in the code.
+ *
+ * What it is not is re-parsed per request. The browser tests fetch thousands of
+ * files - one of them caches the whole application shell, which is a hundred
+ * and more requests in a burst - and parsing the reference for each of them
+ * turns this single-threaded server into the slowest thing in the run. The
+ * modification time answers the same question for the cost of a `stat`.
  */
+let parsed = { at: 0, routes: new Map() };
+
 function headersByRoute() {
-  const routes = JSON.parse(readFileSync(join(OUT, "security-headers.json"), "utf8"));
-  return new Map(routes.map((entry) => [entry.route, entry.headers]));
+  const reference = join(OUT, "security-headers.json");
+  const at = statSync(reference).mtimeMs;
+  if (at !== parsed.at) {
+    const routes = JSON.parse(readFileSync(reference, "utf8"));
+    parsed = { at, routes: new Map(routes.map((entry) => [entry.route, entry.headers])) };
+  }
+  return parsed.routes;
 }
 
 const TYPES = {

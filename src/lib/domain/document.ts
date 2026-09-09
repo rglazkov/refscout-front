@@ -285,6 +285,24 @@ export type BibSpan = {
 /** What the parser read out of the file. PreSubmit reads it for anonymity. */
 export type DocMeta = Readonly<Record<string, string>>;
 
+/**
+ * One stretch of a document that an editor transaction replaced, with the
+ * characters that replaced it. `from` and `to` are positions in the text as it
+ * was before the transaction, which is what makes several changes made at once
+ * - a replacement across a multiple selection - describable at all: they are
+ * all measured against the same text.
+ *
+ * It is what a transaction is written down as, and the text a reload finds is
+ * the last whole copy with these replayed over it. Replaying goes from the last
+ * to the first, so that the earlier positions are still the positions of the
+ * text they were measured in.
+ */
+export type TextChange = {
+  readonly from: number;
+  readonly to: number;
+  readonly insert: string;
+};
+
 /** The paste overlay before "Add to buffer" is pressed. */
 export type IntakeDraft = {
   readonly text: string;

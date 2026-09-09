@@ -4,6 +4,7 @@ import { PlayIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { BlockedButton } from "@/components/ui/blocked-button";
+import { useOnline } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { type BufferItem } from "@/lib/domain";
 import { isPaidModule } from "@/lib/entitlements";
@@ -33,8 +34,18 @@ export function LaunchRow({
   readonly onRun: (items: readonly BufferItem[], buffer: readonly BufferItem[]) => void;
 }) {
   const t = useTranslations("job");
+  const offline = useTranslations("workspace.offline");
   const format = useFormatter();
   const entitlements = useEntitlementsStore((state) => state.entitlements);
+  /*
+   * Running a check is one of the three things that genuinely need a server,
+   * and offline it behaves like every other unavailable action here: not
+   * `disabled`, still focusable, marked `aria-disabled`, and it says why where
+   * the person pressed. A queue that sent the manuscript later would be worse
+   * than the refusal - it would mean the text leaves the browser at some moment
+   * other than the press of the button.
+   */
+  const connected = useOnline();
 
   // The companions go with them, so this number is the number that leaves.
   const sending = sendingItems(items, entitlements);
@@ -52,8 +63,12 @@ export function LaunchRow({
             is marked `aria-disabled`, says why when it is pressed and reports
             the attempt - a grey button is a silent wall for the person and no
             signal at all for us. */}
-        {sending.length === 0 ? (
-          <BlockedButton action="job.run" reason={t("nothingToSend")} size="lg">
+        {sending.length === 0 || !connected ? (
+          <BlockedButton
+            action="job.run"
+            reason={connected ? t("nothingToSend") : offline("runNeedsNetwork")}
+            size="lg"
+          >
             <PlayIcon aria-hidden="true" />
             {t("run")}
           </BlockedButton>

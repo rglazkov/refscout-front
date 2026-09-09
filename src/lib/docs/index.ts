@@ -1,10 +1,11 @@
 export {
+  applyEdit,
   clearAllDocuments,
   docRegistry,
   forgetDocument,
   replaceText,
   setBibEntries,
-  useAdapter,
+  installAdapter,
   type DocRegistryAdapter,
 } from "./registry";
 export { detectKind, extensionOf, formatOf, proposeChecks } from "./detect";
@@ -47,7 +48,9 @@ export { bibSpanOf, lineAt, lineOf, lineStarts, pageOf } from "./spans";
 export {
   clearSnapshots,
   forgetSnapshot,
+  observeSnapshots,
   recordSnapshot,
+  restoreSnapshot,
   snapshotDocIds,
   snapshotOf,
   type TextSnapshot,
@@ -55,11 +58,15 @@ export {
 export {
   clearEdits,
   editedWithin,
+  editsOf,
   forgetEdits,
   hasEdits,
   movedBy,
+  observeEdits,
   projectOffset,
   recordEdits,
+  restoreEdits,
+  type Replacement,
   type TextEdit,
 } from "./edits";
 export { buildSubmission, withCompanions, type Submission } from "./submission";

@@ -24,13 +24,16 @@ export {
   anchoringCounts,
   clearManualPlace,
   forgetPlaces,
+  manualPlaces,
   moveManualPlaces,
   placeKey,
   placesInDocument,
   placesOfIssue,
   reresolveDocument,
   resolveBody,
+  restoreManualPlaces,
   setManualPlace,
+  subscribeToManualPlaces,
   type PlacedFinding,
 } from "./session";
 export { useDocumentPlaces, useIssuePlaces } from "./use-places";

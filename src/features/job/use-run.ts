@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ApiError, NetworkError, submitJob } from "@/lib/api";
 import { buildSubmission, withCompanions } from "@/lib/docs";
 import { type BufferItem } from "@/lib/domain";
+import { settled } from "@/lib/storage";
 import { breadcrumb, track } from "@/lib/telemetry";
 import { newId } from "@/lib/webcrypto";
 import { useEntitlementsStore, useJobStore } from "@/stores";
@@ -56,6 +57,13 @@ export function useRun(locale: string): {
       readonly buffer: readonly BufferItem[];
     }) => {
       breadcrumb("run-check", "started");
+      /*
+       * Everything typed so far is on disk before anything leaves the tab.
+       * Running a check is one of the moments the product tells somebody they
+       * are done and may close the tab, so it waits for the writes to have
+       * finished rather than to have started.
+       */
+      await settled();
       const submission = await buildSubmission(
         withCompanions(input.items, input.buffer),
         locale,

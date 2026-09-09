@@ -30,9 +30,24 @@ export type TextSnapshot = {
 
 const snapshots = new Map<string, TextSnapshot>();
 
+/**
+ * Told whenever a snapshot appears or goes, so that it can be written down
+ * beside the document it describes. It is a hook rather than an import because
+ * the registry knows nothing about where anything is kept - which is the same
+ * reason it has an adapter at all.
+ */
+let observer: (docId: string, snapshot: TextSnapshot | null) => void = () => {};
+
+export function observeSnapshots(
+  next: (docId: string, snapshot: TextSnapshot | null) => void,
+): void {
+  observer = next;
+}
+
 /** Recorded as the submission is assembled, for every document that goes out. */
 export function recordSnapshot(docId: string, snapshot: TextSnapshot): void {
   snapshots.set(docId, snapshot);
+  observer(docId, snapshot);
 }
 
 export function snapshotDocIds(): readonly string[] {
@@ -43,8 +58,14 @@ export function snapshotOf(docId: string): TextSnapshot | undefined {
   return snapshots.get(docId);
 }
 
+/** Puts back what a previous session recorded as it sent each document. */
+export function restoreSnapshot(docId: string, snapshot: TextSnapshot): void {
+  snapshots.set(docId, snapshot);
+}
+
 export function forgetSnapshot(docId: string): void {
   snapshots.delete(docId);
+  observer(docId, null);
 }
 
 export function clearSnapshots(): void {

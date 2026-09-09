@@ -1,4 +1,4 @@
-import { type BibSpan, type DocContent } from "@/lib/domain";
+import { type BibSpan, type DocContent, type TextChange } from "@/lib/domain";
 
 import { clearEdits, forgetEdits } from "./edits";
 import { clearSnapshots, forgetSnapshot } from "./snapshot";
@@ -18,6 +18,18 @@ export type DocRegistryAdapter = {
   readonly remove: (docId: string) => void;
   readonly clear: () => void;
   readonly keys: () => readonly string[];
+  /**
+   * One transaction of the editor, offered as what it changed rather than as
+   * the text it produced. An adapter that has somewhere to write it can record
+   * a few dozen bytes instead of rewriting six megabytes per keystroke; one
+   * that has not simply keeps the text, which is what the memory adapter below
+   * does by not having this at all.
+   */
+  readonly edit?: (
+    docId: string,
+    content: DocContent,
+    changes: readonly TextChange[],
+  ) => void;
 };
 
 function memoryAdapter(): DocRegistryAdapter {
@@ -37,8 +49,13 @@ let adapter: DocRegistryAdapter = memoryAdapter();
  * Replaces the store behind the registry, and gives back the one it replaced.
  * This is how the IndexedDB adapter is handed in; the previous one is returned
  * so that a caller which swapped it can put it back without rebuilding it.
+ *
+ * Called once, as the application starts. The name says "install" rather than
+ * "use" because it is neither a React hook nor called from a component, and a
+ * function beginning with "use" is read as one by people and by the linter
+ * alike.
  */
-export function useAdapter(next: DocRegistryAdapter): DocRegistryAdapter {
+export function installAdapter(next: DocRegistryAdapter): DocRegistryAdapter {
   const previous = adapter;
   adapter = next;
   return previous;
@@ -63,6 +80,27 @@ export function replaceText(docId: string, text: string): DocContent | undefined
   if (current === undefined) return undefined;
   const next: DocContent = { ...current, text };
   adapter.put(docId, next);
+  return next;
+}
+
+/**
+ * Applies one transaction of the editor.
+ *
+ * It is `replaceText` with the shape of the change carried alongside the
+ * result: the same new text, and the stretches that produced it. Both are
+ * needed, and by different readers - the screens read the text, and what is
+ * written down is the difference.
+ */
+export function applyEdit(
+  docId: string,
+  text: string,
+  changes: readonly TextChange[],
+): DocContent | undefined {
+  const current = adapter.get(docId);
+  if (current === undefined) return undefined;
+  const next: DocContent = { ...current, text };
+  if (adapter.edit === undefined || changes.length === 0) adapter.put(docId, next);
+  else adapter.edit(docId, next, changes);
   return next;
 }
 

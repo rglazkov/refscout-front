@@ -17,6 +17,8 @@ import {
 import { track } from "@/lib/telemetry";
 import { COMPRESS_ABOVE_BYTES, compressBody } from "@/workers";
 
+import { requestArrived, requestFailed } from "@/lib/offline";
+
 import { ApiError, NetworkError } from "./errors";
 import {
   fromSubmitJobRequest,
@@ -156,7 +158,11 @@ async function send(requested: Requested): Promise<Response> {
   const attempts = repeatable(requested) ? MAX_NETWORK_RETRIES : 0;
   for (let attempt = 0; attempt <= attempts; attempt += 1) {
     try {
-      return await fetch(`${ORIGIN}${requested.path}`, init);
+      const response = await fetch(`${ORIGIN}${requested.path}`, init);
+      // It arrived, whatever the server then said about it. That is the fact
+      // the offline banner is made of, and a refusal is not it.
+      requestArrived();
+      return response;
     } catch (cause) {
       // A cancelled request is not retried: otherwise cancelling stops being
       // cancelling. A request that ran out of time is not retried either - the
@@ -171,6 +177,9 @@ async function send(requested: Requested): Promise<Response> {
   // something, the other says the browser never reached it, and the two are
   // fixed in different places.
   track("network_error", { code: "NETWORK_FAILED" });
+  // The half of the connection flag that the browser cannot supply: a network
+  // it believes in but that our server is not at the end of.
+  requestFailed();
   throw new NetworkError(lastError);
 }
 

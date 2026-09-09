@@ -9,7 +9,7 @@ import {
   replaceText,
   setBibEntries,
   sourceFileOf,
-  useAdapter,
+  installAdapter,
   type DocRegistryAdapter,
 } from "@/lib/docs";
 import { asDocOffset, type DocContent } from "@/lib/domain";
@@ -120,14 +120,14 @@ describe("the adapter is the seam a different store is swapped in at", () => {
       keys: () => [...held.keys()],
     };
 
-    const memory = useAdapter(spy);
+    const memory = installAdapter(spy);
     docRegistry.put("a", content("alpha"));
     expect(docRegistry.get("a")?.text).toBe("alpha");
     forgetDocument("a");
     expect(calls).toEqual(["put:a", "get:a", "remove:a"]);
 
     // Put back, so the next test file finds the ordinary adapter.
-    useAdapter(memory);
+    installAdapter(memory);
   });
 });
 

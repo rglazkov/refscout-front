@@ -103,11 +103,43 @@ export function placeKey(
 export function setManualPlace(key: string, place: Place): void {
   manual.set(key, { ...place, status: "manual" });
   changed();
+  manualChanged();
+}
+
+/**
+ * Every place pointed at by hand, so that they can be written beside the text
+ * and found again. They are the person's own work - the answer to a finding the
+ * resolver could not place - and losing them on a reload would ask for that
+ * work twice.
+ */
+export function manualPlaces(): ReadonlyArray<readonly [string, Place]> {
+  return [...manual];
+}
+
+export function restoreManualPlaces(
+  places: ReadonlyArray<readonly [string, Place]>,
+): void {
+  manual.clear();
+  for (const [key, place] of places) manual.set(key, place);
+  changed();
+}
+
+/** Fires whenever a hand-placed highlight is added, moved or removed. */
+export function subscribeToManualPlaces(listener: () => void): () => void {
+  manualListeners.add(listener);
+  return () => void manualListeners.delete(listener);
+}
+
+const manualListeners = new Set<() => void>();
+
+function manualChanged(): void {
+  for (const listener of manualListeners) listener();
 }
 
 export function clearManualPlace(key: string): void {
   manual.delete(key);
   changed();
+  manualChanged();
 }
 
 /**
@@ -128,6 +160,7 @@ export function moveManualPlaces(docId: string, edits: readonly TextEdit[]): voi
     });
   }
   changed();
+  manualChanged();
 }
 
 /** How one module's answer landed, for the sentence a card shows about itself. */

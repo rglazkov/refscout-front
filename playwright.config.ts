@@ -18,6 +18,21 @@ export default defineConfig({
    * has genuinely stalled; a passing run is nowhere near it.
    */
   timeout: 90_000,
+  /*
+   * Two, rather than the default half of the machine's cores, and the number is
+   * not arbitrary: it is what the four-core runner this project builds on
+   * already gives, so a local run and a CI run now measure the same thing.
+   *
+   * It matters because of what a test here costs. Nearly every one drives a
+   * real parser in a real worker - megabytes of script fetched, evaluated and
+   * handed a document - and three browser projects doing that at once saturate
+   * an ordinary machine. What then fails is a navigation waiting for its load
+   * event, in whichever file happened to be running: a red suite that says
+   * nothing about the product and teaches whoever ran it that red means
+   * nothing. The processor was the bottleneck either way, so the whole run
+   * costs about a minute more.
+   */
+  workers: 2,
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
@@ -28,10 +43,18 @@ export default defineConfig({
    * what exists on the wide screen alone - the row of header links the narrow
    * header replaces with a menu button, and hover, which a touch screen does
    * not have; `e2e/mobile` is what the narrow screen has of its own, which is
-   * mostly width given back to the content.
+   * mostly width given back to the content. `e2e/firefox` is the one folder
+   * named after an engine rather than a width, and it holds what only that
+   * engine can be asked *through this driver*: Chromium driven over the
+   * debugging protocol never delivers a navigation to a service worker, so the
+   * page hangs and a reload with no network - the whole question an offline
+   * shell exists for - cannot be performed there. Chrome itself is fine, which
+   * was checked by hand outside any driver: three reloads under the worker and
+   * one more with the server killed all came back without touching the network.
    *
-   * A test for something a width does not have is not written for both and then
-   * excluded: it is put in the folder of the width that has it.
+   * A test for something a width or an engine does not have is not written for
+   * all of them and then excluded: it is put in the folder of the one that has
+   * it.
    */
   projects: [
     /*
@@ -43,7 +66,7 @@ export default defineConfig({
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /e2e[\\/]mobile[\\/]/,
+      testIgnore: /e2e[\\/](mobile|firefox)[\\/]/,
     },
     /*
      * The second engine, and it earns its place: the one defect this milestone
@@ -74,16 +97,23 @@ export default defineConfig({
        * measures keeps its height, whether the focus survives inside a region
        * marked as not editable, and whether the buttons in there are reachable
        * at all - and Firefox is the engine with a history of answering the last
-       * two differently. What the rest of the suite asks - contrast, wording,
-       * the shape of the flow - does not turn on the engine, and running it
-       * twice would buy re-tuned assertions rather than confidence.
+       * two differently. And the sixth is the tab opened with no network, which
+       * only this engine can be asked here: Chromium driven over the debugging
+       * protocol never delivers a navigation to a service worker, so the reload
+       * that is the whole point of an offline shell hangs rather than failing.
+       * That is the driver and not the browser - real Chrome serves those
+       * navigations out of the cache - but a test cannot be written against a
+       * hang, so the reload is asked of the engine that answers it. What the rest of the suite asks - contrast,
+       * wording, the shape of the flow - does not turn on the engine, and
+       * running it twice would buy re-tuned assertions rather than confidence.
        */
-      testMatch: /(worker-start|diff-alignment|report|preview|inline-card)\.spec\.ts/,
+      testMatch:
+        /(e2e[\\/]firefox[\\/]|(worker-start|diff-alignment|report|preview|inline-card)\.spec\.ts)/,
     },
     {
       name: "mobile",
       use: { ...devices["Pixel 7"] },
-      testIgnore: /e2e[\\/]desktop[\\/]/,
+      testIgnore: /e2e[\\/](desktop|firefox)[\\/]/,
     },
   ],
   webServer: {

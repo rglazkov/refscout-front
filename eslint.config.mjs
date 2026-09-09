@@ -39,7 +39,22 @@ a11yRules["jsx-a11y/label-has-associated-control"] = [
 // Inside the application the network lives only here. Build and CI scripts are
 // not the application: the header smoke test has to make real requests, which
 // is the whole point of a smoke test.
-const NETWORK_ALLOWED = ["src/lib/api/**", "src/lib/telemetry/**", "scripts/**"];
+/*
+ * Where the network is allowed to be reached directly. The service worker is on
+ * the list for a reason of its own: it is not part of the application at all,
+ * it never sees a document, and answering a request for a file of our own is
+ * the whole of what a service worker does.
+ */
+const NETWORK_ALLOWED = [
+  "src/lib/api/**",
+  "src/lib/telemetry/**",
+  "src/sw/**",
+  "scripts/**",
+  // A browser test asking whether an address is answered is not the product
+  // reaching the network - it is the instrument the rule is checked with. What
+  // the rule protects is the shipped source, and none of this is shipped.
+  "e2e/**",
+];
 
 export default tseslint.config(
   {

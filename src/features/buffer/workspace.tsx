@@ -24,6 +24,9 @@ import {
   startApiSource,
 } from "@/lib/api";
 import { forgetPlaces } from "@/lib/anchor";
+import { useRestoredSession } from "@/lib/boot";
+import { useOnline } from "@/lib/offline";
+import { useTabRole } from "@/lib/tabs";
 import { type ModuleId } from "@/lib/domain";
 import { SessionNotice } from "@/features/auth/session-notice";
 import { ReportProblemButton } from "@/features/feedback/report-problem";
@@ -49,6 +52,8 @@ import {
 } from "@/stores";
 
 import { BufferList } from "./buffer-list";
+import { OtherTabCurtain } from "./other-tab";
+import { StorageNotice } from "./storage-notice";
 
 /*
  * The two modes of the working screen, fetched when one is entered. Neither is
@@ -93,11 +98,23 @@ export default function Workspace() {
       }),
   );
 
-  // The data source is started before the screen is drawn. A request that left
-  // before the mock was intercepting would go to the real address.
+  /*
+   * The data source is started before the screen is drawn: a request that left
+   * before the mock was intercepting would go to the real address.
+   *
+   * A source that will not start does not hold the screen back, and that is
+   * what makes the difference visible offline. Against the real server this
+   * call does nothing at all; against the mock it registers a worker, which
+   * needs the network - so a tab opened with no signal would otherwise sit at a
+   * blank screen with somebody's manuscript in the storage behind it. The
+   * screen appears either way, and what actually needs a server says so where
+   * it is pressed.
+   */
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
-    void startApiSource().then(() => setReady(true));
+    void startApiSource()
+      .catch(() => undefined)
+      .then(() => setReady(true));
   }, []);
 
   if (!ready) return null;
@@ -113,6 +130,7 @@ export default function Workspace() {
 
 function WorkspaceBody() {
   const t = useTranslations("workspace");
+  const offline = useTranslations("workspace.offline");
   const locale = useLocale();
   const items = useBufferStore((state) => state.items);
   // The screen is empty or not by the documents in it. What hangs off a
@@ -127,7 +145,15 @@ function WorkspaceBody() {
   const intake = useIntake();
   const { addFiles } = intake;
   const run = useRun(locale);
-  const { job, error: jobError } = useJob(handle);
+  const { job, error: jobError, gone } = useJob(handle);
+  /*
+   * The previous session, read back before anything is drawn. Showing an empty
+   * buffer first and filling it a moment later would tell somebody their
+   * documents were gone and then take it back.
+   */
+  const restored = useRestoredSession();
+  const role = useTabRole();
+  const connected = useOnline();
   const [pasting, setPasting] = React.useState(false);
   const setPasteText = useIntakeDraftStore((state) => state.setText);
   const queries = useQueryClient();
@@ -216,6 +242,13 @@ function WorkspaceBody() {
     forgetPlaces();
     closeOverlay();
   };
+
+  if (!restored) return null;
+
+  // The tab that does not hold the right to write shows the curtain in place of
+  // the working area, and nothing else: an editor that takes keystrokes it
+  // cannot record is the one way an applied edit disappears without a word.
+  if (role !== "writer") return <OtherTabCurtain />;
 
   return (
     <IntakeProvider value={intake}>
@@ -307,17 +340,6 @@ function WorkspaceBody() {
                   onRun={(sending, buffer) => run.run(sending, buffer)}
                 />
               </ZoneBoundary>
-
-              {/* Said plainly, because it is true today: the buffer lives as
-                  long as the tab does. Storage that survives a reload is not
-                  built yet, and until it exists the honest sentence is the
-                  feature. */}
-              <p
-                className="mt-3 text-xs text-muted-foreground"
-                data-testid="volatile-notice"
-              >
-                {t("reloadLoses")}
-              </p>
             </Collapse>
           </>
         ) : null}
@@ -327,6 +349,37 @@ function WorkspaceBody() {
             moment is a check somebody is waiting for, and the findings that
             have already arrived stay readable and exportable. */}
         <SessionNotice error={jobError} />
+
+        {/* Said only when it is true: the browser is not keeping anything, or a
+            change of schema could not carry the saved documents across. */}
+        <StorageNotice />
+
+        {/* One flag behind this and behind the run button alike, so the screen
+            cannot end up saying "no connection" beside an eager "Run the
+            check". What is named is what stops: everything else here was
+            already being done in the browser. */}
+        {connected ? null : (
+          <p
+            role="status"
+            data-testid="offline-banner"
+            className="mt-4 rounded-xl border border-warning-border bg-warning-soft p-3.5 text-sm"
+          >
+            {offline("banner")}
+          </p>
+        )}
+
+        {/* A job the server no longer has. It is the ordinary end of one - they
+            do not live for ever - so the findings that arrived stay on screen
+            and stay exportable, and the sentence offers the run again. */}
+        {gone ? (
+          <p
+            role="status"
+            data-testid="job-gone"
+            className="mt-4 rounded-xl border border-warning-border bg-warning-soft p-3.5 text-sm"
+          >
+            {t("jobGone")}
+          </p>
+        ) : null}
 
         {mode === "buffer" && job === null && handle !== null ? (
           <p className="mt-6 text-sm text-muted-foreground">{t("starting")}</p>

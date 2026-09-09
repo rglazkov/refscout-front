@@ -2,6 +2,7 @@ import ReactDOM from "react-dom";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 
+import { OfflineMount } from "@/components/shell/offline-mount";
 import { SiteFooter } from "@/components/shell/site-footer";
 import { SiteHeader } from "@/components/shell/site-header";
 import { MAIN_ID, SkipLink } from "@/components/shell/skip-link";
@@ -80,6 +81,11 @@ export async function SiteDocument({ locale, children }: SiteDocumentProps) {
               <main id={MAIN_ID} tabIndex={-1} className="flex-1 outline-none">
                 {children}
               </main>
+              {/* A build that has finished installing and is waiting for this
+                  tab to let go. It is never applied on its own: the code
+                  changes together with the schema of the storage, and the tab
+                  is holding an open document. */}
+              <OfflineMount />
               <SiteFooter locale={locale} />
             </div>
           </TooltipProvider>

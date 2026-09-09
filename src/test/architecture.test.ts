@@ -131,6 +131,12 @@ describe("layer boundaries", () => {
         (file) =>
           !file.path.startsWith("src/lib/api/") &&
           !file.path.startsWith("src/lib/telemetry/") &&
+          // The service worker is not part of the application: it never sees a
+          // document, it is never imported by anything that does, and serving a
+          // request for a file of our own is the whole of what it exists for.
+          // It is exactly the file that must not be reachable from the screens,
+          // which the module graph above already holds it to.
+          !file.path.startsWith("src/sw/") &&
           !file.path.startsWith("src/test/") &&
           network.test(file.text),
       )

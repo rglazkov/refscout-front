@@ -22,7 +22,7 @@
  * replaced it is. `from` and `to` are positions in the text as it was sent;
  * `length` is measured in the text as it stands now.
  */
-type Replacement = {
+export type Replacement = {
   readonly from: number;
   readonly to: number;
   readonly length: number;
@@ -36,6 +36,19 @@ export type TextEdit = {
 };
 
 const pending = new Map<string, Replacement[]>();
+
+/**
+ * Told whenever what has been typed into a document changes, so that it can be
+ * written beside the document. A hook and not an import: nothing here knows
+ * where anything is kept.
+ */
+let observer: (docId: string, regions: readonly Replacement[]) => void = () => {};
+
+export function observeEdits(
+  next: (docId: string, regions: readonly Replacement[]) => void,
+): void {
+  observer = next;
+}
 
 /**
  * Records what an edit did.
@@ -62,6 +75,7 @@ export function recordEdits(docId: string, edits: readonly TextEdit[]): void {
     regions = compose(regions, edit);
   }
   pending.set(docId, regions);
+  observer(docId, regions);
 }
 
 /**
@@ -195,6 +209,22 @@ export function movedBy(
   return offset + delta;
 }
 
+/**
+ * What has been accumulated for one document, so that it can be written down
+ * and put back. The numbers are the whole of it - there is no text here - which
+ * is why they can be kept beside a manuscript without being a second copy of
+ * one.
+ */
+export function editsOf(docId: string): readonly Replacement[] {
+  return pending.get(docId) ?? [];
+}
+
+/** Puts back what a previous session accumulated, without recomputing it. */
+export function restoreEdits(docId: string, regions: readonly Replacement[]): void {
+  if (regions.length === 0) pending.delete(docId);
+  else pending.set(docId, [...regions]);
+}
+
 /** Whether this document has been touched at all since it was sent. */
 export function hasEdits(docId: string): boolean {
   return (pending.get(docId)?.length ?? 0) > 0;
@@ -206,6 +236,7 @@ export function hasEdits(docId: string): boolean {
  */
 export function forgetEdits(docId: string): void {
   pending.delete(docId);
+  observer(docId, []);
 }
 
 export function clearEdits(): void {

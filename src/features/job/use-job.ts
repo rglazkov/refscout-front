@@ -19,6 +19,8 @@ import {
   resultKey,
 } from "@/lib/domain";
 import { resolveBody } from "@/lib/anchor";
+import { restoredBodies } from "@/lib/boot";
+import { writeBody } from "@/lib/storage";
 import { reportAnchoring, verifyCounts, verifyWording } from "@/lib/normalize";
 import { type JobHandle } from "@/stores";
 
@@ -61,10 +63,33 @@ function terminalRefs(status: JobStatus | undefined): readonly Terminal[] {
  */
 const NOT_READY_RETRIES = 3;
 
+/**
+ * The body this document and module already had when the tab started, offered
+ * to the query as data it need not fetch. It counts only when the address
+ * matches: a retry mints a new one, and its findings are not the findings the
+ * previous attempt produced.
+ */
+function initialBody(entry: Terminal): { readonly initialData?: ModuleResult } {
+  const kept = restoredBodies().find(
+    (body) =>
+      body.docId === entry.docId &&
+      body.module === entry.module &&
+      body.ref === entry.ref,
+  );
+  return kept === undefined ? {} : { initialData: kept.body };
+}
+
+/** Whether an answer to the poll says this job no longer exists on the server. */
+export function jobIsGone(error: unknown): boolean {
+  return error instanceof ApiError && error.failure.code === "JOB_NOT_FOUND";
+}
+
 export function useJob(handle: JobHandle | null): {
   readonly job: Job | null;
   readonly pending: boolean;
   readonly error: unknown;
+  /** The job has ended on the server; what is on screen is all there will be. */
+  readonly gone: boolean;
 } {
   const queryClient = useQueryClient();
 
@@ -72,7 +97,16 @@ export function useJob(handle: JobHandle | null): {
     queryKey: ["job", handle?.jobId],
     enabled: handle !== null,
     queryFn: () => getJob(handle?.jobId ?? "", handle?.jobToken ?? ""),
+    /*
+     * A job on the server is not for ever, and the answer that says so is not a
+     * failure of anything. `404` is read as the end of this job: the asking
+     * stops, everything already saved stays where it is, and the screen offers
+     * to run the check again. It stays a working screen because the documents,
+     * the ticks and the bodies already fetched live in storage and do not
+     * belong to the job.
+     */
     refetchInterval: (query) => {
+      if (jobIsGone(query.state.error)) return false;
       const state = query.state.data?.state;
       if (state === undefined || isTerminal(state)) return false;
       /*
@@ -112,9 +146,14 @@ export function useJob(handle: JobHandle | null): {
    * body instead of drawing the old one.
    */
   const fetchBody = React.useCallback(
-    async (ref: string, token: string) => {
+    async (docId: string, module: ModuleId, ref: string, token: string) => {
       try {
-        return await getModuleResult(ref, token);
+        const body = await getModuleResult(ref, token);
+        // Kept as it arrives, under the address it came from. A dissertation's
+        // findings are tens of megabytes, and a reload that fetched them all
+        // again would spend somebody's connection on bytes already in hand.
+        void writeBody({ docId, module, ref, body });
+        return body;
       } catch (error) {
         if (error instanceof ApiError) {
           const { code } = error.failure;
@@ -132,7 +171,16 @@ export function useJob(handle: JobHandle | null): {
   const bodies = useQueries({
     queries: refs.map((entry) => ({
       queryKey: ["job-result", handle?.jobId, entry.docId, entry.module, entry.ref],
-      queryFn: () => fetchBody(entry.ref, handle?.jobToken ?? ""),
+      queryFn: () =>
+        fetchBody(entry.docId, entry.module, entry.ref, handle?.jobToken ?? ""),
+      /*
+       * The body kept from the previous session, if this is the same attempt.
+       * Where there is none - the quota refused the write, or a retry has
+       * minted a new address - the query fetches it: the same address gives
+       * back the same bytes, so a body that did not survive being written is
+       * asked for again rather than mourned.
+       */
+      ...initialBody(entry),
       // Only the one case where waiting is the answer. Everything else is a
       // refusal the screen has to show rather than sit on.
       retry: (failures: number, error: unknown) =>
@@ -226,5 +274,12 @@ export function useJob(handle: JobHandle | null): {
     }
   }, [job]);
 
-  return { job, pending: status.isPending, error: status.error };
+  return {
+    job,
+    pending: status.isPending,
+    // The end of a job is not an error of the screen, so it is not passed on as
+    // one: it has a sentence of its own beside the findings that did arrive.
+    error: jobIsGone(status.error) ? null : status.error,
+    gone: jobIsGone(status.error),
+  };
 }

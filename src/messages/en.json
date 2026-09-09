@@ -44,7 +44,32 @@
   "workspace": {
     "title": "Check your manuscript before you submit",
     "lead": "Drop a PDF, .docx, .tex or .md. {brandName} reads the text, checks every reference against live scholarly databases and shows you what a reviewer will notice first. Your bibliography, your glossary file and the venue's requirements go on the document's own card.",
-    "reloadLoses": "Reloading this page loses the buffer: the extracted text lives in this tab only. Download anything you want to keep before you leave.",
+    "storage": {
+      "absentTitle": "This browser is not storing anything",
+      "absentBody": "Your documents live in this tab only, so a reload loses them. A private window, or a browser with storage turned off, does this. Finish the check without reloading and download the result.",
+      "quotaTitle": "There is no room left to save",
+      "quotaBody": "The browser refused to store anything more, so what is on screen lives in this tab only and a reload loses it. Nothing has been taken away — download the result before you leave.",
+      "discardedTitle": "Saved documents could not be carried over",
+      "discardedBody": "This version stores documents differently, and what was saved before could not be brought across. Anything you bring in now is saved as usual.",
+      "deleteTitle": "Delete saved documents",
+      "deleteBody": "{count, plural, =0 {Nothing is saved in this browser right now. Deleting anyway is harmless and removes the unsent error reports.} one {One document is saved in this browser, with its findings and your marks. The extracted text is the only copy there is — download it first if you want to keep it.} other {# documents are saved in this browser, with their findings and your marks. The extracted text is the only copy there is — download them first if you want to keep them.}}",
+      "deleteConfirm": "Delete everything",
+      "deleteCancel": "Keep them",
+      "deleteHint": "Removes the manuscripts, findings and marks this browser is holding. It does not touch your account."
+    },
+    "tabs": {
+      "title": "{brandName} is open in another tab",
+      "body": "Only one tab may work with your documents, so that two of them cannot overwrite each other. Your buffer is safe in the other tab.",
+      "refusedBody": "Another tab has taken over the work, and the last thing you typed here was not saved. Open the other tab to see your document, or bring the work back here.",
+      "here": "Work here"
+    },
+    "offline": {
+      "banner": "No connection. Your documents, the editor and the comparison all work as usual — running a check and searching for sources need the network.",
+      "runNeedsNetwork": "Running a check needs the network. Your documents are safe here; press it again once you are back online.",
+      "updateReady": "A newer version is ready.",
+      "updateApply": "Use it now"
+    },
+    "jobGone": "This check has ended on the server. Everything already found is still here — run the check again when you are ready.",
     "starting": "Starting the check…",
     "failedTitle": "The check did not run",
     "failedBody": "Job {jobId} failed. Your documents are untouched — go back and try again.",

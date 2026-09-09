@@ -51,11 +51,54 @@ visible: a document that would not read keeps its card, says why in numbers and
 offers a way out that can be taken there - a password, another attempt, another
 file, or the text typed in by hand.
 
-One thing it does not do yet, and it is scheduled work rather than a gap. The
-buffer lives as long as the tab does: the extracted text is held in memory,
-storage that survives a reload is not built yet, and until it exists the screen
-says so in as many words - which is also why a step that leaves the site asks
-first.
+**Nothing brought or written is lost between sessions.** The buffer, the
+corrections, the ticks, the plan, the draft of a paste, a running job and the
+findings already received live in IndexedDB and come back on the next start -
+and it makes no difference whether that start was a reload, a tab the browser
+restored, the way back from signing in or the way back from the payment
+provider. Each transaction of the editor is written as it is made, as a few
+dozen bytes of what changed rather than as a rewrite of six megabytes on a
+timer, so the window in which an applied edit lives only in the tab is the
+latency of the commit and is widened by nothing - not by a queue either, since
+a slice that is written whole replaces its own queued write instead of lining
+up behind it, which is what keeps that window one commit long rather than
+twenty; the whole text is written down
+again when the journal has grown enough to be worth replacing. Undo therefore
+survives a reload too, which falls out of writing the changes rather than the
+string. There is no `beforeunload` anywhere, because there is no unsaved state
+to warn about. One tab holds the right to write, on a lock the browser releases
+when a tab closes or dies, and the others show a curtain with one press that
+brings the work over. Where the browser gives no storage at all - a private
+window, an exhausted quota - the application works entirely in the tab and says
+so, because the alternative is somebody finding out afterwards. Nothing anywhere
+promises that the documents will be waiting: a browser evicts storage when it is
+short of room, and what is ours to say is that we remove what has not been
+touched for thirty days and that _Delete saved documents_ removes everything now.
+
+**The application opens without a network.** The shell is precached by a service
+worker built from the finished output, so a tab opened on a train shows the
+manuscript rather than a blank page - which is the point, since the only copy of
+it is in this browser and the only way to reach it is through this application.
+Requests to the API are not intercepted at all: a cached analysis of an
+unpublished manuscript would be a second copy living outside the storage that
+_Delete saved documents_ empties, and a stale result served as a fresh one is
+the kind of failure that looks like success. The parsers are cached as they are
+used rather than precached, so a first visit does not pay for pdf.js: a document
+already read is read, corrected and downloaded offline always, and a new file is
+parsed offline only by a parser this browser has already fetched. A new build
+never replaces the code under an open document - it waits, and says it is
+waiting.
+
+The shell and the mock cannot both be installed, and that is a fact about the
+development build rather than a compromise. A scope belongs to one service
+worker, and against the contract's own bodies that worker is the mock's; so the
+shell is registered only where the mock is absent, which is every build that
+talks to a real server. The browser test that reloads with no network therefore
+brings its document in first and takes the scope afterwards - and it runs in one
+engine, because Chromium driven over the debugging protocol never hands a
+navigation to a service worker and simply hangs. That is the driver rather than
+the browser: Chrome launched by hand serves those navigations out of the cache,
+with the server switched off and nothing crossing the network.
 
 **Two of the checks are paid, and the boundary is drawn once.** PreSubmit and
 Cite are locked where the checks are ticked rather than after a form has been
@@ -236,8 +279,15 @@ re-export; both are needed.
 - Intake and extraction (`features/intake`) know nothing about the buffer.
 - The texts of documents live in one module, `src/lib/docs/registry.ts`, outside
   React and outside any store. Five places may reach it: intake, which fills it;
-  the editor, which changes it; storage, which will persist it; the API, at the
-  moment of sending; and `lib/export`, which assembles the file handed back.
+  the editor, which changes it; storage, which keeps it; the API, at the moment
+  of sending; and `lib/export`, which assembles the file handed back.
+- The contents of documents may live in IndexedDB and nowhere else - not in a
+  Zustand persist store, not in `localStorage`, not in the queue of unsent error
+  reports and not in the cache of the offline shell, which is why that cache
+  never sees a request bound for the API at all. The store where they are
+  allowed is exactly one, `src/lib/storage`, and the queue of reports keeps a
+  database of its own written by `src/lib/telemetry`. Both halves of that rule
+  are held by a test over the source rather than by care at each write.
 - The contents of `features/` are mounted only through `next/dynamic` with
   `ssr: false`. The static text of a page lives in `components/marketing/`,
   otherwise it never reaches the HTML.
@@ -290,7 +340,8 @@ re-export; both are needed.
   becomes wrong without anything here noticing. Where a reference was carrying
   the explanation, the replacement is to say the thing itself. A test greps for
   them.
-- One module writes to `localStorage`: `src/lib/theme`.
+- One module writes to `localStorage`: `src/lib/theme`, plus the switch for
+  automatic reports in `src/lib/telemetry`. Nothing of a document goes there.
 - `crypto.randomUUID` and `crypto.subtle` are reached through
   `src/lib/webcrypto.ts` and nowhere else. Both exist only in a secure context -
   https and localhost - so a build opened over plain http from another machine,
