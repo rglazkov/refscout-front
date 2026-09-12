@@ -1,10 +1,17 @@
 import { placesOfIssue } from "@/lib/anchor";
-import { docRegistry, hasEdits } from "@/lib/docs";
+import { docRegistry, downloadName, hasEdits } from "@/lib/docs";
 import { type Job, moduleIds, resultKey } from "@/lib/domain";
 import { anchoringOf, documentCounts, issuesOf } from "@/lib/normalize";
+import { writeReportPdf } from "@/workers";
 
-import { downloadText } from "./download";
-import { buildIssueReport, type ReportInput, type ReportLabels } from "./report";
+import { download, mediaTypeFor } from "./download";
+import { type PdfWording } from "./pdf/files";
+import {
+  buildIssueReport,
+  type ReportDoc,
+  type ReportInput,
+  type ReportLabels,
+} from "./report";
 
 /**
  * The report over a whole job. It lives here rather than on the screen because
@@ -21,7 +28,7 @@ export function buildJobReport(input: {
   readonly generatedAt: string;
   readonly phrase: ReportInput["phrase"];
   readonly labels: ReportLabels;
-}): string {
+}): ReportDoc {
   return buildIssueReport({
     title: input.title,
     generatedAt: input.generatedAt,
@@ -65,8 +72,27 @@ export function buildJobReport(input: {
   });
 }
 
-export function downloadJobReport(
-  input: Parameters<typeof buildJobReport>[0] & { readonly fileName: string },
-): void {
-  downloadText(buildJobReport(input), input.fileName, "", "md");
+/**
+ * The report, written into a PDF and handed to the browser as a download.
+ *
+ * The writing happens in a worker: the writer and the four faces it embeds are
+ * most of a megabyte, and a job over a thesis carries thousands of findings to
+ * measure and draw. What comes back is the finished file, and it is put in
+ * front of the person the same way every other file in this product is - a
+ * Blob and a link - so there is no address anywhere from which the contents of
+ * somebody's manuscript could be fetched again.
+ */
+export async function downloadJobReport(
+  input: Parameters<typeof buildJobReport>[0] & {
+    readonly fileName: string;
+    readonly wording: PdfWording;
+    readonly producer: string;
+  },
+): Promise<void> {
+  const bytes = await writeReportPdf({
+    doc: buildJobReport(input),
+    wording: input.wording,
+    producer: input.producer,
+  });
+  download(bytes, downloadName(input.fileName, "", "pdf"), mediaTypeFor("pdf"));
 }

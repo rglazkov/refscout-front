@@ -6,6 +6,11 @@ arrive inside it through `import()`, with the document that needs them.
 `gzip.worker.ts` compresses the one request that carries text, and
 `diff.worker.ts` compares two versions, which is one pass over both of them in
 full and so belongs nowhere near the thread the panes are drawn on.
+`report.worker.ts` writes the findings report into a PDF: it carries the writer
+and the four faces that go inside the file, which is most of what it weighs, and
+a job over a thesis gives it thousands of findings to measure, wrap and draw.
+The faces are built into it as bytes rather than fetched, because nothing that
+sees a manuscript may reach the network.
 
 **Three calls, one worker.** Which of the three a message asks for travels in
 the envelope, so reading a Word file and writing one back share a script and a

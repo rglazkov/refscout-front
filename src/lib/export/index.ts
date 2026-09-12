@@ -10,6 +10,7 @@ export {
 export { buildJobReport, downloadJobReport } from "./job-report";
 export {
   buildIssueReport,
+  type ReportDoc,
   type ReportInput,
   type ReportIssue,
   type ReportLabels,

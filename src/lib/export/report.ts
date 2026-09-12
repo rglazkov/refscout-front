@@ -10,24 +10,41 @@ import {
 } from "@/lib/domain";
 
 /**
- * The findings report in Markdown. In this first section it is the main thing
- * the product produces: a person takes it into their own editor and fixes the
- * manuscript there.
+ * The findings report, as a structure rather than as a file.
  *
- * The assembler is our own rather than a Markdown library's: what is needed is
- * a handful of headings and lists. The text inside them is someone else's - a
- * sentence out of a manuscript, a name off somebody's disk - so every character
- * that would mark it up is escaped on the way in, and what the reader opens is
- * their own words rather than our syntax made out of them.
+ * In this first section the report is the main thing the product produces: a
+ * person takes it away and works through their manuscript from it. What they
+ * get is a PDF, and this module stops one step short of that - it turns a
+ * finished job into the report's own shape, with every piece of wording already
+ * chosen, and lib/export/pdf sets that shape on paper.
+ *
+ * The split is worth the extra type. Laying out a page is arithmetic about
+ * widths and page breaks, and deciding what a report says is neither; keeping
+ * them apart is what lets the second be read and tested without a font in
+ * sight. It is also why nothing here is a function: this structure is posted to
+ * a worker, and only data crosses that boundary.
+ *
+ * The text inside it is someone else's - a sentence out of a manuscript, a name
+ * off somebody's disk - and it is carried through verbatim. Nothing here is
+ * escaped, and that is not an omission: a PDF has no markup for a character to
+ * be mistaken for, so the asterisks, underscores and brackets a manuscript is
+ * full of are drawn as the characters they are. Several of the checks are about
+ * exactly those characters, which is why it matters that the reader sees them.
  */
 export type ReportInput = {
   readonly title: string;
   readonly generatedAt: string;
   readonly documents: readonly ReportDocument[];
-  /** The dictionary, passed in: lib/export has no business holding wording. */
+  /**
+   * The dictionary, passed in: lib/export has no business holding wording. The
+   * third argument is what to say when this release has no wording for the key,
+   * which is an ordinary thing to receive - the server gains a check before the
+   * client that draws it is deployed.
+   */
   readonly phrase: (
     key: string,
     params?: Readonly<Record<string, string | number>>,
+    fallback?: string,
   ) => string;
   readonly labels: ReportLabels;
 };
@@ -79,7 +96,6 @@ export type ReportLabels = {
   readonly module: (module: string) => string;
   readonly line: string;
   readonly page: string;
-  readonly quote: string;
   readonly fixed: string;
   readonly ignored: string;
   /** Introduces the replacement a module proposed for a place. */
@@ -92,159 +108,265 @@ export type ReportLabels = {
   readonly edited: string;
   /** Says that the place would not resolve at all. */
   readonly lost: string;
-  readonly counts: (counts: Counts) => string;
   readonly nothing: string;
+  /** Names a digital object identifier, which arrives without a label of its own. */
+  readonly doi: string;
 };
 
 /**
- * What a module offers to put in place of what is there. It is written into the
- * report because the report is what a person works from: they are in their own
- * editor with the manuscript open, and the replacement beside the finding is
- * the difference between reading about a problem and fixing it.
+ * The whole report, worded and ordered, with nothing left to decide but where
+ * on the page each piece goes.
+ */
+export type ReportDoc = {
+  readonly title: string;
+  readonly generatedAt: string;
+  readonly documents: readonly ReportSection[];
+};
+
+export type ReportSection = {
+  readonly name: string;
+  /** Drawn as counted dots rather than as a sentence, so it is read at a glance. */
+  readonly counts: Counts;
+  /** Said once under the name of the document, before any number in it. */
+  readonly notes: readonly string[];
+  /** Stands instead of the checks when this document came back clean. */
+  readonly nothing: string | null;
+  readonly checks: readonly ReportCheck[];
+};
+
+export type ReportCheck = {
+  readonly name: string;
+  /** Why this check's findings carry no line and page numbers, where they do not. */
+  readonly note: string | null;
+  readonly findings: readonly ReportFinding[];
+};
+
+export type ReportFinding = {
+  readonly severity: Severity;
+  readonly severityLabel: string;
+  readonly title: string;
+  /** What the person did with it - marked it fixed, or turned it down. */
+  readonly mark: string | null;
+  readonly places: readonly ReportPlace[];
+  readonly detail: string | null;
+  /**
+   * The typed facts the module answered with. They are on the card the person
+   * opened on the screen, and the report carries them for the same reason the
+   * card does: a finding read without them is a title and a line number.
+   */
+  readonly facts: readonly ReportFact[];
+  readonly replacement: { readonly label: string; readonly text: string } | null;
+};
+
+/**
+ * One fact under a finding: a DOI, an address, a date, a count, a named source.
+ * The label is a word and the value is a thing to be compared or copied, so
+ * they are kept apart - the value is set in the mono face and the label is not.
+ * A fact whose label this release has no wording for keeps its value and loses
+ * the word in front of it, because the value is the part worth reading.
+ */
+export type ReportFact = { readonly label: string | null; readonly value: string };
+
+export type ReportPlace = {
+  readonly where: readonly ReportWhere[];
+  /** A fragment of the manuscript the module was reading at this place. */
+  readonly quote: string | null;
+  /**
+   * The entry of a bibliography this place names, where that is what it has
+   * instead of a fragment. It is kept apart from the quotation because the two
+   * are different things and are set differently: a sentence out of somebody's
+   * manuscript is prose, and a key is an identifier.
+   */
+  readonly bibkey: string | null;
+};
+
+/**
+ * A piece of "where this is". The number is kept apart from the word in front
+ * of it because the two are set in different faces: a quantity belongs in the
+ * mono face wherever it appears in this product. A part with no number is a
+ * statement rather than a coordinate - that the fragment has been edited since,
+ * or that the place would not resolve at all.
+ */
+export type ReportWhere = { readonly label: string; readonly value: string | null };
+
+/**
+ * What a module offers to put in place of what is there. It is carried into the
+ * report because the report is what a person works from: they are at their
+ * manuscript with the findings beside them, and the replacement under the
+ * finding is the difference between reading about a problem and fixing it.
  */
 function replacementOf(issue: Issue): string | null {
   const action = issue.actions.find((candidate) => candidate.kind === "replace");
   return action === undefined ? null : action.value;
 }
 
-function quoteOf(place: Place): string | null {
-  return place.quote ?? place.bibkey ?? null;
+function some(text: string | undefined): string | null {
+  return text === undefined || text === "" ? null : text;
 }
 
 /**
- * Somebody else's text, made safe to put in a Markdown file.
- *
- * The report is Markdown, and Markdown is interpreted by whatever opens it. A
- * sentence out of a manuscript is full of the characters that mark it up -
- * underscores in an identifier, asterisks around a footnote marker, a hash at
- * the start of a heading being quoted, the brackets and parentheses of a
- * citation - and left as they are, the reader is shown emphasis, headings and
- * links that are not in their document. Worse, the characters themselves
- * disappear, and several of the checks are about exactly those characters.
- *
- * So every character Markdown gives a meaning to is escaped. What the reader
- * sees is then the manuscript's own text, character for character.
+ * The module's typed facts, worded. Every kind the contract defines is drawn
+ * from the same two fields, which is what lets a new module arrive with nothing
+ * but entries in the dictionary; a kind this release does not know is passed
+ * over and the rest of the finding is kept.
  */
-function asMarkdown(text: string): string {
-  const inline = text.replace(/[\\`*_[\]<>~|]/g, (character) => `\\${character}`);
-  /*
-   * The rest only mark up a block, and only where a line begins - which is
-   * where every piece of somebody else's text in this file is put. A hyphen at
-   * the head of a quoted line would otherwise open a list, and a number
-   * followed by a full stop would open a numbered one starting at that number.
-   */
-  return inline
-    .replace(/^(\s*)([#>+-])/, "$1\\$2")
-    .replace(/^(\s*)(\d+)([.)])/, "$1$2\\$3");
+function factsOf(input: ReportInput, issue: Issue): readonly ReportFact[] {
+  const word = (key: string): string | null => {
+    const label = input.phrase(key, undefined, "");
+    return label === "" ? null : label;
+  };
+
+  return issue.evidence.flatMap((fact): readonly ReportFact[] => {
+    switch (fact.kind) {
+      case "doi":
+        return [{ label: input.labels.doi, value: fact.value }];
+      case "url":
+        return [{ label: null, value: fact.value }];
+      case "date":
+      case "text":
+        return [{ label: word(fact.labelKey), value: fact.value }];
+      case "number":
+        return [{ label: word(fact.labelKey), value: String(fact.value) }];
+      case "source":
+        return [{ label: word(fact.labelKey), value: fact.title }];
+      default:
+        return [];
+    }
+  });
 }
 
 /**
- * A quote goes into the report as a blockquote, one line, whatever it
- * contained: a line break inside one would end the quote and continue as
- * ordinary prose.
+ * A quote is drawn as one run of prose however many lines it held: the line
+ * breaks inside a fragment belong to the manuscript's own wrapping, and
+ * carrying them into a narrower column here would break it twice.
  */
 function asQuote(text: string): string {
-  return `> ${asMarkdown(text.replace(/\r?\n/g, " ").trim())}`;
+  return text.replace(/\r?\n/g, " ").trim();
 }
 
-export function buildIssueReport(input: ReportInput): string {
-  const lines: string[] = [`# ${input.title}`, "", input.generatedAt, ""];
+export function buildIssueReport(input: ReportInput): ReportDoc {
+  return {
+    title: input.title,
+    generatedAt: input.generatedAt,
+    documents: input.documents.map((document) => section(input, document)),
+  };
+}
 
-  for (const document of input.documents) {
-    lines.push(
-      `## ${asMarkdown(document.name)}`,
-      "",
-      input.labels.counts(document.counts),
-      "",
-    );
+function section(input: ReportInput, document: ReportDocument): ReportSection {
+  /*
+   * Said once, at the top of the document it is about. Somebody who corrected
+   * their manuscript and then took the report away has a file in one hand and a
+   * set of line numbers in the other, and the two describe different moments;
+   * that is worth a sentence, and it is worth it before the numbers rather than
+   * after them.
+   */
+  const notes = document.editedAfterRun === true ? [input.labels.editedAfterRun] : [];
 
-    /*
-     * Said once, at the top of the document it is about. Somebody who corrected
-     * their manuscript and then took the report away has a file in one hand and
-     * a set of line numbers in the other, and the two describe different
-     * moments; that is worth a sentence, and it is worth it before the numbers
-     * rather than after them.
-     */
-    if (document.editedAfterRun === true) {
-      lines.push(`_${input.labels.editedAfterRun}_`, "");
-    }
-
-    if (document.issues.length === 0) {
-      lines.push(input.labels.nothing, "");
-      continue;
-    }
-
-    // One pass over the text for the whole document, however many findings
-    // point into it.
-    const starts = document.text === undefined ? undefined : lineStarts(document.text);
-
-    let heading: string | null = null;
-    /** The modules whose warning about a moved text has already been written. */
-    const said = new Set<string>();
-    for (const placed of document.issues) {
-      if (placed.module !== heading) {
-        heading = placed.module;
-        lines.push(`### ${input.labels.module(heading)}`, "");
-      }
-
-      const { issue } = placed;
-      const key = `${placed.docId}:${placed.module}:${issue.issueId}`;
-      const mark = document.fixed.has(key)
-        ? ` _(${input.labels.fixed})_`
-        : document.ignored.has(key)
-          ? ` _(${input.labels.ignored})_`
-          : "";
-      const severity = input.labels.severity[issue.severity];
-      const title = input.phrase(issue.titleKey, issue.params);
-      lines.push(`- **${severity}** — ${asMarkdown(title)}${mark}`);
-
-      /*
-       * A body counted over another text keeps its findings here and loses its
-       * numbers: the reader is told once, under the first finding of that
-       * check, rather than being sent to a line that has moved.
-       */
-      const anchored = document.unanchored?.has(placed.module) !== true;
-      if (!anchored && !said.has(placed.module)) {
-        said.add(placed.module);
-        lines.push(`  - _${input.labels.unanchored}_`);
-      }
-
-      for (const resolved of placed.places) {
-        const offset =
-          anchored && isResolved(resolved) && resolved.edited !== true
-            ? (resolved.anchor ?? null)
-            : null;
-        const place: string[] = [];
-        if (offset !== null && starts !== undefined) {
-          place.push(`${input.labels.line} ${lineAt(starts, offset)}`);
-          const page = pageOf(document.pages, offset);
-          if (page !== null) place.push(`${input.labels.page} ${page}`);
-        }
-        /*
-         * A place that could not be worked out, and one whose text has been
-         * corrected since, are both said in words rather than left as a finding
-         * with nothing beside it. The reader can tell the difference between
-         * "we could not find this" and "you have already changed this", and
-         * they mean different things about what to do next.
-         */
-        if (anchored && resolved.edited === true) place.push(input.labels.edited);
-        else if (anchored && resolved.status === "lost") place.push(input.labels.lost);
-        if (place.length > 0) lines.push(`  - ${place.join(" · ")}`);
-
-        const quote = quoteOf(resolved);
-        if (quote !== null && quote !== "") lines.push(`  ${asQuote(quote)}`);
-      }
-
-      if (issue.detail !== undefined && issue.detail !== "") {
-        lines.push(`  - ${asMarkdown(issue.detail.replace(/\r?\n/g, " "))}`);
-      }
-      const replacement = replacementOf(issue);
-      if (replacement !== null && replacement !== "") {
-        lines.push(`  - ${input.labels.replacement}`, `  ${asQuote(replacement)}`);
-      }
-      lines.push("");
-    }
+  if (document.issues.length === 0) {
+    return {
+      name: document.name,
+      counts: document.counts,
+      notes,
+      nothing: input.labels.nothing,
+      checks: [],
+    };
   }
 
-  return `${lines.join("\n").trimEnd()}\n`;
+  // One pass over the text for the whole document, however many findings point
+  // into it.
+  const starts = document.text === undefined ? undefined : lineStarts(document.text);
+  const checks: { name: string; note: string | null; findings: ReportFinding[] }[] = [];
+
+  for (const placed of document.issues) {
+    /*
+     * A body counted over another text keeps its findings and loses its
+     * numbers: the reader is told once, under the name of that check, rather
+     * than being sent to a line that has moved.
+     */
+    const anchored = document.unanchored?.has(placed.module) !== true;
+    const name = input.labels.module(placed.module);
+    let check = checks.at(-1);
+    if (check === undefined || check.name !== name) {
+      check = { name, note: anchored ? null : input.labels.unanchored, findings: [] };
+      checks.push(check);
+    }
+    check.findings.push(finding(input, document, placed, anchored, starts));
+  }
+
+  return { name: document.name, counts: document.counts, notes, nothing: null, checks };
+}
+
+function finding(
+  input: ReportInput,
+  document: ReportDocument,
+  placed: ReportIssue,
+  anchored: boolean,
+  starts: readonly number[] | undefined,
+): ReportFinding {
+  const { issue } = placed;
+  const key = `${placed.docId}:${placed.module}:${issue.issueId}`;
+  const replacement = replacementOf(issue);
+
+  return {
+    severity: issue.severity,
+    severityLabel: input.labels.severity[issue.severity],
+    title: input.phrase(issue.titleKey, issue.params),
+    mark: document.fixed.has(key)
+      ? input.labels.fixed
+      : document.ignored.has(key)
+        ? input.labels.ignored
+        : null,
+    places: placed.places.map((place) =>
+      placeOf(input, document, place, anchored, starts),
+    ),
+    detail:
+      issue.detail === undefined || issue.detail === ""
+        ? null
+        : issue.detail.replace(/\r?\n/g, " "),
+    facts: factsOf(input, issue),
+    replacement:
+      replacement === null || replacement === ""
+        ? null
+        : { label: input.labels.replacement, text: asQuote(replacement) },
+  };
+}
+
+function placeOf(
+  input: ReportInput,
+  document: ReportDocument,
+  place: Place,
+  anchored: boolean,
+  starts: readonly number[] | undefined,
+): ReportPlace {
+  const offset =
+    anchored && isResolved(place) && place.edited !== true
+      ? (place.anchor ?? null)
+      : null;
+  const where: ReportWhere[] = [];
+
+  if (offset !== null && starts !== undefined) {
+    where.push({ label: input.labels.line, value: String(lineAt(starts, offset)) });
+    const page = pageOf(document.pages, offset);
+    if (page !== null) where.push({ label: input.labels.page, value: String(page) });
+  }
+
+  /*
+   * A place that could not be worked out, and one whose text has been corrected
+   * since, are both said in words rather than left as a finding with nothing
+   * beside it. The reader can tell the difference between "we could not find
+   * this" and "you have already changed this", and they mean different things
+   * about what to do next.
+   */
+  if (anchored && place.edited === true) {
+    where.push({ label: input.labels.edited, value: null });
+  } else if (anchored && place.status === "lost") {
+    where.push({ label: input.labels.lost, value: null });
+  }
+
+  const quote = some(place.quote);
+  return {
+    where,
+    quote: quote === null ? null : asQuote(quote),
+    bibkey: some(place.bibkey),
+  };
 }

@@ -134,8 +134,31 @@ function statusFor(jobId: string, document: WireDocument, module: string): Modul
 
   return {
     ...template,
+    /*
+     * Counted from the body this same path will serve, not copied from the
+     * example beside it.
+     *
+     * The two are separate examples in the contract and they disagree - one
+     * module declares two warnings in the status and answers with a critical
+     * and a warning in its body. A real server has no such freedom, and a mock
+     * that keeps the freedom teaches the product's own screens to contradict
+     * each other: the summary under a document's name shows what was declared,
+     * the cards under it list what arrived, and whoever is looking at both is
+     * being shown a defect that exists only in our fixtures. Derived here, the
+     * two cannot drift apart again.
+     */
+    counts: countsOf(module),
     resultRef: `/jobs/${jobId}/documents/${document.docId}/modules/${module}/result`,
   };
+}
+
+/** What the body for this module holds, by severity. */
+function countsOf(module: string): Record<string, number> {
+  const body = RESULTS[module as keyof typeof RESULTS] ?? RESULTS.bibcheck;
+  const counts: Record<string, number> = { critical: 0, warning: 0, info: 0 };
+  for (const issue of body.issues)
+    counts[issue.severity] = (counts[issue.severity] ?? 0) + 1;
+  return counts;
 }
 
 function statusBody(job: SubmittedJob, running: boolean) {
@@ -309,6 +332,14 @@ function tokenOf(request: StrictRequest<DefaultBodyType>): string {
  * that only knew how to read plain JSON would be a second source that answers
  * everything except the request the product actually makes - and it would fail
  * on exactly the documents worth testing with.
+ *
+ * The bytes are taken whole rather than piped out of `request.body`, because
+ * that stream is not a thing every engine has: where it is missing the getter
+ * answers `null`, the pipe silently produces nothing, and what reaches the
+ * parser is an empty string. That is not a visible failure of the mock - it is
+ * the product answering "something on the server went wrong" for every
+ * submission above the compression threshold, which is every submission that
+ * carries a real manuscript or more than one document.
  */
 async function submittedBody(
   request: StrictRequest<DefaultBodyType>,
@@ -317,9 +348,10 @@ async function submittedBody(
     return (await request.json()) as { documents: WireDocument[] };
   }
 
-  const inflated = new Response(request.body).body?.pipeThrough(
-    new DecompressionStream("gzip"),
-  );
+  const packed = await request.arrayBuffer();
+  const inflated = new Blob([packed])
+    .stream()
+    .pipeThrough(new DecompressionStream("gzip"));
   const text = await new Response(inflated).text();
   return JSON.parse(text) as { documents: WireDocument[] };
 }

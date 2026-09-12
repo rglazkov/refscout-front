@@ -23,6 +23,15 @@ file. A PDF and text that was typed come back as `.txt`, having no format of
 their own. That is what closes the loop: correct the text, save the file, drop
 it into the next check.
 
+**The findings themselves come back as a PDF.** One button on the results
+screen, one file, the whole job in it: every document, every check, every
+finding with its line, its page, the sentence it was found in and whatever the
+person marked as dealt with. It is set in the product's own faces on A4 and
+written in the browser like everything else here, which is what lets it quote a
+manuscript the server never received. The faces travel inside the file, so a
+report over a Cyrillic or Greek document is set rather than blank on a machine
+that has never seen those fonts.
+
 **A bibliography is read here as well as sent.** Its entries are found -
 citation-js for a `.bib`, unified-latex for a bibliography written inside a
 `.tex` - which is what lets a finding that names an entry key be shown against

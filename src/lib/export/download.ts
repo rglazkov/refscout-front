@@ -43,6 +43,7 @@ const MEDIA_TYPES: Readonly<Record<string, string>> = {
   gls: "application/x-tex;charset=utf-8",
   md: "text/markdown;charset=utf-8",
   txt: "text/plain;charset=utf-8",
+  pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
 

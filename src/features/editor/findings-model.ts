@@ -57,11 +57,29 @@ function issueOf(result: ModuleResult, issueId: string): Issue | undefined {
 }
 
 /**
- * One row per finding rather than one per place. A work cited twice is one
- * problem in two places, and a list that said so twice would have the person
- * reading the same sentence again to find out it is the same sentence; the row
- * carries a counter instead, and stepping through the places is done from
- * inside it.
+ * The findings of a document, one entry per place rather than one per finding.
+ *
+ * This is what the list beside the text is built from, and it is built this way
+ * so that the list and the text say the same thing. A work cited three times is
+ * highlighted three times, and a list that named it once left the reader
+ * counting three marks against one row and concluding that the two disagreed -
+ * which is the one thing a list beside a text must never do. Each row still
+ * says which of the places it is ("2 of 3"), so the repetition explains itself
+ * rather than looking like the same finding listed twice.
+ */
+export type PanelRow = { readonly finding: PanelFinding; readonly at: number };
+
+export function panelRows(findings: readonly PanelFinding[]): readonly PanelRow[] {
+  return findings.flatMap((finding) =>
+    finding.places.map((_place, at) => ({ finding, at })),
+  );
+}
+
+/**
+ * The findings themselves, one to a finding, each carrying its places. It is
+ * what the card is drawn from and what the rows above are flattened out of: a
+ * finding is one thing that is wrong, however many places in the text it
+ * touches.
  */
 export function panelFindings(
   placed: readonly PlacedFinding[],

@@ -131,6 +131,46 @@ test("the comparison worker starts here too", async ({ page }) => {
 });
 
 /**
+ * And the worker that writes the report, asked the same question for the third
+ * time. It is the one a person reaches last and cares about most - it makes the
+ * file they keep - and it fails the same silent way: a button pressed, a
+ * spinner, and no file. It carries the four faces that go inside the PDF, so on
+ * a browser that took the second build of it they are inside a single script
+ * with everything else.
+ */
+test("the report worker starts here and writes a PDF", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("file-input").setInputFiles({
+    name: "paper.tex",
+    mimeType: "text/plain",
+    buffer: Buffer.from(MANUSCRIPT, "utf8"),
+  });
+  await expect(page.getByTestId("document-card")).toContainText("characters", {
+    timeout: 60_000,
+  });
+
+  await page.getByTestId("run").click();
+  await expect(page.getByTestId("results-totals")).toBeVisible({ timeout: 60_000 });
+
+  const [report] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("download-report").first().click(),
+  ]);
+  expect(report.suggestedFilename()).toBe("refscout-findings.pdf");
+
+  const stream = await report.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const file = Buffer.concat(chunks);
+  // The format's own signature, for the same reason the Word file above is
+  // checked for a zip: a name proves nothing about what was written.
+  expect(file.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  // And the faces really travelled inside it. A report whose fonts did not
+  // arrive is a report of empty pages, and it weighs a fraction of this.
+  expect(file.length).toBeGreaterThan(400_000);
+});
+
+/**
  * The other half of what ships beside a worker. The maps are built - a
  * minified parser is unreadable without them - but they carry a copy of every
  * source the workers import and nothing loads them unless the developer tools

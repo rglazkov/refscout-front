@@ -83,6 +83,13 @@ export const compressCall = "compress" as const;
 export const diffCall = "diff" as const;
 
 /**
+ * The name of the call the report writer answers. It has a worker of its own
+ * because what it carries is its own: a PDF writer and four whole faces, which
+ * nobody who has not asked for a report should ever download.
+ */
+export const reportCall = "report" as const;
+
+/**
  * The name of the call the resolver answers. It has a worker of its own rather
  * than sharing the parsers': it runs after an answer arrives, while the parsers
  * may still be reading the next document a person has dropped, and the two

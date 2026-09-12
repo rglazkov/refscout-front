@@ -54,6 +54,19 @@ const alias = {
  */
 const define = { global: "globalThis" };
 
+/**
+ * The faces the findings report is set in are built into the worker that writes
+ * it, as bytes, rather than fetched when it runs.
+ *
+ * The rule they are obeying is the one every worker here obeys: a worker sees
+ * whole manuscripts, and nothing that sees a manuscript may reach the network.
+ * Fetching four font files would have been a `fetch` inside that box, which is
+ * exactly the thing the box exists to keep out - and it costs nothing to avoid,
+ * because the bytes are the same bytes either way and the worker is already
+ * fetched once and kept.
+ */
+const loader = { ".ttf": "binary" };
+
 rmSync(outdir, { recursive: true, force: true });
 
 const result = await build({
@@ -62,6 +75,7 @@ const result = await build({
     join(root, "src", "workers", "gzip.worker.ts"),
     join(root, "src", "workers", "diff.worker.ts"),
     join(root, "src", "workers", "resolve.worker.ts"),
+    join(root, "src", "workers", "report.worker.ts"),
   ],
   outdir,
   bundle: true,
@@ -73,6 +87,7 @@ const result = await build({
   sourcemap: true,
   alias,
   define,
+  loader,
   /*
    * Named by their entry rather than by a hash. The address is written in the
    * application by hand, so it has to be one a person can write; the chunks
@@ -102,6 +117,7 @@ const fallback = await build({
     join(root, "src", "workers", "gzip.worker.ts"),
     join(root, "src", "workers", "diff.worker.ts"),
     join(root, "src", "workers", "resolve.worker.ts"),
+    join(root, "src", "workers", "report.worker.ts"),
   ],
   outdir: join(outdir, "classic"),
   bundle: true,
@@ -113,6 +129,7 @@ const fallback = await build({
   minify: true,
   alias,
   define,
+  loader,
   entryNames: "[name]",
   logLevel: "warning",
   metafile: true,

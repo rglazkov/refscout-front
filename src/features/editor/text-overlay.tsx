@@ -43,10 +43,14 @@ import {
 import {
   asDocOffset,
   hasStructure,
+  moduleIds,
+  resultKey,
+  type Counts,
   type ModuleResult,
   type TextChange,
 } from "@/lib/domain";
 import { downloadDocumentText } from "@/lib/export";
+import { issuesOf } from "@/lib/normalize";
 import { settled } from "@/lib/storage";
 import { useBufferStore, useJobStore, useUiStore } from "@/stores";
 import { readStructureOf } from "@/workers";
@@ -62,6 +66,7 @@ import {
 } from "./findings";
 import {
   panelFindings,
+  panelRows,
   type FindingPlace,
   type PanelFinding,
   type PanelSelection,
@@ -387,14 +392,57 @@ function OverlayBody({
     [findings, hideSettled, fixed, ignored],
   );
 
+  /*
+   * The list beside the text, and it is a list of places rather than of
+   * findings: a work cited three times is highlighted three times, and a list
+   * that named it once left the reader counting three marks against one row.
+   * The arrows and the counter walk the same rows, so "4 of 11" means the
+   * fourth of the eleven marks in the text and not the fourth of eleven things
+   * of which some are marked twice.
+   */
+  const rows = React.useMemo(() => panelRows(listed), [listed]);
+
+  /**
+   * What this list holds, by severity and by finding - the same quantity the
+   * results screen puts under the name of the document, so that the two can be
+   * compared without counting rows.
+   */
+  const counts = React.useMemo(() => countFindings(findings), [findings]);
+
+  /**
+   * And how many of this document's own findings are not in the list at all,
+   * because the resolver could not place them in its text.
+   *
+   * Without this number the two screens simply disagree: the summary counts
+   * every finding the checks reported about the document, and a list beside the
+   * text can only hold the ones that have a fragment to stand on. Saying how
+   * many are missing turns a contradiction into a fact about the run - and it
+   * is a fact worth seeing, because a document with many unplaced findings is
+   * one whose text has moved on from what was checked.
+   */
+  const unplaced = React.useMemo(() => {
+    const placed = new Set(findings.map((finding) => finding.issueKey));
+    let missing = 0;
+    for (const check of moduleIds) {
+      const result = results[resultKey(docId, check)];
+      if (result === undefined) continue;
+      for (const entry of issuesOf(result)) {
+        if (!placed.has(`${docId}:${check}:${entry.issue.issueId}`)) missing += 1;
+      }
+    }
+    return missing;
+  }, [findings, results, docId]);
+
   const step = React.useCallback(
     (by: number): void => {
-      if (listed.length === 0) return;
-      const at = listed.findIndex((finding) => finding.issueKey === selected?.issueKey);
-      const next = listed[(at + by + listed.length * 2) % listed.length] ?? listed[0];
-      if (next !== undefined) select({ issueKey: next.issueKey, at: 0 });
+      if (rows.length === 0) return;
+      const at = rows.findIndex(
+        (row) => row.finding.issueKey === selected?.issueKey && row.at === selected.at,
+      );
+      const next = rows[(at + by + rows.length * 2) % rows.length] ?? rows[0];
+      if (next !== undefined) select({ issueKey: next.finding.issueKey, at: next.at });
     },
-    [listed, selected, select],
+    [rows, selected, select],
   );
 
   /**
@@ -405,9 +453,11 @@ function OverlayBody({
    */
   const position = React.useMemo(() => {
     if (selected === null) return null;
-    const at = listed.findIndex((finding) => finding.issueKey === selected.issueKey);
+    const at = rows.findIndex(
+      (row) => row.finding.issueKey === selected.issueKey && row.at === selected.at,
+    );
     return at === -1 ? null : at + 1;
-  }, [listed, selected]);
+  }, [rows, selected]);
 
   /*
    * One walk of the document for the whole screen, however many findings point
@@ -708,7 +758,7 @@ function OverlayBody({
               to the bottom of a phone is switched. */}
           {findings.length > 0 ? (
             <FindingsToolbar
-              count={findings.length}
+              count={rows.length}
               position={position}
               hideSettled={hideSettled}
               onHideSettled={setHideSettled}
@@ -778,7 +828,9 @@ function OverlayBody({
             <FindingsPanel
               className="hidden shrink-0 sm:flex sm:h-auto sm:w-[21rem]"
               findings={findings}
-              shown={listed}
+              shown={rows}
+              counts={counts}
+              unplaced={unplaced}
               starts={starts}
               pages={content?.pages}
               selected={selected}
@@ -862,6 +914,13 @@ function openByPlaceKey(
  * document, with the severity that decides its colour and whether the person
  * has already settled it.
  */
+/** The findings of this text by severity, counted one to a finding. */
+function countFindings(findings: readonly PanelFinding[]): Counts {
+  const counts = { critical: 0, warning: 0, info: 0 };
+  for (const finding of findings) counts[finding.severity] += 1;
+  return counts;
+}
+
 function useMarks(findings: readonly PanelFinding[]): readonly EditorFinding[] {
   // Dealt with and turned down are drawn the same way here - quietly - so the
   // two are read as one question and the highlights are rebuilt once for both.

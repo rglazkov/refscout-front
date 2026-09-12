@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl";
 
 import { lineAt, pageOf } from "@/lib/docs";
 import { cn } from "@/lib/cn";
-import { type PageSpan } from "@/lib/domain";
+import { type Counts, type PageSpan } from "@/lib/domain";
 import { useWording } from "@/lib/i18n";
 import { useJobStore } from "@/stores";
 
+import { SeverityDots } from "../results/severity-dots";
+
 import { HEADLINE_LAYOUT, Headline } from "./finding-card";
-import { type PanelFinding, type PanelSelection } from "./findings-model";
+import { type PanelFinding, type PanelRow, type PanelSelection } from "./findings-model";
 
 /**
  * The findings of the open document, indexed beside it.
@@ -32,6 +34,8 @@ import { type PanelFinding, type PanelSelection } from "./findings-model";
 export function FindingsPanel({
   findings,
   shown,
+  counts,
+  unplaced,
   starts,
   pages,
   selected,
@@ -42,7 +46,11 @@ export function FindingsPanel({
   /** Every finding of this document, which is what the row count is drawn from. */
   readonly findings: readonly PanelFinding[];
   /** The ones the filter leaves: what the list draws and the arrows walk. */
-  readonly shown: readonly PanelFinding[];
+  readonly shown: readonly PanelRow[];
+  /** The findings in this text by severity, counted as the results screen counts. */
+  readonly counts: Counts;
+  /** How many findings about this document have no place in its text. */
+  readonly unplaced: number;
   /** Where the lines of the live text begin, walked once for the whole screen. */
   readonly starts: readonly number[];
   readonly pages: readonly PageSpan[] | undefined;
@@ -65,6 +73,26 @@ export function FindingsPanel({
       className={cn("flex min-h-0 flex-col rounded-lg border bg-card", className)}
       data-testid="findings-panel"
     >
+      {/* What this list holds, counted the way the results screen counts: by
+          finding and by severity, so the two screens can be compared at a
+          glance. The rows underneath are one per place, which is a different
+          quantity and says so - a work cited three times is one finding and
+          three rows. */}
+      <div className="border-b px-2.5 py-2" data-testid="findings-summary">
+        <SeverityDots counts={counts} />
+        {/* And what is not here. A finding the resolver could not place has no
+            fragment to stand on and no row to stand in, and without this line
+            the list would simply be shorter than the summary on the screen
+            behind it with nothing to say why. */}
+        {unplaced > 0 ? (
+          <p
+            className="mt-1 text-xs text-muted-foreground"
+            data-testid="findings-unplaced"
+          >
+            {t("findings.unplaced", { count: unplaced })}
+          </p>
+        ) : null}
+      </div>
       {shown.length === 0 ? (
         <p className="px-2.5 py-3 text-[0.8125rem] text-muted-foreground">
           {findings.length === 0
@@ -73,16 +101,20 @@ export function FindingsPanel({
         </p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto [&>li]:[contain-intrinsic-size:auto_3rem] [&>li]:[content-visibility:auto]">
-          {shown.map((finding) => (
+          {shown.map((row) => (
             <FindingRow
-              key={finding.issueKey}
-              finding={finding}
+              key={`${row.finding.issueKey}:${row.at}`}
+              finding={row.finding}
+              at={row.at}
               starts={starts}
               pages={pages}
               settled={
-                fixed[finding.issueKey] === true || ignored[finding.issueKey] === true
+                fixed[row.finding.issueKey] === true ||
+                ignored[row.finding.issueKey] === true
               }
-              selected={selected?.issueKey === finding.issueKey ? selected.at : null}
+              current={
+                selected?.issueKey === row.finding.issueKey && selected.at === row.at
+              }
               onSelect={onSelect}
               onOpen={onOpen}
             />
@@ -100,25 +132,27 @@ export function FindingsPanel({
  */
 function FindingRow({
   finding,
+  at,
   starts,
   pages,
   settled,
-  selected,
+  current,
   onSelect,
   onOpen,
 }: {
   readonly finding: PanelFinding;
+  /** Which place of the finding this row stands for. */
+  readonly at: number;
   readonly starts: readonly number[];
   readonly pages: readonly PageSpan[] | undefined;
   readonly settled: boolean;
-  readonly selected: number | null;
+  /** Whether this is the place whose card is open. */
+  readonly current: boolean;
   readonly onSelect: (selection: PanelSelection) => void;
   readonly onOpen: () => void;
 }) {
   const phrase = useWording();
   const row = React.useRef<HTMLLIElement>(null);
-  const at = selected ?? 0;
-  const current = selected !== null;
   const place = finding.places[at] ?? finding.places[0];
   const anchor = place?.place.anchor;
 

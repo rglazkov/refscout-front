@@ -19,9 +19,6 @@ import { defaultLocale, isLocale } from "./routing";
  * being shown.
  */
 export const shellNamespaces = [
-  // The names of the checks: the pricing page names them, and it is served with
-  // its words rather than fetching them in the browser.
-  "capabilities",
   "error",
   // "Report a problem" stands in the footer of every page, and its form is
   // opened from every state of an error - including one on a page of the site.

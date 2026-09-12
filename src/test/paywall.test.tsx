@@ -208,7 +208,6 @@ describe("the line under the button", () => {
     expect(screen.getByTestId("paid-access-line").getAttribute("data-access")).toBe(
       "closed",
     );
-    expect(screen.queryByTestId("paid-no-limits")).toBeNull();
   });
 
   it("names the end of the period when the server named one, and says so when it did not", () => {
@@ -217,8 +216,6 @@ describe("the line under the button", () => {
       .set(entitlementsWith({ access: true, periodEndsAt: "2026-08-25T00:00:00Z" }));
     launch([itemWith([paid])]);
     expect(screen.getByTestId("paid-access-line").textContent).toContain("25");
-    // And the sentence that stops people from splitting a buffer into runs.
-    expect(screen.getByTestId("paid-no-limits")).toBeDefined();
     cleanup();
 
     useEntitlementsStore.getState().set(entitlementsWith({ access: true }));

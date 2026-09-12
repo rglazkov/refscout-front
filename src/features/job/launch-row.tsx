@@ -112,28 +112,20 @@ export function LaunchRow({
               person is using; anything counted down here would be a second
               opinion that is sometimes right. */}
           {paidRequested ? (
-            <>
-              <p data-testid="paid-access-line" data-access={accessState}>
-                {accessState === "unknown"
-                  ? t("accessChecking")
-                  : accessState === "closed"
-                    ? t("accessLocked")
-                    : entitlements?.periodEndsAt === undefined
-                      ? t("accessOpen")
-                      : t("accessOpenUntil", {
-                          date: format.dateTime(new Date(entitlements.periodEndsAt), {
-                            day: "numeric",
-                            month: "short",
-                          }),
-                        })}
-              </p>
-              {/* Said before the run rather than after it: told nothing, people
-                  send their documents one at a time to make the access last,
-                  and get the same checks slower for the same day. */}
-              {accessState === "open" ? (
-                <p data-testid="paid-no-limits">{t("accessNoLimits")}</p>
-              ) : null}
-            </>
+            <p data-testid="paid-access-line" data-access={accessState}>
+              {accessState === "unknown"
+                ? t("accessChecking")
+                : accessState === "closed"
+                  ? t("accessLocked")
+                  : entitlements?.periodEndsAt === undefined
+                    ? t("accessOpen")
+                    : t("accessOpenUntil", {
+                        date: format.dateTime(new Date(entitlements.periodEndsAt), {
+                          day: "numeric",
+                          month: "short",
+                        }),
+                      })}
+            </p>
           ) : null}
         </div>
       </div>

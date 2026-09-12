@@ -5,22 +5,28 @@ import { zModuleResult } from "@/lib/api/wire/zod.gen";
 import { lineAt, lineOf, lineStarts, pageOf } from "@/lib/docs";
 import { toDocOffset } from "@/lib/anchor";
 import { asDocOffset, type Place } from "@/lib/domain";
-import { buildIssueReport, type ReportIssue, type ReportLabels } from "@/lib/export";
+import {
+  buildIssueReport,
+  type ReportDoc,
+  type ReportIssue,
+  type ReportLabels,
+} from "@/lib/export";
 import { issuesOf } from "@/lib/normalize";
 
 import { scenarios } from "./msw/handlers.gen";
 
 /**
- * The findings report. In this first section it is the main thing the product
- * produces: a person takes it into their own editor and fixes the manuscript
- * there, so what is in it decides whether the run was worth making.
+ * What the findings report says, which is settled before anything is drawn: the
+ * builder turns a finished job into the report's own shape, and the page it
+ * ends up on is somebody else's problem. In this first section the report is
+ * the main thing the product produces, so what is in it decides whether the run
+ * was worth making.
  */
 const labels: ReportLabels = {
   severity: { critical: "Critical", warning: "Warning", info: "Note" },
   module: (moduleId) => moduleId.toUpperCase(),
   line: "line",
   page: "page",
-  quote: "quote",
   fixed: "marked fixed",
   ignored: "turned down",
   replacement: "Proposed replacement:",
@@ -28,8 +34,8 @@ const labels: ReportLabels = {
   editedAfterRun: "This document was corrected after the checks read it.",
   edited: "fragment edited since",
   lost: "place not found",
-  counts: (counts) => `${counts.critical} critical, ${counts.warning} warnings`,
   nothing: "Nothing was found.",
+  doi: "DOI",
 };
 
 /**
@@ -74,7 +80,7 @@ function report(
     readonly ignored?: ReadonlySet<string>;
     readonly unanchored?: ReadonlySet<string>;
   } = {},
-): string {
+): ReportDoc {
   return buildIssueReport({
     title: "Findings",
     generatedAt: "Produced today",
@@ -96,53 +102,80 @@ function report(
   });
 }
 
+/** Every finding of the first document, whichever check it came from. */
+function findings(doc: ReportDoc) {
+  return doc.documents.flatMap((document) =>
+    document.checks.flatMap((check) => check.findings),
+  );
+}
+
+/** Every "where" said about any place, as the strings the page will draw. */
+function places(doc: ReportDoc): readonly string[] {
+  return findings(doc).flatMap((finding) =>
+    finding.places.map((place) =>
+      place.where
+        .map((where) => `${where.label} ${where.value ?? ""}`.trim())
+        .join(" · "),
+    ),
+  );
+}
+
 describe("the report says where each finding is", () => {
   it("names the document, the check and the severity", () => {
-    const markdown = report();
-    expect(markdown).toContain("## paper.tex");
-    expect(markdown).toContain("### BIBCHECK");
-    expect(markdown).toContain("**Critical**");
+    const doc = report();
+    expect(doc.documents[0]?.name).toBe("paper.tex");
+    expect(doc.documents[0]?.checks[0]?.name).toBe("BIBCHECK");
+    expect(findings(doc)[0]?.severityLabel).toBe("Critical");
   });
 
   it("carries the wording key through the dictionary rather than a phrase of its own", () => {
-    // Escaped, because the file is Markdown and an underscore in the middle of
-    // a word opens emphasis in it.
-    expect(report()).toContain(String.raw`bibcheck.retracted\_entry`);
+    expect(findings(report()).map((finding) => finding.title)).toContain(
+      "bibcheck.retracted_entry",
+    );
   });
 
   it("gives the line and the page of a finding with coordinates", () => {
     // Both are computed in the browser from the text it holds: line numbers do
     // not travel over the wire in either direction.
-    const markdown = report();
-    expect(markdown).toMatch(/line \d+ · page 7/);
+    expect(places(report()).join("\n")).toMatch(/line \d+ · page 7/);
   });
 
-  it("quotes the place verbatim, with the markup characters in it made literal", () => {
-    // The brackets of a citation are what Markdown makes a link out of, so they
-    // are escaped: what the reader opens is the sentence as it stands in the
-    // manuscript rather than a link built out of it.
-    expect(report()).toContain(String.raw`> Smith et al. \[22\]`);
+  it("keeps the quoted fragment exactly as the manuscript has it", () => {
+    /*
+     * Nothing is escaped on the way in, and the brackets of a citation are the
+     * proof: the report is a PDF, which has no markup for them to be mistaken
+     * for, and several of the checks are about the characters themselves.
+     */
+    const quotes = findings(report()).flatMap((finding) =>
+      finding.places.map((place) => place.quote),
+    );
+    expect(quotes).toContain("Smith et al. [22]");
   });
 
   it("carries the marks the person made, since they leave with the job", () => {
     const key = `${result.docId}:bibcheck:iss_1`;
-    expect(report({ fixed: new Set([key]) })).toContain("_(marked fixed)_");
-    expect(report({ ignored: new Set([key]) })).toContain("_(turned down)_");
-    expect(report()).not.toContain("_(marked fixed)_");
+    const marks = (doc: ReportDoc) => findings(doc).map((finding) => finding.mark);
+    expect(marks(report({ fixed: new Set([key]) }))).toContain("marked fixed");
+    expect(marks(report({ ignored: new Set([key]) }))).toContain("turned down");
+    expect(marks(report())).not.toContain("marked fixed");
   });
 
   it("a check that read another version of the text loses its numbers, not its findings", () => {
     // The findings are what the person paid for and they all stay; what goes
     // is the line and the page, because those were worked out from coordinates
     // counted over a text that is not the one in the browser.
-    const markdown = report({ unanchored: new Set(["bibcheck"]) });
-    expect(markdown).toContain(String.raw`bibcheck.retracted\_entry`);
-    expect(markdown).toContain("This check read a different version.");
-    expect(markdown).not.toMatch(/line \d+ · page 7/);
+    const doc = report({ unanchored: new Set(["bibcheck"]) });
+    expect(findings(doc).map((finding) => finding.title)).toContain(
+      "bibcheck.retracted_entry",
+    );
+    expect(doc.documents[0]?.checks[0]?.note).toBe(
+      "This check read a different version.",
+    );
+    expect(places(doc).join("\n")).not.toMatch(/line \d+ · page 7/);
   });
 
   it("a document with nothing found says so rather than being left blank", () => {
-    const markdown = buildIssueReport({
+    const doc = buildIssueReport({
       title: "Findings",
       generatedAt: "Produced today",
       phrase: (key) => key,
@@ -158,7 +191,8 @@ describe("the report says where each finding is", () => {
         },
       ],
     });
-    expect(markdown).toContain("Nothing was found.");
+    expect(doc.documents[0]?.nothing).toBe("Nothing was found.");
+    expect(doc.documents[0]?.checks).toHaveLength(0);
   });
 });
 

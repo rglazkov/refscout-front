@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import { READING_MS } from "../support/reading";
+import { keepTheMockOffTheScope } from "../support/scope";
 
 /**
  * A new build does not replace the code under an open tab.
@@ -22,16 +23,7 @@ import { READING_MS } from "../support/reading";
 const SHELL = "/sw.js";
 
 test("a new build waits instead of taking over", async ({ page, context }) => {
-  /*
-   * Automatic reports off for this context, and it is the scope that needs it
-   * rather than the privacy of a test. A batch falling due starts the mock to
-   * find out which server to send to, the mock registers its own worker at this
-   * same scope, and a scope belongs to one worker - so the shell under test
-   * would be replaced by something the test never asked for. Which is the same
-   * fact the product acts on by registering the shell only where the mock is
-   * absent.
-   */
-  await context.addInitScript(() => localStorage.setItem("telemetry", "off"));
+  await keepTheMockOffTheScope(context);
 
   await page.goto("/privacy/");
   await page.evaluate(async (script) => {
@@ -41,6 +33,28 @@ test("a new build waits instead of taking over", async ({ page, context }) => {
     });
     await navigator.serviceWorker.ready;
   }, SHELL);
+
+  /*
+   * One navigation before anything is asked, and the rule under test is the
+   * reason it is needed. A freshly installed worker does not take over a page
+   * that was already open - the shell does not claim clients, deliberately - so
+   * until the tab is reloaded there is no tab in its charge, and a new build
+   * put there would activate at once for want of anything to wait behind.
+   * Reloading here is a person's second visit, and it is what makes the tab an
+   * open tab in the sense the rule is about.
+   */
+  await page.reload({ waitUntil: "load" });
+  await expect
+    .poll(
+      () =>
+        page
+          .evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? null)
+          // The reload can still be settling when the first question is asked,
+          // and a context that went away under it is not an answer.
+          .catch(() => null),
+      { timeout: READING_MS },
+    )
+    .toContain(SHELL);
 
   // Something to look for afterwards: if the tab were reloaded, it would be
   // gone. The whole rule is about not doing that under an open document.
@@ -56,19 +70,26 @@ test("a new build waits instead of taking over", async ({ page, context }) => {
     // to take over. The file is put back afterwards.
     writeFileSync(shell, `${original}\n// a newer build\n`, "utf8");
 
-    // Installing it is the whole shell being cached again, so the answer is
-    // waited for rather than read the instant `update()` returns.
+    /*
+     * Installing it is the whole shell being cached again, so the answer is
+     * waited for rather than read the instant `update()` returns. The script is
+     * named as well as the state: `waiting` is a slot, and a check that reads
+     * the state alone would be satisfied by whatever happened to be in it.
+     */
     await expect
       .poll(
         () =>
           page.evaluate(async () => {
             const registration = await navigator.serviceWorker.getRegistration("/");
             await registration?.update();
-            return registration?.waiting?.state ?? null;
+            const waiting = registration?.waiting;
+            return waiting === null || waiting === undefined
+              ? null
+              : `${waiting.scriptURL} ${waiting.state}`;
           }),
         { timeout: READING_MS },
       )
-      .toBe("installed");
+      .toContain(`${SHELL} installed`);
 
     // And the tab it is waiting behind was never reloaded: the mark put on the
     // window before any of this is still there.

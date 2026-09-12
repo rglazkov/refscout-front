@@ -58,6 +58,52 @@ const FAMILIES = [
 ];
 
 /**
+ * The same three families again, as whole static TrueType files, for the
+ * findings report.
+ *
+ * The report is a PDF, and a PDF carries its faces inside itself: there is no
+ * stack to fall back through and no reader's system to borrow from, so a
+ * character whose glyph is not embedded is a character that is simply not in
+ * the file. Which is why these are not the files above. Those are variable and
+ * cut into subsets by unicode-range - exactly right for a page, where the
+ * browser fetches the slices the text needs and picks the weight off the axis,
+ * and useless here: the embedder reads one file per face, cannot join subsets
+ * back together, and cannot instance an axis. A whole file per weight is the
+ * shape the format asks for.
+ *
+ * They are TrueType rather than woff2 because a PDF holds a font as the font
+ * file itself, and TrueType is the shape it holds. A woff2 is that file
+ * compressed and rearranged; embedded as-is it is not a font any reader can
+ * open. Uncompressed the four come to about 900 KB, which is why no page
+ * reaches for them: they are built into the worker that writes the report and
+ * arrive once, with it.
+ *
+ * Google's own service is the source: it still serves a static instance to a
+ * caller that does not announce woff2 support, and fontsource publishes subsets
+ * alone. The scripts covered are therefore the families' own - Latin, Cyrillic,
+ * Greek and Vietnamese - and a report quoting a manuscript in one of those is
+ * set correctly. A quotation in a script none of them draws comes out as a row
+ * of boxes: the writer substitutes a visible one per character rather than
+ * leaving a gap where a word was.
+ */
+const PDF_FACES = [
+  { file: "inter-400.ttf", query: "Inter:wght@400" },
+  { file: "inter-600.ttf", query: "Inter:wght@600" },
+  { file: "literata-400.ttf", query: "Literata:opsz,wght@7..72,400" },
+  { file: "jetbrains-mono-400.ttf", query: "JetBrains+Mono:wght@400" },
+];
+
+/**
+ * Google Fonts decides what to serve from the caller's user agent, and falls
+ * back to a static TrueType file for a caller it does not recognise as a
+ * browser. This is that caller, and it says what it is rather than pretending
+ * to be an old browser: an agent naming a real one would be answered with woff2
+ * - the files we already have and cannot embed - and one naming a very old one
+ * would be answered with EOT, which nothing here can read at all.
+ */
+const VENDORING_AGENT = "font vendoring script";
+
+/**
  * The face a reader sees for the fraction of a second before Literata
  * arrives, with its box bent to Literata's own metrics: without this the swap
  * is a visible jump of the whole page, and the jump is worst where there is
@@ -98,12 +144,14 @@ const FALLBACK = `/* Literata - the stand-in until it loads, bent to Literata's 
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fontsDir = path.join(root, "public", "fonts");
+/** The whole faces the report embeds, kept apart from the subsets a page uses. */
+const pdfFontsDir = path.join(fontsDir, "pdf");
 const cssFile = path.join(root, "src", "app", "fonts.css");
 const cdn = "https://cdn.jsdelivr.net/npm/@fontsource-variable";
 const registry = "https://data.jsdelivr.com/v1/packages/npm/@fontsource-variable";
 
-const get = async (url) => {
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+const get = async (url, headers = {}) => {
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
   return res;
 };
@@ -175,6 +223,20 @@ async function collect() {
   return { blocks, files, versions };
 }
 
+/** The whole static faces the report embeds, downloaded into memory. */
+async function collectPdf() {
+  const files = new Map();
+  for (const { file, query } of PDF_FACES) {
+    const res = await get(`https://fonts.googleapis.com/css2?family=${query}`, {
+      "user-agent": VENDORING_AGENT,
+    });
+    const url = (await res.text()).match(/url\((https:\/\/[^)]*?\.ttf)\)/)?.[1];
+    if (!url) throw new Error(`no static TrueType file offered for ${query}`);
+    files.set(file, Buffer.from(await (await get(url)).arrayBuffer()));
+  }
+  return files;
+}
+
 async function haveUsableCopy() {
   try {
     const onDisk = await readdir(fontsDir);
@@ -185,8 +247,10 @@ async function haveUsableCopy() {
 }
 
 let result;
+let pdfFiles;
 try {
   result = await collect();
+  pdfFiles = await collectPdf();
 } catch (error) {
   if (await haveUsableCopy()) {
     console.warn(`  fonts: upstream unavailable (${error.message})`);
@@ -201,11 +265,24 @@ const { blocks, files, versions } = result;
 await mkdir(fontsDir, { recursive: true });
 for (const [name, body] of files) await writeFile(path.join(fontsDir, name), body);
 
-// A subset dropped upstream must not linger as an unreferenced file.
-for (const name of await readdir(fontsDir)) {
-  if (!files.has(name)) {
-    await rm(path.join(fontsDir, name));
-    console.log(`  fonts: removed stale ${name}`);
+await mkdir(pdfFontsDir, { recursive: true });
+for (const [name, body] of pdfFiles) await writeFile(path.join(pdfFontsDir, name), body);
+
+/*
+ * A subset dropped upstream must not linger as an unreferenced file. The sweep
+ * goes by extension rather than by "everything that is not in the map", because
+ * the two sets live one inside the other: `pdf` is a directory in the middle of
+ * the woff2 files, and a sweep that did not know that would try to delete it.
+ */
+for (const [directory, kept, extension] of [
+  [fontsDir, files, ".woff2"],
+  [pdfFontsDir, pdfFiles, ".ttf"],
+]) {
+  for (const name of await readdir(directory)) {
+    if (name.endsWith(extension) && !kept.has(name)) {
+      await rm(path.join(directory, name));
+      console.log(`  fonts: removed stale ${name}`);
+    }
   }
 }
 
@@ -225,8 +302,12 @@ const header =
   ` */\n\n`;
 
 await writeFile(cssFile, header + [...blocks, FALLBACK].join("\n\n") + "\n", "utf8");
-const bytes = [...files.values()].reduce((n, b) => n + b.length, 0);
+const kb = (entries) =>
+  ([...entries].reduce((n, b) => n + b.length, 0) / 1024).toFixed(0);
 console.log(
   `  fonts: ${blocks.length} faces, ${files.size} files, ` +
-    `${(bytes / 1024).toFixed(0)} KB from ${versions.join(", ")}`,
+    `${kb(files.values())} KB from ${versions.join(", ")}`,
+);
+console.log(
+  `  fonts: ${pdfFiles.size} whole faces for the report, ${kb(pdfFiles.values())} KB`,
 );

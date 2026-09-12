@@ -5,6 +5,7 @@ import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { brand } from "../../brand.config";
+import { light } from "@/lib/export/pdf/theme";
 
 /**
  * Three ten-line tests that remove three classes of future rework. Each is
@@ -13,6 +14,8 @@ import { brand } from "../../brand.config";
  */
 const SRC = resolve(process.cwd(), "src");
 const TOKENS = join(SRC, "app", "tokens.css").split(sep).join("/");
+/** The report's copy of the light theme, checked against it below. */
+const PDF_PALETTE = join(SRC, "lib", "export", "pdf", "theme.ts").split(sep).join("/");
 
 function files(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -151,8 +154,33 @@ describe("grep rules over the source", () => {
     // The dark theme drifts away from the light one one hard-coded colour at a time.
     const color = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(/;
     const offenders = sources
-      .filter((file) => file.path !== TOKENS && color.test(file.text))
+      .filter(
+        (file) =>
+          file.path !== TOKENS && file.path !== PDF_PALETTE && color.test(file.text),
+      )
       .map((file) => file.path);
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The one file that has to hold values instead of variables, and the check
+   * that keeps it honest.
+   *
+   * The findings report is a PDF, and a PDF has no stylesheet: the writer needs
+   * three numbers per colour at the moment it draws, with nothing to resolve a
+   * variable against. So it copies the light theme - and the copy is written as
+   * the variables it copies, which is what lets this compare the two. Every
+   * colour in the report is therefore still defined in exactly one place; this
+   * only proves that the copy is still that place's value.
+   */
+  it("the report's copy of the palette is the palette", () => {
+    const tokens = readFileSync(TOKENS, "utf8");
+    const root = /:root\s*\{([\s\S]*?)\n\}/.exec(tokens)?.[1] ?? "";
+    expect(root).toContain("--foreground");
+
+    for (const [name, value] of Object.entries(light)) {
+      const defined = new RegExp(`${name}:\\s*([^;]+);`).exec(root)?.[1]?.trim();
+      expect([name, value]).toEqual([name, defined]);
+    }
   });
 });

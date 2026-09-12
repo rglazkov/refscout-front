@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { READING_MS } from "../support/reading";
+import { keepTheMockOffTheScope } from "../support/scope";
 
 /**
  * The tab reloaded with no network at all, which is the whole question an
@@ -23,11 +24,13 @@ import { READING_MS } from "../support/reading";
  *
  * The mock is the other reason this is one file rather than a line in another.
  * A scope belongs to one service worker, and in a build wired to the mock the
- * contract's own bodies come from a worker at that same scope; registering the
- * shell replaces it. That is why the product registers the shell only where the
+ * contract's own bodies come from a worker at that same scope, registered again
+ * on every page. That is why the product registers the shell only where the
  * mock is absent, and why the order below is what it is: the document is
- * brought in first, while the mock is still answering, and the shell takes the
- * scope afterwards, by which point nothing else needs a server.
+ * brought in first, while the mock is still answering, and only then is the
+ * mock kept off the scope for good - by that point nothing here needs a server,
+ * and the tab that goes offline is in the charge of the shell rather than of
+ * whichever script registered last.
  */
 const MANUSCRIPT = `\\documentclass{article}
 \\begin{document}
@@ -40,9 +43,34 @@ const SHELL = "/sw.js";
 /** Takes the scope for the shell and waits for it to have cached the shell. */
 async function installShell(page: Page): Promise<void> {
   await page.evaluate(async (script) => {
+    /*
+     * The mock is holding this scope, and one scope is one worker - so it is
+     * taken off before the shell is put on, rather than the shell being
+     * registered over it. Registering over it would give the shell a turn
+     * behind the mock instead of a registration of its own, and a worker that
+     * is only waiting goes away with the registration it waits in: the mock
+     * drops its own the moment its last client closes, which is what a reload
+     * is, and the tab would come back with nothing in charge of it at all.
+     */
+    const held = await navigator.serviceWorker.getRegistration("/");
+    if (held !== undefined) await held.unregister();
     await navigator.serviceWorker.register(script, { scope: "/" });
     await navigator.serviceWorker.ready;
   }, SHELL);
+
+  // The scope is the shell's before anything is asked of it, and it is named
+  // rather than counted: what the rest of this reads - a cache filling, a tab
+  // coming back with a worker in charge of it - would be true of either script.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const registration = await navigator.serviceWorker.getRegistration("/");
+          return registration?.active?.scriptURL ?? null;
+        }),
+      { timeout: READING_MS },
+    )
+    .toContain(SHELL);
 
   // Precaching runs in the background after the load event, which is the point
   // - a first visit pays for offline neither in time nor in traffic - so this
@@ -73,13 +101,13 @@ async function installShell(page: Page): Promise<void> {
     .poll(
       () =>
         page
-          .evaluate(() => navigator.serviceWorker.controller !== null)
+          .evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? null)
           // The reload can still be settling when the first question is asked,
-          // and a context that went away under it is not an answer of "no".
-          .catch(() => false),
+          // and a context that went away under it is not an answer.
+          .catch(() => null),
       { timeout: READING_MS },
     )
-    .toBe(true);
+    .toContain(SHELL);
 }
 
 test("a tab opened with no network has the application and the manuscript", async ({
@@ -96,6 +124,7 @@ test("a tab opened with no network has the application and the manuscript", asyn
     timeout: READING_MS,
   });
 
+  await keepTheMockOffTheScope(context);
   await installShell(page);
   await expect(page.getByTestId("document-card")).toHaveCount(1, {
     timeout: READING_MS,

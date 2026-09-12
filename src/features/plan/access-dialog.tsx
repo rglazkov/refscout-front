@@ -65,17 +65,12 @@ export function AccessDialog() {
         </p>
 
         <ul className="space-y-2 text-sm">
-          {[t("benefit.before"), t("benefit.visible"), t("benefit.export")].map(
-            (benefit) => (
-              <li key={benefit} className="flex items-start gap-2">
-                <CheckIcon
-                  className="mt-0.5 size-4 shrink-0 text-ok"
-                  aria-hidden="true"
-                />
-                <span>{benefit}</span>
-              </li>
-            ),
-          )}
+          {[t("benefit.visible"), t("benefit.export")].map((benefit) => (
+            <li key={benefit} className="flex items-start gap-2">
+              <CheckIcon className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
+              <span>{benefit}</span>
+            </li>
+          ))}
         </ul>
 
         <DialogFooter>

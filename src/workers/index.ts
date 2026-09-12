@@ -20,11 +20,13 @@ import {
   diffCall,
   parseCall,
   readCall,
+  reportCall,
   resolveCall,
   type AssembleRequest,
   type CitationsRequest,
   type ReadRequest,
 } from "./protocol";
+import { type ReportRequest } from "./report.worker";
 
 export { COMPRESS_ABOVE_BYTES, type CompressResult } from "./gzip";
 /*
@@ -74,6 +76,8 @@ const DIFF_WORKER = publicPath("/workers/diff.worker.js");
 
 const RESOLVE_WORKER = publicPath("/workers/resolve.worker.js");
 
+const REPORT_WORKER = publicPath("/workers/report.worker.js");
+
 /**
  * The same two, built as classic scripts with nothing to import. They are only
  * reached when the module worker above will not start: everything is in the one
@@ -88,6 +92,8 @@ const CLASSIC_GZIP_WORKER = publicPath("/workers/classic/gzip.worker.js");
 const CLASSIC_DIFF_WORKER = publicPath("/workers/classic/diff.worker.js");
 
 const CLASSIC_RESOLVE_WORKER = publicPath("/workers/classic/resolve.worker.js");
+
+const CLASSIC_REPORT_WORKER = publicPath("/workers/classic/report.worker.js");
 
 /**
  * The workers of the product and the only way in to any of them. Callers see
@@ -151,6 +157,14 @@ const resolver = createWorkerClient<ResolveRequest, ResolveResult>(
     () => new Worker(CLASSIC_RESOLVE_WORKER),
   ],
   resolveCall,
+);
+
+const reporter = createWorkerClient<ReportRequest, Uint8Array<ArrayBuffer>>(
+  [
+    () => new Worker(REPORT_WORKER, { type: "module" }),
+    () => new Worker(CLASSIC_REPORT_WORKER),
+  ],
+  reportCall,
 );
 
 /**
@@ -278,4 +292,19 @@ export function resolvePlaces(
   options: RunOptions = {},
 ): Promise<ResolveResult> {
   return resolver.run(request, options);
+}
+
+/**
+ * Writes the findings report into a PDF and hands back its bytes.
+ *
+ * The ceiling is generous because the work is genuinely long. A job over a
+ * thesis can carry thousands of findings, each of them measured, wrapped and
+ * drawn, and this timeout is here to end a write that has stopped rather than
+ * to hurry one that is going.
+ */
+export function writeReportPdf(
+  request: ReportRequest,
+  options: RunOptions = {},
+): Promise<Uint8Array<ArrayBuffer>> {
+  return reporter.run(request, { timeoutMs: 300_000, ...options });
 }

@@ -9,11 +9,10 @@ import { capabilities, planPrice } from "@/lib/entitlements";
  * components rather than from a file in content/: its strings live in the
  * dictionary like the rest of the interface text.
  *
- * What the plan covers, and which of the checks have no limit for anybody, are
- * read from the one table of rights rather than written out again here. A
- * boundary stated in three places - this page, the lock on a check and the
- * window the lock opens - moves in one of them first, and the disagreement is
- * found by the person paying.
+ * What the plan covers is read from the one table of rights rather than written
+ * out again here. A boundary stated in three places - this page, the lock on a
+ * check and the window the lock opens - moves in one of them first, and the
+ * disagreement is found by the person paying.
  *
  * The card is served as text, with one live control in it: the button is the
  * end of the offer, so it goes to the payment provider rather than anywhere on
@@ -22,12 +21,7 @@ import { capabilities, planPrice } from "@/lib/entitlements";
 export async function PricingPage() {
   const t = await getTranslations("pricing");
   const item = await getTranslations("pricingPlan");
-  const checkName = await getTranslations("capabilities");
   const format = await getFormatter();
-
-  const unlimited = capabilities
-    .filter((capability) => capability.tier === "free" && capability.id !== "download")
-    .map((capability) => checkName(capability.id));
 
   return (
     <div
@@ -61,9 +55,7 @@ export async function PricingPage() {
           </p>
         </div>
 
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {t("planNote", { free: format.list(unlimited, { type: "conjunction" }) })}
-        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("planNote")}</p>
 
         <ul className="ms-4 flex list-disc flex-col gap-1.5 text-sm">
           {capabilities.map(({ id }) => (

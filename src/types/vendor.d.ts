@@ -92,3 +92,17 @@ declare module "@citation-js/core" {
 
 /** The BibTeX reader for citation-js. Imported for its effect: it registers itself. */
 declare module "@citation-js/plugin-bibtex";
+
+/**
+ * A font file, imported for its bytes.
+ *
+ * The four faces the findings report is set in are built into the worker that
+ * writes it rather than fetched: that worker sees whole manuscripts, and the
+ * rule it lives under is that nothing which sees a manuscript can reach the
+ * network at all. The builder is told to read a `.ttf` as bytes, and this says
+ * so to the type checker.
+ */
+declare module "*.ttf" {
+  const bytes: Uint8Array;
+  export default bytes;
+}

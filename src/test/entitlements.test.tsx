@@ -99,11 +99,10 @@ describe("the pricing page", () => {
     expect(JSON.stringify(messages.pricing)).not.toMatch(/[$€£]\s?\d/);
   });
 
-  it("names the unlimited checks from the table rather than in its own words", () => {
-    // The sentence takes the list as a substitution. Spelled out in the
-    // dictionary, it would go on naming a check the day that check stops being
-    // free, and nothing would point at it.
-    expect(messages.pricing.planNote).toContain("{free}");
+  it("names no check of its own accord", () => {
+    // What the plan covers is the list under the card, and that list is built
+    // from the table. A check named in the sentence above it would go on being
+    // named there the day it moved tiers, and nothing would point at it.
     for (const { id } of capabilities) {
       const name = messages.capabilities[id as keyof typeof messages.capabilities];
       if (name !== undefined) expect(messages.pricing.planNote).not.toContain(name);

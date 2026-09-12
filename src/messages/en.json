@@ -331,13 +331,14 @@
     "findings": {
       "label": "Findings in this document",
       "heading": "{count, plural, =0 {No findings here} one {# finding} other {# findings}}",
-      "position": "Finding {index} of {count}",
+      "position": "Place {index} of {count}",
       "none": "Nothing left to show. Everything here is marked as dealt with.",
-      "previous": "Previous finding",
-      "next": "Next finding",
+      "unplaced": "{count, plural, one {# finding could not be placed in this text} other {# findings could not be placed in this text}}",
+      "previous": "Previous place",
+      "next": "Next place",
       "close": "Close this finding",
       "offered": "Offered in its place:",
-      "nextOccurrence": "Next place",
+      "nextOccurrence": "Next place of this finding",
       "occurrence": "{index} of {count}",
       "hideSettled": "Hide settled",
       "pick": "Pick a finding in the text, or step through them with the arrows."
@@ -408,7 +409,6 @@
     "accessLocked": "Paid checks: access closed — free checks will still run",
     "progressOf": "{done} of {total}",
     "checksDone": "{done} of {total}",
-    "accessNoLimits": "Within your access days there is no limit on runs or on documents in a run.",
     "retryAfter": "Try again in {seconds, plural, one {# second} other {# seconds}}.",
     "signIn": "Sign in",
     "seePro": "See Pro options"
@@ -423,7 +423,7 @@
     "characters": "{chars} characters",
     "openInEditor": "Open in the editor",
     "editedAfterRun": "This text has been edited since the check ran. The lines, pages and quotes below point at the text as it was sent, so they may no longer match. Download gives back the text as it stands now.",
-    "downloadReport": "Download report (.md)",
+    "downloadReport": "Download report",
     "openArtifact": "Open the .{extension} this check made",
     "notAnchoredText": "This check read a different version of the text, so the findings below are listed without places. Request:",
     "notAnchoredUnit": "This check measured its places in a unit we do not accept, so the findings below are listed without them. Request:",
@@ -473,8 +473,8 @@
     },
     "severity": {
       "critical": "{count} critical",
-      "warning": "{count} warnings",
-      "info": "{count} notes",
+      "warning": "{count, plural, one {# warning} other {# warnings}}",
+      "info": "{count, plural, one {# note} other {# notes}}",
       "criticalLabel": "critical",
       "warningLabel": "{count, plural, one {warning} other {warnings}}",
       "notRunLabel": "{count, plural, one {check not run} other {checks not run}}"
@@ -597,7 +597,6 @@
       "cite": "Cite finds claims that need a source and proposes real candidates you can inspect before accepting."
     },
     "benefit": {
-      "before": "The lock is shown before a check starts, never after you have filled in settings.",
       "visible": "Every candidate and result remains visible for you to inspect.",
       "export": "Generated citations and corrected files can be downloaded from the results."
     },
@@ -616,11 +615,11 @@
     "title": "Findings",
     "fileName": "refscout-findings",
     "generatedAt": "Produced {date}",
-    "counts": "{critical} critical · {warning} warnings",
     "nothing": "Nothing was found in this document.",
     "line": "line",
     "page": "page",
-    "quote": "quote",
+    "pageNumbers": "page {page} of {total}",
+    "doi": "DOI",
     "fixed": "marked fixed",
     "ignored": "ignored",
     "replacement": "Proposed replacement:",
@@ -744,7 +743,7 @@
     "lead": "Pricing is being finalised. Full access is free while {brandName} is in its pilot phase.",
     "badge": "Pilot",
     "planName": "Everything, free",
-    "planNote": "Every check is available at no cost while the pilot runs. {free} have no usage limits at all.",
+    "planNote": "Every check is available at no cost while the pilot runs.",
     "connect": "Connect Pro",
     "manage": "Manage subscription",
     "footnote": "Pricing will be announced here before any charges begin. No payment method is required during the pilot."

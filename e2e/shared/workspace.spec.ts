@@ -193,7 +193,22 @@ test.describe("from a file to a downloaded report", () => {
       page.waitForEvent("download"),
       page.getByTestId("download-report").first().click(),
     ]);
-    expect(report.suggestedFilename()).toBe("refscout-findings.md");
+    expect(report.suggestedFilename()).toBe("refscout-findings.pdf");
+
+    /*
+     * And it is a PDF in fact and not only in name. This is the one place the
+     * whole path runs as a person runs it: a real browser starts the worker,
+     * the worker draws the file with the faces built into it, and what comes
+     * back is read off the download. A unit test can write a PDF; only this can
+     * say that this browser wrote one.
+     */
+    const stream = await report.createReadStream();
+    const head: Buffer[] = [];
+    for await (const chunk of stream) {
+      head.push(chunk as Buffer);
+      if (head.reduce((size, part) => size + part.length, 0) > 1024) break;
+    }
+    expect(Buffer.concat(head).subarray(0, 5).toString()).toBe("%PDF-");
 
     // Only one job was ever created, whatever else the screen did.
     const created = requests.filter((url) => /\/jobs$/.test(url));

@@ -469,6 +469,15 @@ describe("what a marketing page costs to open", () => {
    */
   const ON_DEMAND_ONLY = [
     "pdfjs-dist",
+    /*
+     * And the writer of the findings report, which is only reached once
+     * somebody has run a job and pressed to take the result away. It embeds
+     * four whole faces and weighs more than a megabyte with them, so it lives
+     * in a worker of its own and its file names are kept in a module that
+     * imports none of it.
+     */
+    "pdf-lib",
+    "@pdf-lib/fontkit",
     "mammoth",
     "turndown",
     "@joplin/turndown-plugin-gfm",

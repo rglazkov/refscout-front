@@ -48,11 +48,16 @@ function referencedKeys(): string[] {
       if (name === "") continue;
       // A key built from a variable is not a literal and is not seen here; the
       // families that happens to are declared in `dynamicKeys` below.
-      // `t("key")` and `t.rich("key")` alike: the second is the same lookup
-      // with the tags of the phrase filled in by the caller, and a key read
-      // that way is a key the dictionary is asked for.
+      /*
+       * `t("key")`, `t.rich("key")` and `t.raw("key")` alike. The second is the
+       * same lookup with the tags of the phrase filled in by the caller. The
+       * third is the sentence before anything is filled in at all, which is
+       * what a caller needs when the values belong to something that has not
+       * happened yet - the number of pages in a file still being written. A key
+       * read any of those ways is a key the dictionary is asked for.
+       */
       const calls = file.text.matchAll(
-        new RegExp(`\\b${name}(?:\\.rich)?\\(\\s*"([^"$]+)"`, "g"),
+        new RegExp(`\\b${name}(?:\\.rich|\\.raw)?\\(\\s*"([^"$]+)"`, "g"),
       );
       for (const call of calls) {
         const key = call[1] ?? "";
