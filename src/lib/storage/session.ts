@@ -1,4 +1,4 @@
-import { type IntakeDraft, type RunIntent } from "@/lib/domain";
+import { type IntakeDraft, type JobStatus, type RunIntent } from "@/lib/domain";
 
 import {
   DRAFT_KEY,
@@ -20,7 +20,11 @@ import { commit } from "./writer";
  * typed into it since.
  */
 
-export type StoredJob = { readonly jobId: string; readonly jobToken: string };
+export type StoredJob = {
+  readonly jobId: string;
+  readonly jobToken: string;
+  readonly status?: JobStatus;
+};
 
 export function writeJob(job: StoredJob | null): Promise<void> {
   return commit((stores) => {

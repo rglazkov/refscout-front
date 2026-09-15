@@ -7,7 +7,8 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { useJob } from "@/features/job/use-job";
-import { resultKey } from "@/lib/domain";
+import { resultKey, type JobStatus } from "@/lib/domain";
+import { type JobHandle } from "@/stores/job";
 
 import { scenarios } from "./msw/handlers.gen";
 
@@ -32,7 +33,7 @@ const bibcheck = {
 };
 
 /** Only the one module, so the hook asks for exactly one body. */
-function statusBody(ref: string) {
+function statusBody(ref: string): JobStatus {
   return {
     ...STATUS,
     documents: [
@@ -93,11 +94,11 @@ beforeEach(() => {
 
 afterEach(() => server.resetHandlers());
 
-function mounted() {
+function mounted(handle?: JobHandle) {
   const client = new QueryClient({
     defaultOptions: { queries: { retryDelay: 0 } },
   });
-  return renderHook(() => useJob({ jobId: JOB_ID, jobToken: "tok" }), {
+  return renderHook(() => useJob(handle ?? { jobId: JOB_ID, jobToken: "tok" }), {
     wrapper: ({ children }: { readonly children: React.ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     ),
@@ -134,5 +135,45 @@ describe("a result address a retry has replaced", () => {
     await waitFor(() =>
       expect(result.current.job?.results[resultKey(DOC_ID, "bibcheck")]?.attempt).toBe(2),
     );
+  });
+});
+
+describe("restoring a job from local storage", () => {
+  it("uses the stored status without polling the server and keeps results visible", async () => {
+    const status = statusBody(currentRef);
+    const { result } = mounted({ jobId: JOB_ID, jobToken: "tok", status });
+
+    expect(result.current.job?.status).toEqual(status);
+    expect(result.current.gone).toBe(false);
+
+    await waitFor(() =>
+      expect(result.current.job?.results[resultKey(DOC_ID, "bibcheck")]).toBeDefined(),
+    );
+
+    expect(polls).toBe(0);
+  });
+
+  it("keeps existing findings visible when an in-flight check is reported gone by the server", async () => {
+    server.use(
+      http.get(`*/jobs/${JOB_ID}`, () => {
+        return HttpResponse.json(scenarios.getJob.jobNotFound.body, { status: 404 });
+      }),
+    );
+
+    const nonTerminalStatus: JobStatus = {
+      ...STATUS,
+      state: "in_progress",
+    } as unknown as JobStatus;
+
+    const { result } = mounted({
+      jobId: JOB_ID,
+      jobToken: "tok",
+      status: nonTerminalStatus,
+    });
+
+    await waitFor(() => expect(result.current.gone).toBe(true));
+    expect(result.current.job).not.toBeNull();
+    expect(result.current.job?.status.id).toBe(JOB_ID);
+    expect(result.current.error).toBeNull();
   });
 });

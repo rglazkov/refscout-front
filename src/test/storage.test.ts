@@ -214,6 +214,31 @@ describe("the session and the results", () => {
     expect(restored.cards).toHaveLength(1);
   });
 
+  it("brings back the job with its status", async () => {
+    await writeJob({
+      jobId: "j1",
+      jobToken: "t1",
+      status: {
+        id: "j1",
+        createdAt: "2026-09-15T00:00:00Z",
+        state: "finished",
+        stages: [],
+        documents: [],
+      },
+    });
+    await settled();
+
+    const restored = await hydrate();
+    expect(restored.job).toMatchObject({
+      jobId: "j1",
+      jobToken: "t1",
+      status: {
+        id: "j1",
+        state: "finished",
+      },
+    });
+  });
+
   it("empties every store at once", async () => {
     indexedDbDocuments.put("d1", content);
     await writeJob({ jobId: "j1", jobToken: "t1" });

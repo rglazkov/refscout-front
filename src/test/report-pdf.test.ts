@@ -162,6 +162,34 @@ describe("the report comes out as a PDF somebody can read", () => {
     expect(text).toContain("A retracted entry");
   });
 
+  it("spaces a finding title clearly apart from its severity badge", async () => {
+    const bytes = await write(
+      doc([section("paper.tex", [finding("A retracted entry", null)])]),
+    );
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const file = await getDocument({ data: new Uint8Array(bytes), useSystemFonts: false })
+      .promise;
+    const page = await file.getPage(1);
+    const content = await page.getTextContent();
+    type TextItem = {
+      readonly str: string;
+      readonly transform: readonly number[];
+      readonly width: number;
+    };
+    const items = content.items as unknown as readonly TextItem[];
+    const severityItem = items.find((item) => item.str.includes("CRITICAL"));
+    const titleItem = items.find((item) => item.str.includes("retracted"));
+    expect(severityItem).toBeDefined();
+    expect(titleItem).toBeDefined();
+    if (severityItem !== undefined && titleItem !== undefined) {
+      const severityEnd = (severityItem.transform[4] ?? 0) + severityItem.width;
+      const titleStart = titleItem.transform[4] ?? 0;
+      const gap = titleStart - severityEnd;
+      // Must be comfortably spaced apart (wider than the previous tight ~1.89pt space)
+      expect(gap).toBeGreaterThan(8);
+    }
+  });
+
   it("keeps a quoted fragment character for character", async () => {
     /*
      * The characters below are the ones a format with markup would have eaten -

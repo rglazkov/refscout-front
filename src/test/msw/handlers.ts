@@ -46,6 +46,46 @@ const jobs = new Map<string, SubmittedJob>();
 /** One job per idempotency key. The mock is where the second one would appear. */
 const byKey = new Map<string, string>();
 
+function loadSessionState(): void {
+  if (typeof window === "undefined" || typeof window.sessionStorage === "undefined")
+    return;
+  try {
+    const rawJobs = window.sessionStorage.getItem("refscout_mock_jobs");
+    if (rawJobs) {
+      const entries = JSON.parse(rawJobs) as [string, SubmittedJob][];
+      for (const [id, job] of entries) {
+        if (!jobs.has(id)) jobs.set(id, job);
+      }
+    }
+    const rawKeys = window.sessionStorage.getItem("refscout_mock_byKey");
+    if (rawKeys) {
+      const entries = JSON.parse(rawKeys) as [string, string][];
+      for (const [k, v] of entries) {
+        if (!byKey.has(k)) byKey.set(k, v);
+      }
+    }
+  } catch {
+    // Ignore storage parse errors
+  }
+}
+
+function saveSessionState(): void {
+  if (typeof window === "undefined" || typeof window.sessionStorage === "undefined")
+    return;
+  try {
+    window.sessionStorage.setItem(
+      "refscout_mock_jobs",
+      JSON.stringify([...jobs.entries()]),
+    );
+    window.sessionStorage.setItem(
+      "refscout_mock_byKey",
+      JSON.stringify([...byKey.entries()]),
+    );
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
 /**
  * Which of the contract's four answers about access this session is living in.
  * It is one value rather than a pile of flags because it is one situation: an
@@ -78,6 +118,14 @@ export function resetMockServer(): void {
   byKey.clear();
   telemetry.length = 0;
   scenario = "paid";
+  if (typeof window !== "undefined" && typeof window.sessionStorage !== "undefined") {
+    try {
+      window.sessionStorage.removeItem("refscout_mock_jobs");
+      window.sessionStorage.removeItem("refscout_mock_byKey");
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 const entitlementsOf = () => scenarios.getEntitlements[scenario].body;
@@ -405,6 +453,7 @@ export const handlers = [
       );
     }
 
+    loadSessionState();
     const known = byKey.get(key);
     if (known !== undefined) {
       const job = jobs.get(known);
@@ -441,6 +490,7 @@ export const handlers = [
     };
     jobs.set(jobId, job);
     if (key !== "") byKey.set(key, jobId);
+    saveSessionState();
 
     return HttpResponse.json(
       {
@@ -454,6 +504,7 @@ export const handlers = [
   }),
 
   http.get("*/jobs/:jobId", ({ params, request }) => {
+    loadSessionState();
     const job = jobs.get(String(params.jobId));
     // An unknown job, an erased job and a valid job read without its token are
     // one and the same answer.
@@ -462,23 +513,27 @@ export const handlers = [
     }
     const running = !job.cancelled && job.polls < POLLS_BEFORE_DONE;
     job.polls += 1;
+    saveSessionState();
     return HttpResponse.json(statusBody(job, running), {
       headers: { "X-Request-Id": "req_mock" },
     });
   }),
 
   http.delete("*/jobs/:jobId", ({ params, request }) => {
+    loadSessionState();
     const job = jobs.get(String(params.jobId));
     if (job === undefined || tokenOf(request) !== job.jobToken) {
       return refusal(404, scenarios.getJob.jobNotFound.body);
     }
     job.cancelled = true;
+    saveSessionState();
     return HttpResponse.json(statusBody(job, false), { status: 202 });
   }),
 
   http.get(
     "*/jobs/:jobId/documents/:docId/modules/:moduleId/result",
     ({ params, request }) => {
+      loadSessionState();
       const job = jobs.get(String(params.jobId));
       if (job === undefined || tokenOf(request) !== job.jobToken) {
         return refusal(404, scenarios.getJob.jobNotFound.body);
@@ -496,6 +551,7 @@ export const handlers = [
   ),
 
   http.post("*/jobs/:jobId/modules/:moduleId/retry", ({ params, request }) => {
+    loadSessionState();
     const job = jobs.get(String(params.jobId));
     if (job === undefined || tokenOf(request) !== job.jobToken) {
       return refusal(404, scenarios.getJob.jobNotFound.body);

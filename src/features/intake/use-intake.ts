@@ -4,8 +4,12 @@ import * as React from "react";
 
 import {
   docRegistry,
+  extensionOf,
+  formatOf,
   holdSourceFile,
   refuseByCount,
+  refuseBySize,
+  sanitizeDocumentName,
   sourceFileOf,
   type IntakeRefusal,
 } from "@/lib/docs";
@@ -112,7 +116,9 @@ export function useIntake(): IntakeApi {
    */
   const readInto = React.useCallback(
     async (docId: string, file: File, options: ExtractOptions = {}) => {
-      const controller = new AbortController();
+      const existing = running.current.get(docId);
+      const controller =
+        existing && !existing.signal.aborted ? existing : new AbortController();
       running.current.set(docId, controller);
       setProgress((current) => ({ ...current, [docId]: { done: 0, total: 0 } }));
       useBufferStore.getState().patchExtract(docId, {
@@ -133,6 +139,10 @@ export function useIntake(): IntakeApi {
           },
           docId,
         );
+
+        if (!useBufferStore.getState().items.some((item) => item.id === docId)) {
+          return;
+        }
 
         if (!result.ok) {
           // A refusal of intake is not a state of a document: it never becomes
@@ -174,12 +184,58 @@ export function useIntake(): IntakeApi {
           return;
         }
 
+        const validFiles: File[] = [];
+        const immediateRefusals: RefusalNotice[] = [];
+
         for (const file of files) {
-          // Sequential on purpose: the whole-buffer limit is counted against the
-          // buffer as it stands, and a parallel loop would race that number.
+          const name = sanitizeDocumentName(file.name);
+          const tooBig = refuseBySize(file.size);
+          if (tooBig !== null) {
+            immediateRefusals.push({ name, refusal: tooBig });
+            continue;
+          }
+          const format = formatOf(file.name);
+          if (format === null) {
+            immediateRefusals.push({
+              name,
+              refusal: { code: "UNSUPPORTED_FORMAT", extension: extensionOf(file.name) },
+            });
+            continue;
+          }
+          validFiles.push(file);
+        }
+
+        if (immediateRefusals.length > 0) {
+          setRefusals((current) => [...current, ...immediateRefusals]);
+        }
+
+        // All valid documents appear in the buffer immediately upon drop.
+        const queue = validFiles.map((file) => {
           const placeholder = placeholderFor(file);
-          useBufferStore.getState().add(placeholder);
-          await readInto(placeholder.id, file);
+          const controller = new AbortController();
+          running.current.set(placeholder.id, controller);
+          holdSourceFile(placeholder.id, file);
+          return { file, placeholder, controller };
+        });
+
+        for (const entry of queue) {
+          useBufferStore.getState().add(entry.placeholder);
+        }
+
+        // Sequential on purpose: the whole-buffer limit is counted against the
+        // buffer as it stands, and a parallel loop would race that number.
+        for (const entry of queue) {
+          const currentItem = useBufferStore
+            .getState()
+            .items.find((item) => item.id === entry.placeholder.id);
+          if (
+            !currentItem ||
+            currentItem.extract.state === "failed" ||
+            entry.controller.signal.aborted
+          ) {
+            continue;
+          }
+          await readInto(entry.placeholder.id, entry.file);
         }
       } finally {
         setBusy(false);
@@ -238,9 +294,22 @@ export function useIntake(): IntakeApi {
     [readInto],
   );
 
-  const cancel = React.useCallback((docId: string) => {
-    running.current.get(docId)?.abort();
-  }, []);
+  const cancel = React.useCallback(
+    (docId: string) => {
+      running.current.get(docId)?.abort();
+      const item = useBufferStore
+        .getState()
+        .items.find((candidate) => candidate.id === docId);
+      if (item && item.extract.state === "reading") {
+        useBufferStore.getState().patchExtract(docId, {
+          state: "failed",
+          errorCode: "CANCELLED",
+        });
+        clearProgress(docId);
+      }
+    },
+    [clearProgress],
+  );
 
   /**
    * A file brought in for one of the slots on a document's card. It is read in

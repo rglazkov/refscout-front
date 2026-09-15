@@ -354,7 +354,7 @@ function piecesOf(sheet: Sheet, finding: ReportFinding, look: Look): readonly Pi
       size: size.badge,
       color: look.edge,
     },
-    { text: "   ", size: size.finding },
+    { text: "    ", size: size.finding },
     { text: finding.title, size: size.finding },
   ];
   if (finding.mark !== null) {

@@ -231,7 +231,13 @@ function WorkspaceBody() {
       retryModule(handle?.jobId ?? "", input.module, handle?.jobToken ?? "", [
         input.docId,
       ]),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ["job", handle?.jobId] }),
+    onSuccess: (updatedStatus) => {
+      if (updatedStatus !== undefined) {
+        useJobStore.getState().setJobStatus(updatedStatus);
+        queries.setQueryData(["job", handle?.jobId], updatedStatus);
+      }
+      void queries.invalidateQueries({ queryKey: ["job", handle?.jobId] });
+    },
   });
 
   const newCheck = () => {
@@ -381,7 +387,7 @@ function WorkspaceBody() {
           </p>
         ) : null}
 
-        {mode === "buffer" && job === null && handle !== null ? (
+        {mode === "buffer" && job === null && handle !== null && !gone ? (
           <p className="mt-6 text-sm text-muted-foreground">{t("starting")}</p>
         ) : null}
 

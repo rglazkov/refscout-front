@@ -49,6 +49,13 @@ type Word = {
   readonly width: number;
 };
 
+type Space = {
+  text: string;
+  width: number;
+  role: Role;
+  span: Span;
+};
+
 /**
  * Where the baseline sits under the top of a line box. Taken as a fraction of
  * the size rather than from the face's own ascender: the four faces have
@@ -360,7 +367,7 @@ export class Sheet {
    */
   private batches(line: {
     readonly words: readonly Word[];
-    readonly spaces: ReadonlyMap<Word, number>;
+    readonly spaces: ReadonlyMap<Word, Space>;
   }): readonly {
     readonly run: Run;
     readonly size: number;
@@ -397,9 +404,9 @@ export class Sheet {
 
     for (const word of line.words) {
       for (const part of word.parts) add(part.run.text, part.run.role, part.span);
-      if ((line.spaces.get(word) ?? 0) > 0) {
-        const last = word.parts.at(-1);
-        if (last !== undefined) add(" ", last.run.role, last.span);
+      const space = line.spaces.get(word);
+      if (space !== undefined) {
+        add(space.text, space.role, space.span);
       }
     }
     return batches;
@@ -416,17 +423,17 @@ export class Sheet {
     measure: number,
   ): readonly {
     readonly words: readonly Word[];
-    readonly spaces: ReadonlyMap<Word, number>;
+    readonly spaces: ReadonlyMap<Word, Space>;
     readonly size: number;
   }[] {
     const stream = this.words(spans);
     const lines: {
       words: Word[];
-      spaces: Map<Word, number>;
+      spaces: Map<Word, Space>;
       size: number;
     }[] = [];
     let words: Word[] = [];
-    let spaces = new Map<Word, number>();
+    let spaces = new Map<Word, Space>();
     let width = 0;
     let tallest = 0;
 
@@ -448,10 +455,10 @@ export class Sheet {
         width += piece.width;
         tallest = Math.max(tallest, this.sizeOf(piece));
       }
-      if (entry.space > 0 && words.length > 0) {
+      if (entry.space !== null && words.length > 0) {
         const last = words.at(-1);
         if (last !== undefined) spaces.set(last, entry.space);
-        width += entry.space;
+        width += entry.space.width;
       }
     }
     close();
@@ -511,15 +518,26 @@ export class Sheet {
   /** Every word in the spans, with the space that follows each. */
   private words(
     spans: readonly Span[],
-  ): readonly { readonly word: Word; readonly space: number }[] {
-    const stream: { word: Word; space: number }[] = [];
+  ): readonly { readonly word: Word; readonly space: Space | null }[] {
+    const stream: { word: Word; space: Space | null }[] = [];
     let parts: { run: Run; span: Span }[] = [];
     let width = 0;
 
-    const close = (space: number): void => {
+    const close = (space: Space | null): void => {
       if (parts.length === 0) {
         const last = stream.at(-1);
-        if (last !== undefined && space > 0) last.space = Math.max(last.space, space);
+        if (last !== undefined && space !== null) {
+          if (last.space === null) {
+            last.space = space;
+          } else {
+            last.space = {
+              text: last.space.text + space.text,
+              role: space.role,
+              span: space.span,
+              width: last.space.width + space.width,
+            };
+          }
+        }
         return;
       }
       stream.push({ word: { parts, width }, space });
@@ -532,12 +550,14 @@ export class Sheet {
       for (const chunk of chunks) {
         if (chunk === "") continue;
         if (/^\s+$/.test(chunk)) {
-          close(
-            this.faces.width(
-              { role: span.role ?? "sans", text: " " },
-              span.size ?? size.finding,
-            ),
-          );
+          const role = span.role ?? "sans";
+          const text = " ".repeat(chunk.length);
+          close({
+            text,
+            role,
+            span,
+            width: this.faces.width({ role, text }, span.size ?? size.finding),
+          });
           continue;
         }
         for (const run of this.faces.runs(chunk, span.role ?? "sans")) {
@@ -546,7 +566,7 @@ export class Sheet {
         }
       }
     }
-    close(0);
+    close(null);
     return stream;
   }
 

@@ -1,9 +1,10 @@
 "use client";
 
+import { castDraft } from "immer";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
-import { type ModuleId, type RunIntent } from "@/lib/domain";
+import { type JobStatus, type ModuleId, type RunIntent } from "@/lib/domain";
 
 /**
  * The run: the intention behind it, the job it created, and the marks the
@@ -17,6 +18,7 @@ import { type ModuleId, type RunIntent } from "@/lib/domain";
 export type JobHandle = {
   readonly jobId: string;
   readonly jobToken: string;
+  readonly status?: JobStatus;
 };
 
 export type JobState = {
@@ -46,6 +48,7 @@ export type JobState = {
   readonly setInflight: (inflight: boolean) => void;
   readonly clearIntent: () => void;
   readonly setJob: (job: JobHandle) => void;
+  readonly setJobStatus: (status: JobStatus) => void;
   readonly clearJob: () => void;
   readonly toggleFixed: (docId: string, module: ModuleId, issueId: string) => void;
   readonly toggleIgnored: (docId: string, module: ModuleId, issueId: string) => void;
@@ -118,7 +121,14 @@ export const useJobStore = create<JobState>()(
 
     setJob: (job) =>
       set((state) => {
-        state.job = job;
+        state.job = castDraft(job);
+      }),
+
+    setJobStatus: (status) =>
+      set((state) => {
+        if (state.job !== null) {
+          state.job = castDraft({ ...state.job, status });
+        }
       }),
 
     clearJob: () =>

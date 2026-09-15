@@ -22,7 +22,7 @@ import { resolveBody } from "@/lib/anchor";
 import { restoredBodies } from "@/lib/boot";
 import { writeBody } from "@/lib/storage";
 import { reportAnchoring, verifyCounts, verifyWording } from "@/lib/normalize";
-import { type JobHandle } from "@/stores";
+import { type JobHandle, useJobStore } from "@/stores";
 
 /**
  * The job, as the client assembles it: the polled state, plus the body of every
@@ -93,9 +93,13 @@ export function useJob(handle: JobHandle | null): {
 } {
   const queryClient = useQueryClient();
 
+  const isAlreadyTerminal =
+    handle?.status !== undefined && isTerminal(handle.status.state);
+
   const status = useQuery({
     queryKey: ["job", handle?.jobId],
-    enabled: handle !== null,
+    enabled: handle !== null && !isAlreadyTerminal,
+    initialData: handle?.status,
     queryFn: () => getJob(handle?.jobId ?? "", handle?.jobToken ?? ""),
     /*
      * A job on the server is not for ever, and the answer that says so is not a
@@ -130,7 +134,14 @@ export function useJob(handle: JobHandle | null): {
     refetchIntervalInBackground: true,
   });
 
-  const refs = terminalRefs(status.data);
+  React.useEffect(() => {
+    if (status.data !== undefined && status.data !== handle?.status) {
+      useJobStore.getState().setJobStatus(status.data);
+    }
+  }, [status.data, handle?.status]);
+
+  const currentStatus = status.data ?? handle?.status;
+  const refs = terminalRefs(currentStatus);
 
   /**
    * Two answers a result address gives that are not failures of the screen, and
@@ -214,7 +225,7 @@ export function useJob(handle: JobHandle | null): {
     .join("|");
 
   const job = React.useMemo<Job | null>(() => {
-    if (handle === null || status.data === undefined) return null;
+    if (handle === null || currentStatus === undefined) return null;
 
     const results: Record<string, ModuleResult> = {};
     refs.forEach((entry, index) => {
@@ -225,11 +236,11 @@ export function useJob(handle: JobHandle | null): {
       results[resultKey(entry.docId, entry.module)] = body;
     });
 
-    return { status: status.data, token: handle.jobToken, results };
+    return { status: currentStatus, token: handle.jobToken, results };
     // `refs` and `bodies` are rebuilt on every render and are named by
     // `arrived`, which is what the memo is really keyed on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handle, status.data, arrived]);
+  }, [handle, currentStatus, arrived]);
 
   /**
    * The counters come from the poll and the findings come from the body, and
@@ -280,6 +291,6 @@ export function useJob(handle: JobHandle | null): {
     // The end of a job is not an error of the screen, so it is not passed on as
     // one: it has a sentence of its own beside the findings that did arrive.
     error: jobIsGone(status.error) ? null : status.error,
-    gone: jobIsGone(status.error),
+    gone: !isAlreadyTerminal && jobIsGone(status.error),
   };
 }
