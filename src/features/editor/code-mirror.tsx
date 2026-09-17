@@ -1,19 +1,37 @@
 "use client";
 
 import * as React from "react";
+import {
+  acceptCompletion,
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import {
+  HighlightStyle,
+  bracketMatching,
+  codeFolding,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 import {
   EditorView,
   ViewPlugin,
+  crosshairCursor,
   drawSelection,
+  dropCursor,
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
   lineNumbers,
+  rectangularSelection,
   type ViewUpdate,
 } from "@codemirror/view";
 
@@ -187,7 +205,23 @@ const highlightStyle = HighlightStyle.define([
  * there is no way out of an editor inside a modal overlay with the keyboard,
  * which makes the overlay a trap rather than a dialogue.
  */
-const tabMovesFocus = keymap.of([{ key: "Tab", run: () => false, shift: () => false }]);
+const tabMovesFocus = keymap.of([
+  { key: "Tab", run: acceptCompletion },
+  { key: "Tab", run: () => false, shift: () => false },
+]);
+
+/**
+ * Renders crisp SVG chevron fold markers vertically centered with line numbers.
+ */
+function createFoldMarker(open: boolean): HTMLElement {
+  const marker = document.createElement("span");
+  marker.className = `cm-fold-icon cm-fold-icon-${open ? "open" : "closed"}`;
+  marker.setAttribute("aria-hidden", "true");
+  marker.innerHTML = open
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+  return marker;
+}
 
 /**
  * The default, as one value rather than a fresh array per render. A new empty
@@ -397,6 +431,95 @@ export const editorSurface = EditorView.theme({
   ".cm-selectionMatch": {
     backgroundColor: "color-mix(in srgb, var(--primary) 14%, transparent)",
   },
+
+  /*
+   * Folding gutter and placeholders.
+   */
+  ".cm-foldGutter": {
+    width: "1.25rem",
+    cursor: "pointer",
+  },
+  ".cm-foldGutter .cm-gutterElement": {
+    padding: "0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "color-mix(in srgb, var(--muted-foreground) 75%, transparent)",
+    transition: "color var(--motion-fast) var(--ease-out)",
+  },
+  ".cm-foldGutter .cm-gutterElement:hover": {
+    color: "var(--foreground)",
+  },
+  ".cm-fold-icon": {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "14px",
+    height: "14px",
+    lineHeight: "1",
+  },
+  ".cm-fold-icon svg": {
+    display: "block",
+    width: "14px",
+    height: "14px",
+  },
+  ".cm-foldPlaceholder": {
+    backgroundColor: "color-mix(in srgb, var(--muted) 80%, var(--card))",
+    border: "1px solid var(--border)",
+    color: "var(--muted-foreground)",
+    borderRadius: "0.25rem",
+    padding: "0 0.375rem",
+    margin: "0 0.25rem",
+    cursor: "pointer",
+    fontSize: "0.75rem",
+    lineHeight: "1.2",
+    display: "inline-block",
+  },
+  "&.cm-focused .cm-matchingBracket": {
+    backgroundColor: "color-mix(in srgb, var(--primary) 25%, transparent)",
+    outline: "1px solid color-mix(in srgb, var(--primary) 50%, transparent)",
+    borderRadius: "1px",
+  },
+
+  /*
+   * The autocomplete popup tooltip. Styled with product design tokens.
+   */
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    backgroundColor: "var(--card)",
+    border: "1px solid var(--border)",
+    borderRadius: "0.5rem",
+    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.2), 0 2px 6px -1px rgba(0, 0, 0, 0.1)",
+    overflow: "hidden",
+    fontFamily: "var(--stack-mono)",
+    fontSize: "0.8125rem",
+  },
+  ".cm-tooltip-autocomplete > ul": {
+    maxHeight: "16rem",
+    padding: "0.25rem 0",
+  },
+  ".cm-tooltip-autocomplete > ul > li": {
+    padding: "0.25rem 0.5rem",
+    color: "var(--foreground)",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    backgroundColor: "var(--accent-bg)",
+    color: "var(--foreground)",
+  },
+  ".cm-completionDetail": {
+    fontStyle: "normal",
+    color: "var(--muted-foreground)",
+    fontFamily: "var(--stack-sans)",
+    fontSize: "0.75rem",
+    marginLeft: "auto",
+  },
+  ".cm-completionMatchedText": {
+    textDecoration: "none",
+    fontWeight: "700",
+    color: "var(--primary)",
+  },
 });
 
 /** This editor fills the overlay it is opened in. */
@@ -455,6 +578,15 @@ export function CodeMirror({
         drawSelection(),
         highlightActiveLine(),
         highlightActiveLineGutter(),
+        codeFolding(),
+        foldGutter({ markerDOM: createFoldMarker }),
+        bracketMatching(),
+        closeBrackets(),
+        autocompletion(),
+        indentOnInput(),
+        dropCursor(),
+        rectangularSelection(),
+        crosshairCursor(),
         edgeFade,
         tabMovesFocus,
         /*
@@ -467,7 +599,14 @@ export function CodeMirror({
         search({ top: true }),
         highlightSelectionMatches(),
         EditorState.phrases.of(phrases ?? {}),
-        keymap.of([...searchKeymap, ...defaultKeymap, ...historyKeymap]),
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...foldKeymap,
+          ...completionKeymap,
+          ...searchKeymap,
+          ...defaultKeymap,
+          ...historyKeymap,
+        ]),
         languageSlot.current.of(language ?? []),
         editorHighlighting,
         plainTextPaste,

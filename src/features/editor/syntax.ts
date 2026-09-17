@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { type Extension } from "@codemirror/state";
-import { styleTags, tags } from "@lezer/highlight";
 
 import { detectKind } from "@/lib/docs";
 import { type DetectedKind, type IntakeDraft, type SourceFormat } from "@/lib/domain";
@@ -46,25 +45,12 @@ export function syntaxKindOf(format: SourceFormat, detected: DetectedKind): Synt
 async function load(kind: Exclude<SyntaxKind, null>): Promise<Extension> {
   switch (kind) {
     case "bibtex": {
-      const { bibtexLanguage } = await import("codemirror-lang-bib");
-      /*
-       * With one tag the grammar declares and its own highlighting misses. The
-       * node is `LineComment`; the package names `Comment`, which no node is
-       * called, so a commented-out entry comes out the colour of live text.
-       * That matters more here than it looks: commenting entries out is how
-       * people keep a bibliography, and one of BibCheck's own settings is
-       * whether to count them.
-       */
-      return bibtexLanguage.configure({
-        props: [styleTags({ LineComment: tags.lineComment })],
-      });
+      const { loadBibtexExtension } = await import("./bibtex-support");
+      return loadBibtexExtension();
     }
     case "latex": {
-      const [{ StreamLanguage }, { stex }] = await Promise.all([
-        import("@codemirror/language"),
-        import("@codemirror/legacy-modes/mode/stex"),
-      ]);
-      return StreamLanguage.define(stex);
+      const { loadLatexExtension } = await import("./latex-support");
+      return loadLatexExtension();
     }
     case "markdown": {
       // The language itself rather than `markdown()`. The function carries a
