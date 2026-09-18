@@ -488,7 +488,7 @@ export const editorSurface = EditorView.theme({
     backgroundColor: "var(--card)",
     border: "1px solid var(--border)",
     borderRadius: "0.5rem",
-    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.2), 0 2px 6px -1px rgba(0, 0, 0, 0.1)",
+    boxShadow: "var(--elevation-md)",
     overflow: "hidden",
     fontFamily: "var(--stack-mono)",
     fontSize: "0.8125rem",
