@@ -22,10 +22,10 @@ export function AboutChecks({ locale }: { readonly locale: Locale }) {
       <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
         {t("title", { brandName: site.name })}
       </h2>
-      {/* The columns come from the width available rather than from a
-          breakpoint, so the block fills the workspace column instead of
-          leaving half of it empty on a wide screen. */}
-      <ul className="-mx-2 mt-4 grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-x-6">
+      {/* Responsive grid: 1 column on mobile, 2 on tablet, and 3 on desktop
+          cleanly divides the six features without overflowing or clipping
+          at container edges. */}
+      <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         {features.map(({ id, path, name, summary }) => (
           <li key={id}>
             <Link

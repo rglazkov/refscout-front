@@ -352,8 +352,8 @@ export const editorSurface = EditorView.theme({
    * the text, and that is the separation the eye needed.
    */
   ".cm-lineNumbers .cm-gutterElement": {
-    padding: "0 0.5rem 0 1rem",
-    minWidth: "3rem",
+    padding: "0 0.25rem 0 0.5rem",
+    minWidth: "2.75rem",
     transition: "background-color var(--motion-fast) var(--ease-out)",
   },
   /*
@@ -436,7 +436,7 @@ export const editorSurface = EditorView.theme({
    * Folding gutter and placeholders.
    */
   ".cm-foldGutter": {
-    width: "1.25rem",
+    width: "0.875rem",
     cursor: "pointer",
   },
   ".cm-foldGutter .cm-gutterElement": {
@@ -454,14 +454,14 @@ export const editorSurface = EditorView.theme({
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "14px",
-    height: "14px",
+    width: "11px",
+    height: "11px",
     lineHeight: "1",
   },
   ".cm-fold-icon svg": {
     display: "block",
-    width: "14px",
-    height: "14px",
+    width: "11px",
+    height: "11px",
   },
   ".cm-foldPlaceholder": {
     backgroundColor: "color-mix(in srgb, var(--muted) 80%, var(--card))",

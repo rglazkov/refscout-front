@@ -234,7 +234,18 @@ export const useBufferStore = create<BufferState>()(
       set((state) => {
         const at = state.items.findIndex((candidate) => candidate.id === docId);
         if (at === -1) return;
-        state.items[at] = castDraft(item);
+        const current = state.items[at];
+        if (current?.checksTouched) {
+          const checks = current.checks;
+          state.items[at] = castDraft({
+            ...item,
+            checks,
+            checksTouched: true,
+            role: roleOf({ ...item, checks }),
+          });
+        } else {
+          state.items[at] = castDraft(item);
+        }
       }),
 
     patchExtract: (docId, patch) =>

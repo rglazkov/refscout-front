@@ -37,6 +37,7 @@ async function submit(page: Page, files: readonly { name: string; times: number 
 
   const cards = page.getByTestId("document-card");
   for (let index = 0; index < files.length; index += 1) {
+    await expect(cards.nth(index)).toContainText("characters", { timeout: 90_000 });
     await cards.nth(index).getByTestId("check-presubmit").click();
   }
   await page.getByTestId("run").click();
