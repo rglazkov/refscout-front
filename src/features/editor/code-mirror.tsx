@@ -354,7 +354,6 @@ export const editorSurface = EditorView.theme({
   ".cm-lineNumbers .cm-gutterElement": {
     padding: "0 0.25rem 0 0.5rem",
     minWidth: "2.75rem",
-    transition: "background-color var(--motion-fast) var(--ease-out)",
   },
   /*
    * The cell of the line the cursor is on takes the same fill the text of that

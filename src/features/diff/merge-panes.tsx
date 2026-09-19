@@ -280,11 +280,50 @@ export function MergePanes({
      * it makes the measurement restart. Coalesced to one frame, they happen
      * after the editor has finished with the layout rather than during it.
      */
+    const realign = (): boolean => {
+      try {
+        const host = parent.querySelector(".cm-mergeView") ?? parent;
+        const box = host.getBoundingClientRect();
+        const middle = box.top + box.height / 2;
+        const nearest = (selector: string): number | null => {
+          let best: number | null = null;
+          for (const line of host.querySelectorAll<HTMLElement>(selector)) {
+            const top = line.getBoundingClientRect().top;
+            if (best === null || Math.abs(top - middle) < Math.abs(best - middle)) {
+              best = top;
+            }
+          }
+          return best;
+        };
+        const a = nearest(".cm-merge-a .cm-changedLine");
+        const b = nearest(".cm-merge-b .cm-changedLine");
+        if (a !== null && b !== null) {
+          const diff = b - a;
+          if (Math.abs(diff) > 0.5) {
+            view.b.scrollDOM.scrollTop += diff;
+            apart = view.b.scrollDOM.scrollTop - view.a.scrollDOM.scrollTop;
+          }
+          return true;
+        }
+      } catch {
+        // Leave to lineBlockAt
+      }
+      return false;
+    };
+
+    /*
+     * Both of these read the layout and one of them writes to it, so neither
+     * happens inside the update that provoked it: the merge view measures the
+     * spacers that keep the panes level in that same cycle, and work added to
+     * it makes the measurement restart. Coalesced to one frame, they happen
+     * after the editor has finished with the layout rather than during it.
+     */
     let scheduled = 0;
     const settle = (): void => {
       if (scheduled !== 0) return;
       scheduled = requestAnimationFrame(() => {
         scheduled = 0;
+        realign();
         report();
       });
     };
@@ -344,36 +383,20 @@ export function MergePanes({
         view.a.scrollDOM.scrollTop = view.a.lineBlockAt(chunk.fromA).top - margin;
         view.b.scrollDOM.scrollTop = view.b.lineBlockAt(chunk.fromB).top - margin;
       };
-      const align = (): void => {
-        try {
-          const domA = view.a.domAtPos(chunk.fromA);
-          const domB = view.b.domAtPos(chunk.fromB);
-          const nodeA =
-            domA.node instanceof Element ? domA.node : domA.node.parentElement;
-          const nodeB =
-            domB.node instanceof Element ? domB.node : domB.node.parentElement;
-          const lineA =
-            nodeA?.closest(".cm-line") ?? view.a.dom.querySelector(".cm-changedLine");
-          const lineB =
-            nodeB?.closest(".cm-line") ?? view.b.dom.querySelector(".cm-changedLine");
-          if (lineA && lineB) {
-            const rectA = lineA.getBoundingClientRect();
-            const rectB = lineB.getBoundingClientRect();
-            const diff = rectB.top - rectA.top;
-            if (Math.abs(diff) > 0.5) {
-              view.b.scrollDOM.scrollTop += diff;
-            }
-          }
-        } catch {
-          // If positions are not yet rendered in the DOM, leave to lineBlockAt
-        }
-      };
       place();
+      (view.a as unknown as { measure?: () => void }).measure?.();
+      (view.b as unknown as { measure?: () => void }).measure?.();
+      (view as unknown as { measure?: () => void }).measure?.();
+      realign();
+
       requestAnimationFrame(() => {
         place();
-        align();
+        (view.a as unknown as { measure?: () => void }).measure?.();
+        (view.b as unknown as { measure?: () => void }).measure?.();
+        (view as unknown as { measure?: () => void }).measure?.();
+        realign();
         requestAnimationFrame(() => {
-          align();
+          realign();
           apart = view.b.scrollDOM.scrollTop - view.a.scrollDOM.scrollTop;
           linked = true;
           // Focusing a text field is enough to make a browser scroll the whole
