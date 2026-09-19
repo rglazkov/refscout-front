@@ -344,11 +344,36 @@ export function MergePanes({
         view.a.scrollDOM.scrollTop = view.a.lineBlockAt(chunk.fromA).top - margin;
         view.b.scrollDOM.scrollTop = view.b.lineBlockAt(chunk.fromB).top - margin;
       };
+      const align = (): void => {
+        try {
+          const domA = view.a.domAtPos(chunk.fromA);
+          const domB = view.b.domAtPos(chunk.fromB);
+          const nodeA =
+            domA.node instanceof Element ? domA.node : domA.node.parentElement;
+          const nodeB =
+            domB.node instanceof Element ? domB.node : domB.node.parentElement;
+          const lineA =
+            nodeA?.closest(".cm-line") ?? view.a.dom.querySelector(".cm-changedLine");
+          const lineB =
+            nodeB?.closest(".cm-line") ?? view.b.dom.querySelector(".cm-changedLine");
+          if (lineA && lineB) {
+            const rectA = lineA.getBoundingClientRect();
+            const rectB = lineB.getBoundingClientRect();
+            const diff = rectB.top - rectA.top;
+            if (Math.abs(diff) > 0.5) {
+              view.b.scrollDOM.scrollTop += diff;
+            }
+          }
+        } catch {
+          // If positions are not yet rendered in the DOM, leave to lineBlockAt
+        }
+      };
       place();
       requestAnimationFrame(() => {
         place();
+        align();
         requestAnimationFrame(() => {
-          place();
+          align();
           apart = view.b.scrollDOM.scrollTop - view.a.scrollDOM.scrollTop;
           linked = true;
           // Focusing a text field is enough to make a browser scroll the whole
