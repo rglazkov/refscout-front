@@ -2,7 +2,7 @@
 import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import { HttpResponse, http } from "msw";
+import { HttpResponse, http } from "msw/http";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -82,7 +82,7 @@ const server = setupServer(
   }),
 );
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterAll(() => server.close());
 
 beforeEach(() => {

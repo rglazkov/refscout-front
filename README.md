@@ -197,6 +197,9 @@ claim with its candidates is a screenful, so its card opens over the page.
 
 ## Commands
 
+Use Node.js 24.15 or newer within the 24.x release line, then run `npm ci`.
+The browser tests also need `npx playwright install chromium firefox`.
+
 **Two commands cover everything.** `npm run check` is every check that needs
 neither a browser nor the network, and `npm run verify` is that plus the build
 and the browser lane - what to run before opening a pull request.

@@ -8,6 +8,10 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // PDF generation and jsdom imports compete for CPU and memory. Keep their
+    // concurrency bounded so lazy component imports meet the same timeouts
+    // locally and in CI.
+    maxWorkers: 2,
     /*
      * Two kinds of test, and one runner. The component tests are .tsx and ask
      * for jsdom in a comment at the top of the file; everything else runs in

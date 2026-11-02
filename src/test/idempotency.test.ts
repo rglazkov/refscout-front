@@ -1,4 +1,4 @@
-import { HttpResponse, http } from "msw";
+import { HttpResponse, http } from "msw/http";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -49,7 +49,7 @@ const server = setupServer(
   }),
 );
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -204,9 +204,11 @@ describe("what is never retried", () => {
   });
 
   it("a cancelled request is not retried, or cancelling stops being cancelling", async () => {
+    const started = Promise.withResolvers<void>();
     server.use(
       http.post("*/jobs", async () => {
         posts += 1;
+        started.resolve();
         await new Promise((resolve) => setTimeout(resolve, 50));
         return HttpResponse.json(scenarios.submitJob.accepted.body, { status: 202 });
       }),
@@ -217,9 +219,11 @@ describe("what is never retried", () => {
       idempotencyKey: crypto.randomUUID(),
       signal: controller.signal,
     });
+    const rejected = expect(inflight).rejects.toThrow();
+    await started.promise;
     controller.abort();
 
-    await expect(inflight).rejects.toThrow();
+    await rejected;
     expect(posts).toBe(1);
   });
 });

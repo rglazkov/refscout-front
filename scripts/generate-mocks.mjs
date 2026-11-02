@@ -141,7 +141,7 @@ const lines = [
   "// Generated from contract/refscout-api.yaml by scripts/generate-mocks.mjs.",
   "// Hand edits are lost on the next generation: change the contract instead.",
   "",
-  'import { http, HttpResponse } from "msw";',
+  'import { http, HttpResponse } from "msw/http";',
   "",
   "/** Every response the contract spells out, ugly cases included, keyed by example name. */",
   "export const scenarios = {",

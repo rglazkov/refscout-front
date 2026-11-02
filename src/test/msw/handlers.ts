@@ -1,4 +1,5 @@
-import { http, HttpResponse, type DefaultBodyType, type StrictRequest } from "msw";
+import { type DefaultBodyType, type StrictRequest } from "msw";
+import { http, HttpResponse } from "msw/http";
 
 import { astralIndex, toCpOffset, toDocOffset } from "@/lib/anchor";
 import { asCpOffset, asDocOffset } from "@/lib/domain";

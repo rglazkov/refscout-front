@@ -17,17 +17,19 @@ import { handlers } from "./msw/handlers";
  * the answer are the browser's work, so changing a filter reaches no server at
  * all.
  */
-const requests: { readonly url: string; readonly body: string }[] = [];
+const requests: Promise<{ readonly url: string; readonly body: string }>[] = [];
 
 const server = setupServer(...handlers);
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: "error" });
+  server.listen({ onUnhandledFrame: "error" });
   server.events.on("request:start", ({ request }) => {
-    void request
-      .clone()
-      .text()
-      .then((body) => requests.push({ url: request.url, body }));
+    requests.push(
+      request
+        .clone()
+        .text()
+        .then((body) => ({ url: request.url, body })),
+    );
   });
 });
 beforeEach(() => {
@@ -60,7 +62,7 @@ describe("a search", () => {
     // the case the interface has to say out loud.
     expect(answer.degraded.length).toBeGreaterThan(0);
 
-    const sent = JSON.parse(requests[0]?.body ?? "{}") as Record<string, unknown>;
+    const sent = JSON.parse((await requests[0])?.body ?? "{}") as Record<string, unknown>;
     expect(sent).toEqual({ query: QUERY, limit: 25, locale: "en" });
   });
 
@@ -72,7 +74,9 @@ describe("a search", () => {
     for (const word of QUERY.split(" ")) expect(collected).not.toContain(word);
 
     // The thumb carries the record and the direction, and no question.
-    const feedback = requests.find((sent) => sent.url.includes("/scout/feedback"));
+    const feedback = (await Promise.all(requests)).find((sent) =>
+      sent.url.includes("/scout/feedback"),
+    );
     expect(JSON.parse(feedback?.body ?? "{}")).toEqual({
       resultId: "res_1",
       vote: "up",

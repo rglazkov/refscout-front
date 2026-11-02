@@ -25,7 +25,7 @@ import { deliveredEvents, handlers, resetMockServer } from "./msw/handlers";
  */
 const server = setupServer(...handlers);
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 beforeEach(() => {
   resetMockServer();
   clearCollected();

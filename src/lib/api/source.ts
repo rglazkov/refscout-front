@@ -22,7 +22,7 @@ let started: Promise<void> | null = null;
  * would go to the real address, which in a test run is somebody else's server.
  */
 export function startApiSource(): Promise<void> {
-  if (apiSource === "stand") return Promise.resolve();
+  if (typeof window === "undefined" || apiSource === "stand") return Promise.resolve();
   started ??= (async () => {
     const [{ setupWorker }, { handlers }] = await Promise.all([
       import("msw/browser"),
@@ -32,7 +32,7 @@ export function startApiSource(): Promise<void> {
       quiet: true,
       // Anything this project did not ask for goes to the network as usual;
       // the worker is here to answer our API, not to police the page.
-      onUnhandledRequest: "bypass",
+      onUnhandledFrame: "bypass",
       /*
        * Named rather than left to the default, which is the site root. Under a
        * project page the whole site lives one folder down, and a worker looked

@@ -29,7 +29,7 @@ import messages from "../messages/en.json";
  */
 const server = setupServer(...handlers);
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterEach(() => {
   cleanup();
   server.resetHandlers();

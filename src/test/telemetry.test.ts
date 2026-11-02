@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
 
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse } from "msw/http";
 import { setupServer } from "msw/node";
 import {
   afterAll,
@@ -44,7 +44,7 @@ const server = setupServer(...handlers);
 const beaconed: string[] = [];
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: "error" });
+  server.listen({ onUnhandledFrame: "error" });
   Object.defineProperty(navigator, "sendBeacon", {
     configurable: true,
     value: (_url: string, body: Blob) => {
@@ -259,7 +259,7 @@ describe("sending", () => {
 
 describe("the queue", () => {
   it("survives the tab and goes at the first opportunity", async () => {
-    const { http, HttpResponse: Reply } = await import("msw");
+    const { http, HttpResponse: Reply } = await import("msw/http");
     // Nothing is delivered while this session is running, so what is left is
     // exactly what an interrupted session leaves behind.
     server.use(http.post("*/client-events", () => new Reply(null, { status: 503 })));
