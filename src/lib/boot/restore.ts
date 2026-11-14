@@ -89,6 +89,7 @@ async function run(): Promise<void> {
 
   useJobStore.setState({
     job: restored.job,
+    earlier: restored.earlier,
     intent: restored.intent,
     fixed: restored.marks?.fixed ?? {},
     ignored: restored.marks?.ignored ?? {},

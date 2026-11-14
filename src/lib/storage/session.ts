@@ -2,6 +2,7 @@ import { type IntakeDraft, type JobStatus, type RunIntent } from "@/lib/domain";
 
 import {
   DRAFT_KEY,
+  EARLIER_KEY,
   INTENT_KEY,
   JOB_KEY,
   VIEW_KEY,
@@ -31,6 +32,19 @@ export function writeJob(job: StoredJob | null): Promise<void> {
     if (job === null) stores.session.delete(JOB_KEY);
     else stores.session.put({ key: JOB_KEY, ...job });
   }, JOB_KEY);
+}
+
+/**
+ * The jobs that came before the latest one, oldest first. Their findings stay on
+ * the results beside the latest job's, so a reload has to bring back every job
+ * and the token that reaches it - a body missing from storage is fetched again
+ * under its own job.
+ */
+export function writeEarlierJobs(jobs: readonly StoredJob[]): Promise<void> {
+  return commit((stores) => {
+    if (jobs.length === 0) stores.session.delete(EARLIER_KEY);
+    else stores.session.put({ key: EARLIER_KEY, jobs });
+  }, EARLIER_KEY);
 }
 
 export function writeIntent(intent: RunIntent | null): Promise<void> {

@@ -47,6 +47,7 @@ export {
   writeEdits,
   writeIntent,
   writeJob,
+  writeEarlierJobs,
   writeSnapshot,
   writeView,
   type StoredJob,

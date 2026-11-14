@@ -1,13 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  LockIcon,
-  SlidersHorizontalIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ChevronDownIcon, SlidersHorizontalIcon, Trash2Icon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { m } from "motion/react";
 
@@ -25,6 +19,7 @@ import { lockOf } from "@/features/plan/compute";
 import { useLockPress } from "@/features/plan/use-lock";
 import { useBufferStore, useEntitlementsStore, useUiStore } from "@/stores";
 
+import { CheckToggle } from "./check-toggle";
 import { DocumentSettings } from "./document-settings";
 import { ExtractAnnouncement, ExtractNotice, needsNotice } from "./extract-notice";
 import { LocalNotes } from "./local-notes";
@@ -50,7 +45,6 @@ export function DocumentCard({
   };
 }) {
   const t = useTranslations("buffer");
-  const checkName = useTranslations("capabilities");
   const format = useFormatter();
   const toggleCheck = useBufferStore((state) => state.toggleCheck);
   const remove = useBufferStore((state) => state.remove);
@@ -155,54 +149,17 @@ export function DocumentCard({
             >
               {t("checkFor")}
             </span>
-            {moduleIds.map((module) => {
-              const { locked } = lockOf(entitlements, module);
-              const checked = !locked && item.checks.includes(module);
-              return (
-                <button
-                  key={module}
-                  type="button"
-                  aria-pressed={checked}
-                  aria-disabled={locked}
-                  data-state={checked ? "checked" : "unchecked"}
-                  data-locked={locked ? "" : undefined}
-                  data-testid={`check-${module}`}
-                  aria-label={
-                    locked
-                      ? t("lockedCheck", { check: checkName(module), name: item.name })
-                      : `${checkName(module)} — ${item.name}`
-                  }
-                  className={cn(
-                    // A control on a card takes the card's own control fill, or
-                    // it is a border drawn on the card it stands on.
-                    "inline-flex h-7 items-center gap-1.5 rounded-sm border bg-control-card px-2 text-[0.8125rem] font-medium text-muted-foreground transition-colors hover:bg-control-card-hover",
-                    checked &&
-                      "border-primary/40 bg-primary-soft text-primary hover:bg-primary-soft",
-                    locked && "opacity-60",
-                  )}
-                  onClick={() =>
-                    locked ? pressLock(module) : toggleCheck(item.id, module, !checked)
-                  }
-                >
-                  <span
-                    className={cn(
-                      "grid size-3.5 place-items-center rounded-[3px] border-[1.5px] border-current opacity-50",
-                      checked &&
-                        "border-primary bg-primary text-primary-foreground opacity-100",
-                      locked && "border-0 opacity-100",
-                    )}
-                    aria-hidden="true"
-                  >
-                    {locked ? (
-                      <LockIcon className="size-3" />
-                    ) : checked ? (
-                      <CheckIcon className="size-2.5 stroke-[3]" />
-                    ) : null}
-                  </span>
-                  {checkName(module)}
-                </button>
-              );
-            })}
+            {moduleIds.map((module) => (
+              <CheckToggle
+                key={module}
+                module={module}
+                documentName={item.name}
+                checked={item.checks.includes(module)}
+                locked={lockOf(entitlements, module).locked}
+                onToggle={(checked) => toggleCheck(item.id, module, checked)}
+                onLocked={() => pressLock(module)}
+              />
+            ))}
             {item.checks.length === 0 && !unreadable ? (
               <span className="text-xs text-muted-foreground">{t("noChecks")}</span>
             ) : null}

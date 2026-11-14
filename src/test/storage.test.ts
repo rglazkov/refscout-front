@@ -293,6 +293,19 @@ describe("a browser that will not store", () => {
     await expect(commit(() => {})).resolves.toBeUndefined();
   });
 
+  it("keeps what is stored, and still empties it when the person asks", async () => {
+    await writeJob({ jobId: "j1", jobToken: "t1" });
+    unavailable("absent");
+
+    // Working in memory, the tab writes nothing over what the database holds.
+    await writeJob({ jobId: "j2", jobToken: "t2" });
+    expect((await hydrate()).job).toMatchObject({ jobId: "j1" });
+
+    // "Delete saved documents" is the one write that still goes through.
+    await clearStores();
+    expect(await readAll("session")).toEqual([]);
+  });
+
   it("refuses to write when this tab does not hold the role, and says so", async () => {
     let refused = false;
     guardWrites(

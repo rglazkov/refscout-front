@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, TriangleAlertIcon, UploadIcon } from "lucide-react";
+import { ListPlusIcon, PencilIcon, RotateCcwIcon, TriangleAlertIcon } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 
 import { DocumentIcon } from "@/components/document-icon";
@@ -29,21 +29,27 @@ import { DownloadReportButton } from "./download-report";
  * because a person works with a manuscript rather than with a module, and "what
  * is wrong with this file" gets a direct answer.
  *
- * No job is created from this screen - not by any path. The invariant is worded
- * that way rather than as "no text is sent", because a test is written from
- * this wording and it stays true when a single failed module is re-run inside
- * the job that already exists.
+ * Two ways on from here. "Add checks" runs the checks that have not read a
+ * document yet, as a job of its own, and its findings join these: nothing found
+ * so far leaves the screen. "New check" starts over with an empty buffer, and
+ * it is the one that destroys, so it asks first.
  */
 export function ResultsScreen({
   job,
   running,
   onNewCheck,
   onRetryModule,
+  onAddChecks,
 }: {
   readonly job: Job;
   readonly running: boolean;
   readonly onNewCheck: () => void;
   readonly onRetryModule: (docId: string, module: ModuleId) => void;
+  /**
+   * Opens the choice of checks to add. Absent while no document has a check
+   * left to run: a choice with nothing in it is a question with no answers.
+   */
+  readonly onAddChecks?: () => void;
 }) {
   const t = useTranslations("results");
   const format = useFormatter();
@@ -102,15 +108,6 @@ export function ResultsScreen({
             </div>
             <div className="flex gap-2">
               <DownloadReportButton job={job} />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirming(true)}
-              >
-                <UploadIcon aria-hidden="true" />
-                {t("newCheck")}
-              </Button>
             </div>
           </div>
 
@@ -128,10 +125,56 @@ export function ResultsScreen({
             </span>
           </div>
 
-          <p className="mt-3 flex items-start gap-2 text-[0.8125rem] text-muted-foreground">
-            <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <span>{t("finishedNote")}</span>
-          </p>
+          {/* What comes after the findings: more checks on the same texts, or a
+              new check from an empty buffer. It is a panel of its own rather
+              than buttons beside the report, because there a second action read
+              as a footnote to the first and was not found. It carries the same
+              surface as the row that runs a check in the buffer - the two are
+              the beginning and the end of the same work - and the sentence
+              that says what each answer does stands beside the answers. */}
+          <div
+            className="mt-3 rounded-xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(180deg,var(--card),var(--primary-soft))] p-3.5"
+            data-testid="next-steps"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 max-[767px]:flex-col max-[767px]:items-stretch">
+              <p className="flex min-w-0 flex-1 items-start gap-2 text-[0.8125rem] text-muted-foreground min-[768px]:basis-80">
+                <TriangleAlertIcon
+                  className="mt-0.5 size-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>
+                  {onAddChecks === undefined ? t("finishedNote") : t("finishedNoteAdd")}
+                </span>
+              </p>
+              {/* "New check" is the filled answer of the panel and "Add checks"
+                  the outlined one beside it. On a phone the two share the
+                  width rather than leaving one stranded on a line of its own. */}
+              <div
+                className="flex flex-wrap gap-2 max-[767px]:[&>*]:flex-1"
+                data-testid="results-actions"
+              >
+                {onAddChecks === undefined ? null : (
+                  <Button
+                    type="button"
+                    variant="outlineOnCard"
+                    data-testid="add-checks-open"
+                    onClick={onAddChecks}
+                  >
+                    <ListPlusIcon aria-hidden="true" />
+                    {t("add.open")}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  data-testid="new-check"
+                  onClick={() => setConfirming(true)}
+                >
+                  <RotateCcwIcon aria-hidden="true" />
+                  {t("newCheck")}
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {/* It destroys the documents, the edits and everything stored, and
               there is nowhere to get them back from. So it asks before the

@@ -7,6 +7,7 @@ import {
   forgetCards,
   writeCards,
   writeDraft,
+  writeEarlierJobs,
   writeEdits,
   writeIntent,
   writeJob,
@@ -53,6 +54,7 @@ export function watchState(): void {
   let job = useJobStore.getState();
   useJobStore.subscribe((state) => {
     if (state.job !== job.job) void writeJob(state.job);
+    if (state.earlier !== job.earlier) void writeEarlierJobs(state.earlier);
     if (state.intent !== job.intent) void writeIntent(state.intent);
     if (
       state.fixed !== job.fixed ||

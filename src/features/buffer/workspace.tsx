@@ -38,6 +38,7 @@ import { PasteOverlay } from "@/features/intake/paste-overlay";
 import { useIntake } from "@/features/intake/use-intake";
 import { Progress } from "@/features/job/progress";
 import { LaunchRow } from "@/features/job/launch-row";
+import { AddChecksDialog, addableDocuments } from "@/features/job/add-checks";
 import { useJob } from "@/features/job/use-job";
 import { useRun } from "@/features/job/use-run";
 import { AccessDialog } from "@/features/plan/access-dialog";
@@ -138,14 +139,16 @@ function WorkspaceBody() {
   const documents = mainItems(items);
   const clearBuffer = useBufferStore((state) => state.clear);
   const handle = useJobStore((state) => state.job);
+  const earlier = useJobStore((state) => state.earlier);
   const resetJob = useJobStore((state) => state.reset);
+  const dropLatest = useJobStore((state) => state.dropLatest);
   const closeOverlay = useUiStore((state) => state.closeOverlay);
   const mode = useUiStore((state) => state.mode);
   const setMode = useUiStore((state) => state.setMode);
   const intake = useIntake();
   const { addFiles } = intake;
   const run = useRun(locale);
-  const { job, error: jobError, gone } = useJob(handle);
+  const { job, latest, error: jobError, gone } = useJob(handle, earlier);
   /*
    * The previous session, read back before anything is drawn. Showing an empty
    * buffer first and filling it a moment later would tell somebody their
@@ -155,6 +158,7 @@ function WorkspaceBody() {
   const role = useTabRole();
   const connected = useOnline();
   const [pasting, setPasting] = React.useState(false);
+  const [adding, setAdding] = React.useState(false);
   const setPasteText = useIntakeDraftStore((state) => state.setText);
   const queries = useQueryClient();
   const setEntitlements = useEntitlementsStore((state) => state.set);
@@ -210,33 +214,70 @@ function WorkspaceBody() {
     return () => window.removeEventListener("paste", handlePaste);
   }, [addFiles, buffering, setPasteText]);
 
-  const running = job !== null && !isTerminal(job.status.state);
+  /*
+   * What is under way is the latest job alone. Checks added from the results
+   * run beside findings that are already final, so the progress, the cancel
+   * and a failure of the whole run all belong to that job, and the findings of
+   * the jobs before it stay on screen through all three.
+   */
+  const running = latest !== null && !isTerminal(latest.state);
+  const starting = handle !== null && latest === null && !gone;
+  /*
+   * Leaving the latest job. With results behind it, the person goes back to
+   * them; with none, back to the buffer, whose contents are intact.
+   */
+  const leaveLatest = earlier.length > 0 ? dropLatest : resetJob;
+  // Checks can be added while some document has one left to run on the text
+  // that was sent.
+  const canAdd =
+    job !== null && addableDocuments(job, items).some((document) => !document.edited);
 
   const cancel = useMutation({
     mutationFn: () => cancelJob(handle?.jobId ?? "", handle?.jobToken ?? ""),
     onSuccess: () => {
-      // Cancelling returns the person to the buffer with its contents intact:
-      // there is no result yet, so there is nothing to send again.
-      resetJob();
+      // Cancelling returns the person to where they pressed the run from: the
+      // buffer with its contents intact, or the results the added checks were
+      // meant to join.
+      leaveLatest();
     },
   });
 
-  // A failed module is re-run inside the job that already exists: the text is
-  // not sent again, and no new job is created from this screen.
+  /**
+   * The job that ran this check on this document: the latest one that names
+   * it. A retry goes to that job, under that job's own token.
+   */
+  const ownerOf = (docId: string, module: ModuleId) =>
+    [...earlier, ...(handle === null ? [] : [handle])]
+      .reverse()
+      .find(
+        (entry) =>
+          entry.status?.documents.find((document) => document.docId === docId)?.modules[
+            module
+          ] !== undefined,
+      ) ?? handle;
+
+  // A failed module is re-run inside the job that ran it: the text is not sent
+  // again, and no new job is created for it.
   const retry = useMutation({
     // Named down to the document. Omitting the document means every document
     // where the module failed, and a buffer of five manuscripts with one broken
     // check would re-run four that are already finished.
-    mutationFn: (input: { readonly docId: string; readonly module: ModuleId }) =>
-      retryModule(handle?.jobId ?? "", input.module, handle?.jobToken ?? "", [
-        input.docId,
-      ]),
-    onSuccess: (updatedStatus) => {
-      if (updatedStatus !== undefined) {
-        useJobStore.getState().setJobStatus(updatedStatus);
-        queries.setQueryData(["job", handle?.jobId], updatedStatus);
+    mutationFn: async (input: { readonly docId: string; readonly module: ModuleId }) => {
+      const owner = ownerOf(input.docId, input.module);
+      const status = await retryModule(
+        owner?.jobId ?? "",
+        input.module,
+        owner?.jobToken ?? "",
+        [input.docId],
+      );
+      return { owner, status };
+    },
+    onSuccess: ({ owner, status }) => {
+      if (status !== undefined) {
+        useJobStore.getState().setJobStatus(status);
+        queries.setQueryData(["job", owner?.jobId], status);
       }
-      void queries.invalidateQueries({ queryKey: ["job", handle?.jobId] });
+      void queries.invalidateQueries({ queryKey: ["job", owner?.jobId] });
     },
   });
 
@@ -387,7 +428,7 @@ function WorkspaceBody() {
           </p>
         ) : null}
 
-        {mode === "buffer" && job === null && handle !== null && !gone ? (
+        {mode === "buffer" && starting ? (
           <p className="mt-6 text-sm text-muted-foreground">{t("starting")}</p>
         ) : null}
 
@@ -397,16 +438,18 @@ function WorkspaceBody() {
               {/* The run and its findings fail apart: the cards that have
                   already arrived stay readable when one of them cannot be
                   drawn, and the progress of the rest keeps running. */}
-              <ZoneBoundary zone="job">
-                <Progress
-                  status={job.status}
-                  onCancel={() => cancel.mutate()}
-                  cancelling={cancel.isPending}
-                />
-              </ZoneBoundary>
+              {latest === null ? null : (
+                <ZoneBoundary zone="job">
+                  <Progress
+                    status={latest}
+                    onCancel={() => cancel.mutate()}
+                    cancelling={cancel.isPending}
+                  />
+                </ZoneBoundary>
+              )}
             </Collapse>
 
-            {job.status.state === "failed" ? (
+            {latest?.state === "failed" ? (
               /* A job that failed as a whole gets its own screen: the code, the
                  request identifier, and a buffer that is still intact. "Run
                  again" makes a new job with a new key - the old one is dead and
@@ -417,23 +460,21 @@ function WorkspaceBody() {
                 className="rounded-xl border border-critical-border bg-critical-soft p-4"
               >
                 <p className="font-medium text-critical">{t("failedTitle")}</p>
-                <p className="mt-1 text-sm">
-                  {t("failedBody", { jobId: job.status.id })}
-                </p>
+                <p className="mt-1 text-sm">{t("failedBody", { jobId: latest.id })}</p>
                 {/* Back to the buffer, and the offer to tell us about it. The
                     report carries the identifier of the poll that brought the
                     failure, and support finds the case in the logs by it.
                     Nothing here says what the attempt cost: the server counts
                     what was spent and the client is not told. */}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={resetJob}>
-                    {t("backToBuffer")}
+                  <Button type="button" variant="outline" size="sm" onClick={leaveLatest}>
+                    {earlier.length > 0 ? t("backToResults") : t("backToBuffer")}
                   </Button>
                   <ReportProblemButton
                     variant="outline"
-                    {...(job.status.requestId === undefined
+                    {...(latest.requestId === undefined
                       ? {}
-                      : { requestId: job.status.requestId })}
+                      : { requestId: latest.requestId })}
                   />
                 </div>
               </div>
@@ -441,9 +482,10 @@ function WorkspaceBody() {
               <ZoneBoundary zone="results">
                 <ResultsScreen
                   job={job}
-                  running={running}
+                  running={running || starting}
                   onNewCheck={newCheck}
                   onRetryModule={(docId, module) => retry.mutate({ docId, module })}
+                  {...(canAdd ? { onAddChecks: () => setAdding(true) } : {})}
                 />
               </ZoneBoundary>
             )}
@@ -455,6 +497,16 @@ function WorkspaceBody() {
           onClose={() => setPasting(false)}
           onAdd={(text, name, format) => void intake.addText(text, name, format)}
         />
+        {job === null ? null : (
+          <AddChecksDialog
+            open={adding}
+            onOpenChange={setAdding}
+            job={job}
+            pending={run.pending}
+            failure={run.failure}
+            onRun={(sending, buffer) => run.run(sending, buffer)}
+          />
+        )}
         <TextOverlay results={job?.results ?? {}} />
         <AccessDialog />
       </div>

@@ -23,7 +23,15 @@ export type JobHandle = {
 
 export type JobState = {
   readonly intent: RunIntent | null;
+  /** The latest job: the one a run under way belongs to. */
   readonly job: JobHandle | null;
+  /**
+   * The jobs that came before the latest one on the same results, oldest
+   * first. Checks added from the results are a job of their own, and the
+   * findings of every job stay on screen together: adding a check must never
+   * cost the person the findings they already have.
+   */
+  readonly earlier: readonly JobHandle[];
   /**
    * Findings the person has dealt with, keyed by document, module and finding.
    * It only marks a finding as read; it never touches the text, and it never
@@ -47,9 +55,17 @@ export type JobState = {
   readonly beginIntent: (key: string, payloadHash: string) => RunIntent;
   readonly setInflight: (inflight: boolean) => void;
   readonly clearIntent: () => void;
+  /** Makes this the latest job; the one it replaces joins `earlier`. */
   readonly setJob: (job: JobHandle) => void;
+  /** Stores a polled state on whichever job it belongs to. */
   readonly setJobStatus: (status: JobStatus) => void;
   readonly clearJob: () => void;
+  /**
+   * Leaves the latest job and returns to the results of the one before it: a
+   * run of added checks that was cancelled, or that failed as a whole, goes
+   * and the findings that were already here stay.
+   */
+  readonly dropLatest: () => void;
   readonly toggleFixed: (docId: string, module: ModuleId, issueId: string) => void;
   readonly toggleIgnored: (docId: string, module: ModuleId, issueId: string) => void;
   readonly toggleAccepted: (docId: string, issueId: string, candidateId: string) => void;
@@ -84,6 +100,7 @@ export const useJobStore = create<JobState>()(
   immer((set, get) => ({
     intent: null,
     job: null,
+    earlier: [],
     fixed: {},
     ignored: {},
     accepted: {},
@@ -121,11 +138,23 @@ export const useJobStore = create<JobState>()(
 
     setJob: (job) =>
       set((state) => {
+        // The same job set again - a restored handle, a repeated answer - is not
+        // a second job, and putting it into `earlier` would show its findings
+        // twice.
+        if (state.job !== null && state.job.jobId !== job.jobId) {
+          state.earlier.push(state.job);
+        }
         state.job = castDraft(job);
       }),
 
     setJobStatus: (status) =>
       set((state) => {
+        const index = state.earlier.findIndex((handle) => handle.jobId === status.id);
+        const handle = state.earlier[index];
+        if (handle !== undefined && state.job?.jobId !== status.id) {
+          state.earlier[index] = castDraft({ ...handle, status });
+          return;
+        }
         if (state.job !== null) {
           state.job = castDraft({ ...state.job, status });
         }
@@ -134,6 +163,12 @@ export const useJobStore = create<JobState>()(
     clearJob: () =>
       set((state) => {
         state.job = null;
+      }),
+
+    dropLatest: () =>
+      set((state) => {
+        state.job = state.earlier.pop() ?? null;
+        state.intent = null;
       }),
 
     toggleFixed: (docId, module, issueId) =>
@@ -161,6 +196,7 @@ export const useJobStore = create<JobState>()(
       set((state) => {
         state.intent = null;
         state.job = null;
+        state.earlier = [];
         state.fixed = {};
         state.ignored = {};
         state.accepted = {};

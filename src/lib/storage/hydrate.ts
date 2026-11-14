@@ -18,6 +18,7 @@ import {
 } from "./session";
 import {
   DRAFT_KEY,
+  EARLIER_KEY,
   INTENT_KEY,
   JOB_KEY,
   MANUAL_KEY,
@@ -56,6 +57,8 @@ export type Restored = {
   /** The card of each document, as the buffer store held it. */
   readonly cards: readonly unknown[];
   readonly job: StoredJob | null;
+  /** The jobs before the latest one, oldest first. */
+  readonly earlier: readonly StoredJob[];
   readonly intent: RunIntent | null;
   readonly draft: IntakeDraft | null;
   readonly view: StoredView | null;
@@ -76,6 +79,7 @@ const empty: Restored = {
   documents: [],
   cards: [],
   job: null,
+  earlier: [],
   intent: null,
   draft: null,
   view: null,
@@ -186,6 +190,7 @@ export async function hydrate(): Promise<Restored> {
   }
 
   let job: StoredJob | null = null;
+  let earlier: readonly StoredJob[] = [];
   let intent: RunIntent | null = null;
   let draft: IntakeDraft | null = null;
   let view: StoredView | null = null;
@@ -196,6 +201,9 @@ export async function hydrate(): Promise<Restored> {
     switch (kindOf(row.key)) {
       case JOB_KEY:
         job = row as unknown as StoredJob;
+        break;
+      case EARLIER_KEY:
+        earlier = (row as unknown as { jobs: readonly StoredJob[] }).jobs;
         break;
       case INTENT_KEY:
         intent = (row as unknown as { intent: RunIntent }).intent;
@@ -245,6 +253,7 @@ export async function hydrate(): Promise<Restored> {
     documents,
     cards,
     job,
+    earlier,
     intent,
     draft,
     view,

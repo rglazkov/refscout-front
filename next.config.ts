@@ -2,6 +2,8 @@ import createMDXPlugin from "@next/mdx";
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 
+import { defaultLocale, locales } from "./src/lib/i18n/routing";
+
 const pagesBasePath = (process.env.PAGES_BASE_PATH ?? "").replace(/\/$/, "");
 
 if (pagesBasePath !== "" && !pagesBasePath.startsWith("/")) {
@@ -22,6 +24,45 @@ if (pagesBasePath !== "" && !pagesBasePath.startsWith("/")) {
 const release =
   process.env.NEXT_PUBLIC_RELEASE ??
   (process.env.GITHUB_SHA === undefined ? "dev" : process.env.GITHUB_SHA.slice(0, 7));
+
+/**
+ * The unprefixed addresses of the default language, served by `next dev`.
+ *
+ * The site links to `/`, `/features/`, `/privacy/` and so on with no language
+ * prefix, while the app tree generates every language under its own prefix,
+ * `/en/` included. In a build, `scripts/postbuild-root-locale.mjs` copies the
+ * default language's folder to the top of `out/`, and that is how the
+ * unprefixed addresses come to exist. `next dev` serves straight from the app
+ * tree and runs no post-build step. In development the site's own links already
+ * name the prefixed addresses (`localizedPath` in `src/lib/seo/metadata.ts`),
+ * and these redirects cover an address typed or bookmarked without one: every
+ * page address that does not start with a language goes to the same address
+ * under the default language's prefix, so `/pricing/` opens `/en/pricing/`.
+ *
+ * They are redirects and not rewrites. With `output: "export"`, `next dev`
+ * checks the address the browser asked for against `generateStaticParams()`,
+ * and an unprefixed address is never among the prefixed ones it generates, so a
+ * rewritten page fails with "missing param". After a redirect the browser asks
+ * for the prefixed address itself, and that address passes the check.
+ *
+ * The pattern leaves alone the internal `_next` and `__nextjs` paths and every
+ * path with a dot in it - the files in `public/` (workers, fonts, pdf.js, the
+ * mock service worker) and the metadata routes such as `robots.txt`. Page
+ * addresses on this site carry no dots.
+ *
+ * They exist only in development. The static export is served as files and
+ * carries no redirects; the copy made after the build is what answers there.
+ */
+const devPassThrough = [...locales, "_next", "__nextjs"].join("|");
+const devRootRedirects: NextConfig["redirects"] = () =>
+  Promise.resolve([
+    { source: "/", destination: `/${defaultLocale}/`, permanent: false },
+    {
+      source: `/:path((?!(?:${devPassThrough})(?:/|$))[^.]+)`,
+      destination: `/${defaultLocale}/:path`,
+      permanent: false,
+    },
+  ]);
 
 /**
  * Static export: `next build` emits an `out/` folder, and there is no Node in
@@ -78,6 +119,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  ...(process.env.NODE_ENV === "development" ? { redirects: devRootRedirects } : {}),
 };
 
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");

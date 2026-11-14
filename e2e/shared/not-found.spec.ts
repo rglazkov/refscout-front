@@ -66,6 +66,22 @@ test.describe("an address that matched nothing", () => {
     expect(complaints.filter((text) => /hydrat/i.test(text))).toEqual([]);
   });
 
+  test("keeps its footer controls working once the page has loaded", async ({ page }) => {
+    // "Report a problem" in the footer is a client component that reads its
+    // words from the intl provider the page renders. The control arriving and
+    // the page throwing nothing prove the provider is there.
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.goto("/no/such/address/");
+    await expect(
+      page.getByRole("contentinfo").getByRole("button", { name: /report a problem/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    expect(errors).toEqual([]);
+  });
+
   test("applies a chosen dark theme before the first paint", async ({ page }) => {
     // The theme script is on this page separately from every other page, so it
     // is the one copy that can go missing on its own.

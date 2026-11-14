@@ -85,9 +85,18 @@ export function guardWrites(may: () => boolean, onRefusal: () => void): void {
  * interface - the memory-of-this-tab notice, or the curtain of a tab that is
  * not the writing one - and a rejected promise here would turn each of those
  * into an unhandled error in somebody's console while the screen said nothing.
+ *
+ * `inMemoryToo` lets a write through while the tab is in the memory-of-this-tab
+ * state. Only emptying the stores asks for it: the person pressed a button to
+ * remove what the database holds, and that request stands whether or not the
+ * tab is still saving its own work.
  */
-export function commit(write: Write, replaces?: string): Promise<void> {
-  if (!available() || !storageMode().durable) return open;
+export function commit(
+  write: Write,
+  replaces?: string,
+  { inMemoryToo = false }: { readonly inMemoryToo?: boolean } = {},
+): Promise<void> {
+  if (!available() || (!inMemoryToo && !storageMode().durable)) return open;
   if (!allowed()) {
     refuse();
     return open;
@@ -175,9 +184,21 @@ export async function readAll(name: StoreName): Promise<readonly StoredRecord[]>
   }
 }
 
-/** Empties every store. What "Delete saved documents" and signing out call. */
+/**
+ * Empties every store. What "Delete saved documents" and signing out call.
+ *
+ * It goes through in the memory-of-this-tab state as well. That state is
+ * entered when the database refuses a write - the quota - or when the stored
+ * session could not be read back, and in both the stored records are still
+ * there: emptying them is what frees the room, and what removes a session this
+ * build cannot read.
+ */
 export function clearStores(): Promise<void> {
-  return commit((stores) => {
-    for (const name of storeNames) stores[name].clear();
-  });
+  return commit(
+    (stores) => {
+      for (const name of storeNames) stores[name].clear();
+    },
+    undefined,
+    { inMemoryToo: true },
+  );
 }

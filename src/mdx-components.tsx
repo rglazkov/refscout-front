@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import { Badges, Callout, Card } from "@/components/marketing/content-blocks";
 import { cn } from "@/lib/cn";
+import { defaultLocale } from "@/lib/i18n";
+import { localizedPath } from "@/lib/seo";
 
 /**
  * The markup of long texts. The only place that decides how a page looks: the
@@ -115,7 +117,15 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       <td className={cn("border-b border-border py-2 align-top", className)} {...props} />
     ),
     a: ({ href, className, ...props }: Props<"a">) => {
-      const target = href ?? "#";
+      // A content file names a page by its address in the default language,
+      // `/features/cite/`; `localizedPath` turns that into the address the
+      // site actually serves it from, which in development carries the prefix.
+      const target =
+        href === undefined
+          ? "#"
+          : href.startsWith("/")
+            ? localizedPath(href, defaultLocale)
+            : href;
       const classes = cn("text-primary underline-offset-4 hover:underline", className);
       // External links go out as a plain <a> with rel; internal ones use next/link.
       return /^https?:/.test(target) ? (

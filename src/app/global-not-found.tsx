@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 
 import { NotFoundPage } from "@/components/pages/not-found";
 import { SiteFooter } from "@/components/shell/site-footer";
 import { Logo, site } from "@/lib/brand";
-import { defaultLocale } from "@/lib/i18n";
+import { defaultLocale, shellMessages } from "@/lib/i18n";
+import { localizedPath } from "@/lib/seo";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
@@ -35,6 +37,7 @@ import "./globals.css";
 export default async function GlobalNotFound() {
   setRequestLocale(defaultLocale);
   const t = await getTranslations("nav");
+  const messages = await getMessages();
 
   return (
     <html lang={defaultLocale} suppressHydrationWarning>
@@ -44,26 +47,32 @@ export default async function GlobalNotFound() {
         <script>{THEME_INIT_SCRIPT}</script>
       </head>
       <body className="min-h-svh">
-        <div className="flex min-h-svh flex-col">
-          <header className="border-b border-border">
-            <div className="mx-auto flex h-14 max-w-6xl items-center px-3 nav:px-4">
-              <Link
-                href="/"
-                className="flex items-center gap-2 font-semibold tracking-tight"
-              >
-                <Logo
-                  className="size-5 text-primary"
-                  title={t("home", { brandName: site.name })}
-                />
-                <span>{site.name}</span>
-              </Link>
-            </div>
-          </header>
-          <main className="flex-1">
-            <NotFoundPage locale={defaultLocale} />
-          </main>
-          <SiteFooter locale={defaultLocale} />
-        </div>
+        {/* The footer carries "Report a problem" and the switch for the
+            automatic reports, and both are client components that read their
+            words from this provider. It hands over the shell's words, the same
+            set every other page is served with. */}
+        <NextIntlClientProvider locale={defaultLocale} messages={shellMessages(messages)}>
+          <div className="flex min-h-svh flex-col">
+            <header className="border-b border-border">
+              <div className="mx-auto flex h-14 max-w-6xl items-center px-3 nav:px-4">
+                <Link
+                  href={localizedPath("/", defaultLocale)}
+                  className="flex items-center gap-2 font-semibold tracking-tight"
+                >
+                  <Logo
+                    className="size-5 text-primary"
+                    title={t("home", { brandName: site.name })}
+                  />
+                  <span>{site.name}</span>
+                </Link>
+              </div>
+            </header>
+            <main className="flex-1">
+              <NotFoundPage locale={defaultLocale} />
+            </main>
+            <SiteFooter locale={defaultLocale} />
+          </div>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -48,6 +48,8 @@ export function bodyKey(docId: string, module: string): string {
 
 /** The single records of the session and of the results. */
 export const JOB_KEY = "job";
+/** The jobs before the latest one whose findings share the same results. */
+export const EARLIER_KEY = "earlier";
 export const INTENT_KEY = "intent";
 export const DRAFT_KEY = "draft";
 export const VIEW_KEY = "view";

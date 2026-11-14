@@ -74,6 +74,7 @@
     "failedTitle": "The check did not run",
     "failedBody": "Job {jobId} failed. Your documents are untouched — go back and try again.",
     "backToBuffer": "Back to the buffer",
+    "backToResults": "Back to the results",
     "dropzone": {
       "title": "Drop your documents here",
       "titleMore": "Drop more documents here",
@@ -419,7 +420,8 @@
     "readyNow": "Ready now",
     "acrossDocuments": "Across all documents",
     "scoresNotAveraged": "Scores are never averaged — only these counters are added up.",
-    "finishedNote": "This check is finished. You can still edit and download the text. To check again, start a new check from the drop zone; the new check starts with an empty buffer.",
+    "finishedNote": "This check is finished. You can still edit and download the text. A new check starts over with an empty buffer.",
+    "finishedNoteAdd": "This check is finished. You can still edit and download the text, and add the checks that have not run — their findings join these. A new check starts over with an empty buffer.",
     "characters": "{chars} characters",
     "openInEditor": "Open in the editor",
     "editedAfterRun": "This text has been edited since the check ran. The lines, pages and quotes below point at the text as it was sent, so they may no longer match. Download gives back the text as it stands now.",
@@ -448,6 +450,16 @@
       "copyBibtex": "Copy BibTeX",
       "exportLabel": "The sources you accepted are assembled into a .bib you can read and save in the editor.",
       "exportAction": "{count, plural, =0 {Accept a source first} one {Open # accepted source} other {Open # accepted sources}}"
+    },
+    "add": {
+      "open": "Add checks",
+      "title": "Add checks to these results",
+      "lead": "The checks you choose read the texts as they were sent. Their findings join the results already here.",
+      "checksFor": "Checks to add to {name}",
+      "edited": "This text has been edited since it was checked. To check the text as it stands now, start a new check.",
+      "nothingChosen": "Choose at least one check to run.",
+      "cancel": "Cancel",
+      "run": "{count, plural, =0 {Run the checks} one {Run # check} other {Run # checks}}"
     },
     "newCheck": "New check",
     "newCheckTitle": "Start a new check",

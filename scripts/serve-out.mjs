@@ -60,14 +60,22 @@ createServer((request, response) => {
   if (!existsSync(file) && existsSync(`${file}.html`)) file = `${file}.html`;
 
   const known = headersByRoute();
-  const headers = known.get(route) ?? known.get("/") ?? {};
+  /*
+   * A missing file is answered with `404.html`, so it carries the headers
+   * generated for `404.html`: the policy's script hashes are those of the
+   * document actually served, and the 404 page hydrates under its own policy
+   * the way every other page does under its own.
+   */
+  const missing = !existsSync(file);
+  const headers =
+    (missing ? known.get("/404.html") : known.get(route)) ?? known.get("/") ?? {};
   for (const [name, value] of Object.entries(headers)) {
     // HSTS over http is meaningless and gets in the way of a local run.
     if (name === "Strict-Transport-Security") continue;
     response.setHeader(name, value);
   }
 
-  if (!existsSync(file)) {
+  if (missing) {
     response.statusCode = 404;
     response.setHeader("Content-Type", TYPES[".html"]);
     createReadStream(join(OUT, "404.html")).pipe(response);

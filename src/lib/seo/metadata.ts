@@ -68,9 +68,25 @@ const openGraphLocales: Record<Locale, string> = { en: "en_US" };
 const attribution =
   site.social.x === "" ? {} : { site: site.social.x, creator: site.social.x };
 
+/**
+ * Whether the default language is linked to under its own prefix.
+ *
+ * In a build it is not: the default language lives at the root, which the step
+ * after the build creates by copying its folder there. `next dev` runs no such
+ * step and serves the default language only under its prefix, so in
+ * development every link names the prefixed address directly. A link to an
+ * unprefixed address would reach the page only through the redirect that
+ * `next.config.ts` adds for development, and in Firefox a client-side
+ * navigation through a redirect fails while the mock API's service worker is
+ * active.
+ */
+const defaultLocaleIsPrefixed = process.env.NODE_ENV === "development";
+
 /** The path of a page in a given language: the default language lives at the root. */
 export function localizedPath(path: string, locale: Locale): string {
-  return locale === defaultLocale ? path : `/${String(locale)}${path}`;
+  return locale === defaultLocale && !defaultLocaleIsPrefixed
+    ? path
+    : `/${String(locale)}${path}`;
 }
 
 /**
@@ -86,7 +102,7 @@ export function localizedPath(path: string, locale: Locale): string {
  */
 export function unlocalizedPath(pathname: string): string {
   for (const locale of locales) {
-    if (locale === defaultLocale) continue;
+    if (locale === defaultLocale && !defaultLocaleIsPrefixed) continue;
     const prefix = `/${String(locale)}`;
     if (pathname === prefix) return "/";
     if (pathname.startsWith(`${prefix}/`)) return pathname.slice(prefix.length);
